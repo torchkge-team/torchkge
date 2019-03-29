@@ -9,7 +9,6 @@ Welcome to TorchKGE's documentation!
    installation
    usage
    reference
-   modules
    contributing
    authors
    history
