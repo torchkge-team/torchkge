@@ -18,7 +18,7 @@ setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
 setup(
-    author="Armand Boschin",
+    author="TorchKG Developers",
     author_email='armand.boschin@telecom-paristech.fr',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
