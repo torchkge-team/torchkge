@@ -8,6 +8,7 @@ Welcome to TorchKGE's documentation!
    readme
    installation
    usage
+   reference
    modules
    contributing
    authors
