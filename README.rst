@@ -14,8 +14,8 @@ TorchKGE
         :alt: Documentation Status
 
 
-.. image:: https://pyup.io/repos/github/torchkge/torchkge/shield.svg
-     :target: https://pyup.io/repos/github/torchkge/torchkge/
+.. image:: https://pyup.io/repos/github/torchkge/TorchKGE/shield.svg
+     :target: https://pyup.io/repos/github/torchkge/TorchKGE/
      :alt: Updates
 
 
