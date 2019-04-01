@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+armand.boschin@telecom-paristech.fr
+"""
+
 from torch import Tensor, randint, bernoulli
 from torch.utils.data import Dataset
 

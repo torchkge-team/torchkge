@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+armand.boschin@telecom-paristech.fr
+"""
+
 from torch import Tensor, matmul, eye
 from torch.nn import Module, Parameter, Embedding
 from torch.nn.functional import normalize

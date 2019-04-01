@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+armand.boschin@telecom-paristech.fr
+"""
+
+
 def l1_dissimilarity(a, b):
     """
     :param a: tensor of shape (n_sample, dim)

@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+armand.boschin@telecom-paristech.fr
+"""
+
 from torch import Tensor, cat
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated

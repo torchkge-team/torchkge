@@ -2,17 +2,19 @@
 Reference
 =========
 
-A Nice Section
---------------
+Models
+------
 
-.. autoclass:: torchkge.MyClass1
+.. autoclass:: torchkge.models
     :members:
 
-Another Nice Section
---------------------
+Evaluation
+----------
 
-.. autoclass:: torchkge.MyClass2
+.. autoclass:: torchkge.evaluations
     :members:
 
-.. autoclass:: torchkge.MyClass3
-    :members:
+Data
+----
+
+.. autoclass:: torchkge.knowledge_graph

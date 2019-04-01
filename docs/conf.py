@@ -48,7 +48,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'TorchKGE'
-copyright = u"2019, Armand Boschin"
+copyright = u"2019, TorchKGE developers"
 author = u"Armand Boschin"
 
 # The version info for the project you're documenting, acts as replacement

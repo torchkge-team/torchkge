@@ -6,6 +6,7 @@ __author__ = """Armand Boschin"""
 __email__ = 'armand.boschin@telecom-paristech.fr'
 __version__ = '0.1.0'
 
+
 from .evaluation.dissimilarities import l1_dissimilarity
 from .evaluation.dissimilarities import l2_dissimilarity
 from .evaluation.linkprediction import LinkPredictionEvaluator

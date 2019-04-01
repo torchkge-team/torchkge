@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+armand.boschin@telecom-paristech.fr
+"""
+
 from torch.nn import Module
 import torch.nn.functional as F
 
