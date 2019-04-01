@@ -11,6 +11,35 @@ from torch.nn.init import xavier_uniform_
 
 
 class TransEModel(Module):
+    """
+
+    Parameters
+    ----------
+    config : Config object
+        Contains all configuration parameters.
+    dissimilarity : function
+        Used to compute dissimilarities.
+
+    Attributes
+    ----------
+    ent_emb_dim : int
+        Dimension of the embedding of entities
+    rel_emb_dim : int
+        Dimension of the embedding of relations
+    number_entities : int
+        Number of entities in the current data set.
+    norm_type : int
+        1 or 2 indicates the type of the norm to be used when normalizing.
+    dissimilarity : function
+        Used to compute dissimilarities.
+    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
+        Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
+         normalized.
+
+    """
 
     def __init__(self, config, dissimilarity):
         super().__init__()
@@ -39,14 +68,27 @@ class TransEModel(Module):
                                                          p=self.norm_type, dim=1)
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """
-        :param heads: long tensor (size=(batch_size))
-        :param tails: long tensor (size=(batch_size))
-        :param negative_heads: long tensor (size=(batch_size))
-        :param negative_tails: long tensor (size=(batch_size))
-        :param relations: long tensor (size=(batch_size))
-        :return: two float tensors (size=(batch_size, rel_emb_dim) containing d(h+r, t) for golden
-        triplet and each negative triplet.
+        """Forward pass on the current batch.
+
+        Parameters
+        ----------
+        heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled heads.
+        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled tails.
+        relations : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for golden triplets.
+        negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for negatively sampled triplets.
         """
         # recover and normalize entities embeddings
         heads_embeddings = normalize(self.entity_embeddings(heads), p=self.norm_type, dim=1)
@@ -68,8 +110,7 @@ class TransEModel(Module):
         return golden_triplets, negative_triplets
 
     def normalize_parameters(self):
-        """
-        Normalize the parameters of the model using the model-specified norm.
+        """Normalize the parameters of the model using the model-specified norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
@@ -86,15 +127,27 @@ class TransHModel(TransEModel):
         self.normal_vectors.data = normalize(self.normal_vectors.data, p=2, dim=1)
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """
-        :param heads: long tensor (size=(batch_size))
-        :param tails: long tensor (size=(batch_size))
-        :param negative_heads: long tensor (size=(batch_size))
-        :param negative_tails: long tensor (size=(batch_size))
-        :param relations: long tensor (size=(batch_size))
-        :return: two float tensors (size=(batch_size, rel_emb_dim) containing d(h+r, t) for golden
-        triplet and each negative triplet where h and t are projected on the hyperplane relative to
-        the relation r.
+        """Forward pass on the current batch.
+
+        Parameters
+        ----------
+        heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled heads.
+        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled tails.
+        relations : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for golden triplets.
+        negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for negatively sampled triplets.
         """
         # recover relations embeddings and normal projection vectors
         relations_embeddings = self.relation_embeddings(relations)
@@ -115,13 +168,20 @@ class TransHModel(TransEModel):
         return golden_triplets, negative_triplets
 
     def recover_and_project(self, entities, normal_vectors):
-        """
+        """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
+        provided normal vectors.
 
-        :param entities: long tensor (size=(batch_size)) containing indices of entities
-        :param normal_vectors: float tensor (size=(batch_size, ent_emb_dim)) containing the normal
-        vectors relative to the current relations.
-        :return: the projection of the embedded entities on the hyperplanes defined by the provided
-        normal vectors.
+        Parameters
+        ----------
+        entities : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of entities
+        normal_vectors : torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+            Normal vectors relative to the current relations.
+        Returns
+        -------
+        projections : torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+            Projection of the embedded entities on the hyperplanes defined by the provided normal\
+            vectors.
         """
         # recover and normalize embeddings
         ent_emb = normalize(self.entity_embeddings(entities), p=self.norm_type, dim=1)
@@ -132,8 +192,7 @@ class TransHModel(TransEModel):
         return ent_emb - normal_component * normal_vectors
 
     def normalize_parameters(self):
-        """
-        Normalize the embeddings of the entities using the model-specified norm and the normal
+        """Normalize the embeddings of the entities using the model-specified norm and the normal \
         vectors using the L2 norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
@@ -151,15 +210,27 @@ class TransRModel(TransEModel):
                                                                     self.ent_emb_dim)))
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """
-        :param heads: long tensor (size=(batch_size))
-        :param tails: long tensor (size=(batch_size))
-        :param negative_heads: long tensor (size=(batch_size))
-        :param negative_tails: long tensor (size=(batch_size))
-        :param relations: long tensor (size=(batch_size))
-        :return: two float tensors (size=(batch_size, rel_emb_dim) containing d(h+r, t) for golden
-        triplet and each negative triplet where h and t are projected in the subspace relative to
-        the relation r.
+        """Forward pass on the current batch.
+
+        Parameters
+        ----------
+        heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled heads.
+        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled tails.
+        relations : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for golden triplets.
+        negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for negatively sampled triplets.
         """
         # recover relations embeddings and normal projection matrices
         relations_embeddings = normalize(self.relation_embeddings(relations), p=2, dim=1)
@@ -179,12 +250,19 @@ class TransRModel(TransEModel):
         return golden_triplets, negative_triplets
 
     def recover_and_project(self, entities, projection_matrices):
-        """
-        :param entities: long tensor (size=(batch_size)) containing indices of entities
-        :param projection_matrices: float tensor (size=(batch_size, rel_emb_dim, ent_emb_dim))
-        containing the projection matrices for the current relations.
-        :return: float tensor (size=(batch_size, rel_emb_dim) containing the projection of the
-        entities into relation-specific subspaces.
+        """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
+        provided projection matrices.
+
+        Parameters
+        ----------
+        entities : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of entities
+        projection_matrices : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim, ent_emb_dim)
+            Projection matrices for the current relations.
+        Returns
+        -------
+        projections : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Projection of the entities into relation-specific subspaces.
         """
         b_size = len(entities)
         # recover and normalize embeddings
@@ -197,8 +275,7 @@ class TransRModel(TransEModel):
         return projection.view(len(entities), self.rel_emb_dim)
 
     def normalize_parameters(self):
-        """
-        Normalize the parameters of the model using only L2 norm.
+        """Normalize the parameters of the model using only L2 norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=2, dim=1)
@@ -220,15 +297,27 @@ class TransDModel(TransEModel):
         self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """
-        :param heads: long tensor (size=(batch_size))
-        :param tails: long tensor (size=(batch_size))
-        :param negative_heads: long tensor (size=(batch_size))
-        :param negative_tails: long tensor (size=(batch_size))
-        :param relations: long tensor (size=(batch_size))
-        :return: two float tensors (size=(batch_size, rel_emb_dim) containing d(h+r, t) for golden
-        triplet and each negative triplet where h and t are projected using the procedure presented
-        in the original paper.
+        """Forward pass on the current batch.
+
+        Parameters
+        ----------
+        heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled heads.
+        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled tails.
+        relations : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for golden triplets.
+        negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Dissimilarities between h+r and t for negatively sampled triplets.
         """
         # recover relations projection vectors and relations embeddings
         rel_proj = normalize(self.rel_proj_vects[relations], p=2, dim=1)
@@ -249,12 +338,19 @@ class TransDModel(TransEModel):
         return golden_triplets, negative_triplets
 
     def recover_and_project(self, entities, rel_proj):
-        """
-        :param entities: long tensor (size=(batch_size)) containing indices of entities
-        :param rel_proj: float tensor (size=(batch_size, rel_emb_dim)) the projection vectors of the
-        current relations
-        :return: float tensor (size=(batch_size, rel_emb_dim) containing the projection of the
-        entities into relation-specific subspaces.
+        """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
+        provided normal vectors.
+
+        Parameters
+        ----------
+        entities : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of entities
+        rel_proj : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Projection vectors for the current relations.
+        Returns
+        -------
+        projections : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+            Projection of the entities into relation-specific subspaces.
         """
         b_size = len(entities)
 
@@ -274,8 +370,7 @@ class TransDModel(TransEModel):
         return projection.view((b_size, self.rel_emb_dim))
 
     def normalize_parameters(self):
-        """
-        Normalize the parameters of the model using only L2 norm.
+        """Normalize the parameters of the model using only L2 norm.
         """
         self.entity_embeddings = normalize(self.entity_embeddings, p=2, dim=1)
         self.relation_embeddings = normalize(self.relation_embeddings, p=2, dim=1)

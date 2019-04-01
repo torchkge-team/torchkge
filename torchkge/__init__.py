@@ -17,7 +17,7 @@ from .models.translation_models import TransHModel
 from .models.translation_models import TransRModel
 from .models.translation_models import TransDModel
 
-from .data.knowledge_graph import KnowledgeGraph
+from .data.KnowledgeGraph import KnowledgeGraph
 
 from .utils import Config
 from .exceptions import NotYetEvaluated

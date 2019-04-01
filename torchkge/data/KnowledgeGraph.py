@@ -9,11 +9,40 @@ from torch.utils.data import Dataset
 
 
 class KnowledgeGraph(Dataset):
+    """Knowledge graph representation.
+
+        Parameters
+        ----------
+        df : pandas Dataframe
+            Data frame containing three columns [from, to, rel].
+        ent2ix : dict, optional
+            Dictionary mapping entity labels to their integer key.
+        rel2ix : dict, optional
+            Dictionary mapping relation labels to their integer key.
+
+        Attributes
+        ----------
+        ent2ix : dict
+            Dictionary mapping entity labels to their integer key.
+        rel2ix : dict
+            Dictionary mapping relation labels to their integer key.
+        n_ent : int
+            Number of distinct entities in the data set.
+        n_rel : int
+            Number of distinct entities in the data set.
+        n_sample : int
+            Number of samples in the data set. A sample is a fact : a triplet (h, r, l).
+        head_idx : torch tensor, dtype = long, shape = (n_sample)
+            List of the int key of heads for each sample (fact).
+        tail_idx : torch tensor, dtype = long, shape = (n_sample)
+            List of the int key of tails for each sample (facts).
+        relations : torch tensor, dtype = long, shape = (n_sample)
+            List of the int key of relations for each sample (facts).
+        use_cuda : bool
+            Indicates if current object has been moved to cuda.
+    """
+
     def __init__(self, df, ent2ix=None, rel2ix=None):
-        """
-        :param df: Pandas data frame containing three columns from, to and rel
-        :return: KnowledgeGraph object
-        """
         if ent2ix is None:
             tmp = list(set(df['from'].unique()).union(set(df['to'].unique())))
             self.ent2ix = {ent: i for i, ent in enumerate(tmp)}
@@ -45,8 +74,7 @@ class KnowledgeGraph(Dataset):
         return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
 
     def cuda(self):
-        """
-        Move the KnowledgeGraph object to cuda
+        """Move the KnowledgeGraph object to cuda
         """
         self.use_cuda = True
         self.head_idx = self.head_idx.cuda()
@@ -54,8 +82,23 @@ class KnowledgeGraph(Dataset):
         self.relations = self.relations.cuda()
 
     def corrupt_batch(self, heads, tails):
-        """
-        For each golden triplet, produce a corrupted one not different from any other golden triplet
+        """For each golden triplet, produce a corrupted one not different from any other golden triplet.
+
+        Parameters
+        ----------
+        heads : torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of heads of the relations in the current batch.
+        tails : torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of tails of the relations in the current batch.
+
+        Returns
+        -------
+        neg_heads : torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of negatively sampled heads of the relations \
+            in the current batch.
+        neg_tails : torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of negatively sampled tails of the relations \
+            in the current batch.
         """
         batch_size = heads.shape[0]
 

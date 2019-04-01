@@ -11,6 +11,45 @@ from torchkge.utils import compute_weight, get_rank
 
 
 class LinkPredictionEvaluator(object):
+    """Evaluate performance of given embedding using link prediction method. TODO : add reference.
+
+        Parameters
+        ----------
+        ent_emb : torch tensor, dtype = Float, shape = (n_entities, ent_emb_dim)
+            Embeddings of the entities.
+        rel_emb : torch tensor, dtype = Float, shape = (n_relations, ent_emb_dim)
+            Embeddings of the relations.
+        dissimilarity : function
+            Function used to compute the dissimilarity between head + relation and tail.
+        knowledge_graph : torchkge.data.KnowledgeGraph.KnowledgeGraph
+            Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.KnowledgeGraph
+
+        Attributes
+        ----------
+        ent_embed : torch tensor, dtype = Float, shape = (n_entities, ent_emb_dim)
+            Embeddings of the entities.
+        rel_embed : torch tensor, dtype = Float, shape = (n_relations, ent_emb_dim)
+            Embeddings of the relations.
+        dissimilarity : function
+            Function used to compute the dissimilarity between head + relation and tail.
+        kg : torchkge.data.KnowledgeGraph.KnowledgeGraph
+            Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.KnowledgeGraph
+        top_head_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
+            List of the top k_max most similar tails for each (head, rel) pair.
+        top_tail_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
+            List of the top k_max most similar heads for each (rel, tail) pair.
+        rank_true_heads : torch tensor, dtype = TODO, shape = TODO
+            TODO
+        rank_true_tails : torch tensor, dtype = TODO, shape = TODO
+            TODO
+        evaluated : bool
+            Indicates if the method LinkPredictionEvaluator.evaluate() has been called on\
+            current object
+        use_cuda : bool
+            Indicates if the current LinkPredictionEvaluator instance has been moved to cuda.
+        k_max : bool, default = 10
+            Max value to be used to compute the hit@k score.
+    """
     def __init__(self, ent_emb, rel_emb, dissimilarity, knowledge_graph):
         self.ent_embed = ent_emb
         self.rel_embed = rel_emb
@@ -27,8 +66,7 @@ class LinkPredictionEvaluator(object):
         self.k_max = 10
 
     def cuda(self):
-        """
-        Move current object to CUDA
+        """Move current evaluator object to CUDA
         """
         self.use_cuda = True
         self.kg.cuda()
@@ -41,17 +79,29 @@ class LinkPredictionEvaluator(object):
 
     def evaluate_pair(self, entities, relations, true, heads=1):
         """
-        :param entities: float tensor of shape (batch_size, ent_emb_dim) containing current
-        embeddings of entities
-        :param relations: float tensor of shape (batch_size, rel_emb_dim) containing current
-        embeddings of relations
-        :param true: int tensor of shape (batch_size)
-        :param heads: 1 ou -1 (must be 1 if entities are heads and -1 if entities are tails).
-        We test dissimilarity between heads * entities + relations and heads * targets.
-        :return: rank_true_entities : int tensor of shape (batch_size) containing the rank of the
-        true entities when ranking any entities based on computation of d(hear+relation, tail).
-        sorted_candidates : int tensor of shape (batch_size, self.k_max) containing the k_max best
-        entities ranked by decreasing dissimilarity d(hear+relation, tail).
+
+        Parameters
+        ----------
+        entities : float tensor
+            Tensor of shape (batch_size, ent_emb_dim) containing current embeddings of entities
+        relations : float tensor
+            Tensor of shape (batch_size, rel_emb_dim) containing current embeddings of relations
+        true : integer tensor
+            Tensor of shape (batch_size) containing the true entity for each sample.
+        heads : integer
+            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
+            We test dissimilarity between heads * entities + relations and heads * targets.
+
+
+        Returns
+        -------
+        rank_true_entities : integer tensor
+            Tensor of shape (batch_size) containing the rank of the true entities when ranking any\
+            entities based on computation of d(hear+relation, tail).
+        sorted_candidates : integer tensor
+            Tensor of shape (batch_size, self.k_max) containing the k_max best entities ranked by\
+            decreasing dissimilarity d(hear+relation, tail).
+
         """
         current_batch_size, embedding_dimension = entities.shape
 
@@ -73,16 +123,14 @@ class LinkPredictionEvaluator(object):
 
     def evaluate(self, batch_size, k_max):
         """
-        head_dissimilarities (resp. tail_dissimilarities) is the list of the top k_max most
-        similar tails (resp. heads) for each (head, rel) pair (resp. (rel, tail) pair).
 
-        Example : self.head_dissimilarities[i] is a list of entities in increasing order of
-        dissimilarity such that d(head + rel, self.head_dissimilarities[i]) is the smallest
-        possible values for any entity playing the role of tails.
-
-        :param batch_size:
-        :param k_max:
-        :return:
+        Parameters
+        ----------
+        batch_size : integer
+            Size of the current batch.
+        k_max : integer
+            Maximal k value we plan to use for Hit@k. This is used to truncate tensor so that it \
+            fits in memory.
         """
         dataloader = DataLoader(self.kg, batch_size=batch_size)
         self.k_max = k_max
@@ -112,8 +160,13 @@ class LinkPredictionEvaluator(object):
 
     def mean_rank(self):
         """
-        :return: the mean rank of the true entity when replacing alternatively head and tail in
+
+        Returns
+        -------
+        mean_rank : float
+            The mean rank of the true entity when replacing alternatively head and tail in\
         any fact of the dataset.
+
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
@@ -121,10 +174,18 @@ class LinkPredictionEvaluator(object):
 
     def hit_at_k(self, k=10):
         """
-        :param k: Hit@k is the number of entities that show up in the top k that give facts present
-        in the dataset.
-        :return: Average of hit@k for head and tail replacement. Computation is done in a vectorized
-        way.
+
+        Parameters
+        ----------
+        k : integer
+            Hit@k is the number of entities that show up in the top k that give facts present\
+            in the dataset.
+
+        Returns
+        -------
+        avg_hitatk : float
+            Average of hit@k for head and tail replacement. Computation is done in a \
+            vectorized way.
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')

@@ -9,9 +9,15 @@ from torch import bincount
 
 def compute_weight(mask, k):
     """
-    :param mask:
-    :param k:
-    :return:
+
+    Parameters
+    ----------
+    mask
+    k
+
+    Returns
+    -------
+
     """
     weight = bincount(mask)[mask]
     weight[weight > k] = k
@@ -20,9 +26,16 @@ def compute_weight(mask, k):
 
 def get_rank(data, true):
     """
-    :param data: float tensor of shape (n_sample, dimensions)
-    :param true: integer tensor of shape (n_sample,)
-    :return: integer tensor of shape (n_sample,) such that data[return[i]] = true[i]
+
+    Parameters
+    ----------
+    data : torch tensor, dtype = float, shape = (n_sample, dimensions)
+    true : torch tensor, dtype = int, shape = (n_sample)
+
+    Returns
+    -------
+    ranks : torch tensor, dtype = int, shape = (n_sample)
+        data[ranks[i]] = true[i]
     """
     return (data == true.view((-1, 1))).argmax(dim=1)
 
