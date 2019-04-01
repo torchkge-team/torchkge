@@ -6,6 +6,17 @@ __author__ = """Armand Boschin"""
 __email__ = 'armand.boschin@telecom-paristech.fr'
 __version__ = '0.1.0'
 
-from .SubPackage1.MyClass1 import MyClass1
-from .SubPackage2.MyClass2 import MyClass2
-from .SubPackage2.MyClass3 import MyClass3
+from .evaluation.dissimilarities import l1_dissimilarity
+from .evaluation.dissimilarities import l2_dissimilarity
+from .evaluation.linkprediction import LinkPredictionEvaluator
+
+from .models.losses import MarginLoss
+from .models.translation_models import TransEModel
+from .models.translation_models import TransHModel
+from .models.translation_models import TransRModel
+from .models.translation_models import TransDModel
+
+from .data.knowledge_graph import KnowledgeGraph
+
+from .utils import Config
+from .exceptions import NotYetEvaluated
