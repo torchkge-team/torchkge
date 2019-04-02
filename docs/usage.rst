@@ -9,14 +9,18 @@ To use TorchKGE in a project::
     from torch.utils.data import DataLoader
 
     # import data
-    df_train = pd.read_csv('../datasets/FB15K/train2id.txt', sep=' ', header=0, names=['from', 'to', 'rel'])
-    df_test = pd.read_csv('../datasets/FB15K/test2id.txt', sep=' ', header=0, names=['from', 'to', 'rel'])
+    df_train = pd.read_csv('../datasets/FB15K/train2id.txt',
+                           sep=' ', header=0, names=['from', 'to', 'rel'])
+    df_test = pd.read_csv('../datasets/FB15K/test2id.txt',
+                          sep=' ', header=0, names=['from', 'to', 'rel'])
     kg_train = KnowledgeGraph(df_train)
     kg_test = KnowledgeGraph(df_test, ent2ix=kg_train.ent2ix, rel2ix=kg_train.rel2ix)
 
     # define parameters of problem
     lr, nb_epochs, batch_size, margin = 0.01, 50, 500, 1
-    config = Config(ent_emb_dim=50, rel_emb_dim=50, n_ent=kg_train.n_ent, n_rel=kg_train.n_rel, norm_type=2)
+    config = Config(ent_emb_dim=50, rel_emb_dim=50,
+                    n_ent=kg_train.n_ent, n_rel=kg_train.n_rel,
+                    norm_type=2)
 
     # define model and optimizer
     model, criterion = TransHModel(config, dissimilarity=l2_dissimilarity), MarginLoss(margin)
@@ -62,7 +66,9 @@ To use TorchKGE in a project::
         model.normalize_parameters()
 
     # print train performance
-    evaluator = LinkPredictionEvaluator(model.entity_embeddings, model.relation_embeddings, l2_dissimilarity, kg_train)
+    evaluator = LinkPredictionEvaluator(model.entity_embeddings,
+                                        model.relation_embeddings,
+                                        l2_dissimilarity, kg_train)
     if use_cuda:
         evaluator.cuda()
     evaluator.evaluate(batch_size=100, k_max=50)
@@ -70,7 +76,9 @@ To use TorchKGE in a project::
     print('Mean Rank : {}'.format(evaluator.mean_rank()))
 
     # print test performance
-    evaluator = LinkPredictionEvaluator(model.entity_embeddings, model.relation_embeddings, l2_dissimilarity, kg_test)
+    evaluator = LinkPredictionEvaluator(model.entity_embeddings,
+                                        model.relation_embeddings,
+                                        l2_dissimilarity, kg_test)
     if use_cuda:
         evaluator.cuda()
     evaluator.evaluate(batch_size=100, k_max=50)
