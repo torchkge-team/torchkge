@@ -40,13 +40,13 @@ To use TorchKGE in a project::
         model.cuda()
         criterion.cuda()
         kg_train.cuda()
-     else:
+    else:
      use_cuda = False
 
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False)
     for epoch in range(nb_epochs):
 
-        running_loss = 0.0
+        current_loss = 0.0
 
         for i, batch in enumerate(dataloader):
             # get the input
@@ -70,7 +70,7 @@ To use TorchKGE in a project::
 
 
             print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss))
-            running_loss = 0.0
+            current_loss = 0.0
         model.normalize_parameters()
 
     # print train performance
