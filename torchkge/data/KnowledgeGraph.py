@@ -41,13 +41,6 @@ class KnowledgeGraph(Dataset):
         use_cuda : bool
             Indicates if current object has been moved to cuda.
 
-        Methods
-        -------
-        cuda
-        __len__
-        __getitem__
-        corrupt_batch
-
     """
 
     def __init__(self, df, ent2ix=None, rel2ix=None):

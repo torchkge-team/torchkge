@@ -41,11 +41,6 @@ class TransEModel(Module):
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
 
-    Methods
-    -------
-    forward
-    normalize_parameters
-
     """
 
     def __init__(self, config, dissimilarity):
@@ -155,12 +150,6 @@ class TransHModel(TransEModel):
     relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
-
-    Methods
-    -------
-    forward
-    normalize_parameters
-    recover_and_project
 
     """
     def __init__(self, config, dissimilarity):
@@ -282,12 +271,6 @@ class TransRModel(TransEModel):
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
 
-    Methods
-    -------
-    forward
-    normalize_parameters
-    recover_and_project
-
         """
     def __init__(self, config, dissimilarity):
         super().__init__(config, dissimilarity)
@@ -406,12 +389,6 @@ class TransDModel(TransEModel):
     relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
-
-    Methods
-    -------
-    forward
-    normalize_parameters
-    recover_and_project
 
     """
     def __init__(self, config, dissimilarity):
