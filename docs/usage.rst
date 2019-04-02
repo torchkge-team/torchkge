@@ -4,9 +4,17 @@ Usage
 
 To use TorchKGE in a project::
 
-    import torchkge
+    import pandas as pd
     from torch import cuda
     from torch.utils.data import DataLoader
+    from torch.optim import SGD
+
+    from torchkge.data.KnowledgeGraph import KnowledgeGraph
+    from torchkge.utils import Config
+    from torchkge.models.TranslationModels import TransEModel
+    from torchkge.models.Losses import MarginLoss
+    from torchkge.evaluation.Dissimilarities import l2_dissimilarity
+    from torchkge.evaluation.LinkPrediction import LinkPredictionEvaluator
 
     # import data
     df_train = pd.read_csv('../datasets/FB15K/train2id.txt',
@@ -23,8 +31,8 @@ To use TorchKGE in a project::
                     norm_type=2)
 
     # define model and optimizer
-    model, criterion = TransHModel(config, dissimilarity=l2_dissimilarity), MarginLoss(margin)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    model, criterion = TransEModel(config, dissimilarity=l2_dissimilarity), MarginLoss(margin)
+    optimizer = SGD(model.parameters(), lr=lr)
 
     # move to CUDA
     if cuda.is_available():
