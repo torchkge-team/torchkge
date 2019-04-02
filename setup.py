@@ -18,7 +18,7 @@ setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
 setup(
-    author="TorchKG Developers",
+    author="TorchKGE Developers",
     author_email='armand.boschin@telecom-paristech.fr',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -45,7 +45,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/torchkge/torchkge',
+    url='https://github.com/torchkge-team/torchkge',
     version='0.1.3',
     zip_safe=False,
 )
