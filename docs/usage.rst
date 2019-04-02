@@ -41,7 +41,7 @@ To use TorchKGE in a project::
         criterion.cuda()
         kg_train.cuda()
     else:
-     use_cuda = False
+        use_cuda = False
 
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False)
     for epoch in range(nb_epochs):
