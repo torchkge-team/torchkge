@@ -11,10 +11,11 @@ from torch.nn.init import xavier_uniform_
 
 
 class TransEModel(Module):
-    """
+    """Implement torch.nn.Module interface.
 
     Parameters
     ----------
+
     config : Config object
         Contains all configuration parameters.
     dissimilarity : function
@@ -22,6 +23,7 @@ class TransEModel(Module):
 
     Attributes
     ----------
+
     ent_emb_dim : int
         Dimension of the embedding of entities
     rel_emb_dim : int
@@ -38,6 +40,11 @@ class TransEModel(Module):
     relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
+
+    Methods
+    -------
+    forward
+    normalize_parameters
 
     """
 
@@ -72,6 +79,7 @@ class TransEModel(Module):
 
         Parameters
         ----------
+
         heads : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
         tails : torch tensor, dtype = long, shape = (batch_size)
@@ -85,6 +93,7 @@ class TransEModel(Module):
 
         Returns
         -------
+
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
@@ -117,6 +126,43 @@ class TransEModel(Module):
 
 
 class TransHModel(TransEModel):
+    """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
+
+    Parameters
+    ----------
+
+    config : Config object
+        Contains all configuration parameters.
+    dissimilarity : function
+        Used to compute dissimilarities.
+
+    Attributes
+    ----------
+
+    ent_emb_dim : int
+        Dimension of the embedding of entities
+    rel_emb_dim : int
+        Dimension of the embedding of relations
+    number_entities : int
+        Number of entities in the current data set.
+    norm_type : int
+        1 or 2 indicates the type of the norm to be used when normalizing.
+    dissimilarity : function
+        Used to compute dissimilarities.
+    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
+        Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
+         normalized.
+
+    Methods
+    -------
+    forward
+    normalize_parameters
+    recover_and_project
+
+    """
     def __init__(self, config, dissimilarity):
         # initialize and normalize embeddings
         super().__init__(config, dissimilarity)
@@ -131,6 +177,7 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
+
         heads : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
         tails : torch tensor, dtype = long, shape = (batch_size)
@@ -144,6 +191,7 @@ class TransHModel(TransEModel):
 
         Returns
         -------
+
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
@@ -173,12 +221,15 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
+
         entities : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         normal_vectors : torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
             Normal vectors relative to the current relations.
+
         Returns
         -------
+
         projections : torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
             Projection of the embedded entities on the hyperplanes defined by the provided normal\
             vectors.
@@ -201,6 +252,43 @@ class TransHModel(TransEModel):
 
 
 class TransRModel(TransEModel):
+    """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
+
+    Parameters
+    ----------
+
+    config : Config object
+        Contains all configuration parameters.
+    dissimilarity : function
+        Used to compute dissimilarities.
+
+    Attributes
+    ----------
+
+    ent_emb_dim : int
+        Dimension of the embedding of entities
+    rel_emb_dim : int
+        Dimension of the embedding of relations
+    number_entities : int
+        Number of entities in the current data set.
+    norm_type : int
+        1 or 2 indicates the type of the norm to be used when normalizing.
+    dissimilarity : function
+        Used to compute dissimilarities.
+    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
+        Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
+         normalized.
+
+    Methods
+    -------
+    forward
+    normalize_parameters
+    recover_and_project
+
+        """
     def __init__(self, config, dissimilarity):
         super().__init__(config, dissimilarity)
 
@@ -214,6 +302,7 @@ class TransRModel(TransEModel):
 
         Parameters
         ----------
+
         heads : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
         tails : torch tensor, dtype = long, shape = (batch_size)
@@ -227,6 +316,7 @@ class TransRModel(TransEModel):
 
         Returns
         -------
+
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
@@ -255,12 +345,15 @@ class TransRModel(TransEModel):
 
         Parameters
         ----------
+
         entities : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         projection_matrices : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim, ent_emb_dim)
             Projection matrices for the current relations.
+
         Returns
         -------
+
         projections : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """
@@ -284,6 +377,43 @@ class TransRModel(TransEModel):
 
 
 class TransDModel(TransEModel):
+    """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
+
+    Parameters
+    ----------
+
+    config : Config object
+        Contains all configuration parameters.
+    dissimilarity : function
+        Used to compute dissimilarities.
+
+    Attributes
+    ----------
+
+    ent_emb_dim : int
+        Dimension of the embedding of entities
+    rel_emb_dim : int
+        Dimension of the embedding of relations
+    number_entities : int
+        Number of entities in the current data set.
+    norm_type : int
+        1 or 2 indicates the type of the norm to be used when normalizing.
+    dissimilarity : function
+        Used to compute dissimilarities.
+    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_embeddings : torch Embedding, shape = (number_relations, ent_emb_dim)
+        Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
+         normalized.
+
+    Methods
+    -------
+    forward
+    normalize_parameters
+    recover_and_project
+
+    """
     def __init__(self, config, dissimilarity):
         super().__init__(config, dissimilarity)
 
@@ -301,6 +431,7 @@ class TransDModel(TransEModel):
 
         Parameters
         ----------
+
         heads : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
         tails : torch tensor, dtype = long, shape = (batch_size)
@@ -314,6 +445,7 @@ class TransDModel(TransEModel):
 
         Returns
         -------
+
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
@@ -343,12 +475,15 @@ class TransDModel(TransEModel):
 
         Parameters
         ----------
+
         entities : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         rel_proj : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection vectors for the current relations.
+
         Returns
         -------
+
         projections : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """

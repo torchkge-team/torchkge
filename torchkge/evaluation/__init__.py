@@ -1,3 +1,3 @@
-from .dissimilarities import l1_dissimilarity
-from .dissimilarities import l2_dissimilarity
-from .linkprediction import LinkPredictionEvaluator
+from .Dissimilarities import l1_dissimilarity
+from .Dissimilarities import l2_dissimilarity
+from .LinkPrediction import LinkPredictionEvaluator

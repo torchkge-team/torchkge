@@ -8,7 +8,7 @@ Welcome to TorchKGE's documentation!
    readme
    installation
    usage
-   reference
+   reference/index
    contributing
    authors
    history

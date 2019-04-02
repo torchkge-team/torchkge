@@ -7,15 +7,15 @@ __email__ = 'armand.boschin@telecom-paristech.fr'
 __version__ = '0.1.3'
 
 
-from .evaluation.dissimilarities import l1_dissimilarity
-from .evaluation.dissimilarities import l2_dissimilarity
-from .evaluation.linkprediction import LinkPredictionEvaluator
+from .evaluation.Dissimilarities import l1_dissimilarity
+from .evaluation.Dissimilarities import l2_dissimilarity
+from .evaluation.LinkPrediction import LinkPredictionEvaluator
 
-from .models.losses import MarginLoss
-from .models.translation_models import TransEModel
-from .models.translation_models import TransHModel
-from .models.translation_models import TransRModel
-from .models.translation_models import TransDModel
+from .models.Losses import MarginLoss
+from .models.TranslationModels import TransEModel
+from .models.TranslationModels import TransHModel
+from .models.TranslationModels import TransRModel
+from .models.TranslationModels import TransDModel
 
 from .data.KnowledgeGraph import KnowledgeGraph
 

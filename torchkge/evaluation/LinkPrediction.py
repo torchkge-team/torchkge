@@ -49,6 +49,14 @@ class LinkPredictionEvaluator(object):
             Indicates if the current LinkPredictionEvaluator instance has been moved to cuda.
         k_max : bool, default = 10
             Max value to be used to compute the hit@k score.
+
+        Methods
+        -------
+        cuda
+        evaluate_pair
+        evaluate
+        mean_rank
+        hit_at_k
     """
     def __init__(self, ent_emb, rel_emb, dissimilarity, knowledge_graph):
         self.ent_embed = ent_emb
