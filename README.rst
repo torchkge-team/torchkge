@@ -3,8 +3,8 @@ TorchKGE
 ========
 
 
-.. image:: https://img.shields.io/pypi/v/torchkge.svg
-        :target: https://pypi.python.org/pypi/torchkge
+.. image:: https://badge.fury.io/py/torchkge.svg
+    :target: https://badge.fury.io/py/torchkge
 
 .. image:: https://travis-ci.org/torchkge-team/torchkge.svg?branch=master
     :target: https://travis-ci.org/torchkge-team/torchkge
