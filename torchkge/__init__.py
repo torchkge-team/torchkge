@@ -4,7 +4,7 @@
 
 __author__ = """Armand Boschin"""
 __email__ = 'armand.boschin@telecom-paristech.fr'
-__version__ = '0.1.6'
+__version__ = '0.1.7'
 
 
 from .evaluation.Dissimilarities import l1_dissimilarity
