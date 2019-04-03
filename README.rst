@@ -10,8 +10,8 @@ TorchKGE
     :target: https://travis-ci.org/torchkge-team/torchkge
 
 .. image:: https://readthedocs.org/projects/torchkge/badge/?version=latest
-        :target: https://torchkge.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
+    :target: https://torchkge.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 .. image:: https://pyup.io/repos/github/torchkge-team/torchkge/shield.svg
      :target: https://pyup.io/repos/github/torchkge-team/torchkge/
