@@ -475,7 +475,10 @@ class TransDModel(TransEModel):
         # project entities into relation space
         proj_mat = matmul(rel_proj.view((b_size, self.rel_emb_dim, 1)),
                           ent_proj.view((b_size, 1, self.ent_emb_dim)))
-        proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
+        if proj_mat.is_cuda:
+            proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device='cuda')
+        else:
+            proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
 
         projection = matmul(ent_emb.view((b_size, 1, self.ent_emb_dim)), proj_mat.transpose(1, 2))
 
