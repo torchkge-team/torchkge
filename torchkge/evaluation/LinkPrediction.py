@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
 
-from torch import Tensor, cat
+from torch import Tensor, cat, topk
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
 from torchkge.utils import compute_weight, get_rank
@@ -34,6 +34,8 @@ class LinkPredictionEvaluator(object):
             Function used to compute the dissimilarity between head + relation and tail.
         kg : torchkge.data.KnowledgeGraph.KnowledgeGraph
             Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.KnowledgeGraph
+        rest_of_graph : torchkge.data.KnowledgeGraph.KnowledgeGraph
+            Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.KnowledgeGraph
         top_head_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
             List of the top k_max most similar tails for each (head, rel) pair.
         top_tail_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
@@ -51,11 +53,12 @@ class LinkPredictionEvaluator(object):
             Max value to be used to compute the hit@k score.
 
     """
-    def __init__(self, ent_emb, rel_emb, dissimilarity, knowledge_graph):
+    def __init__(self, ent_emb, rel_emb, dissimilarity, knowledge_graph, rest_of_graph):
         self.ent_embed = ent_emb
         self.rel_embed = rel_emb
         self.dissimilarity = dissimilarity
         self.kg = knowledge_graph
+        self.rest_of_graph = rest_of_graph
 
         self.top_head_candidates = Tensor().long()
         self.top_tail_candidates = Tensor().long()
@@ -115,12 +118,14 @@ class LinkPredictionEvaluator(object):
         candidates = self.ent_embed.weight.transpose(0, 1)
         dissimilarities = self.dissimilarity(tmp_sum, heads * candidates)
 
-        # sort the candidates and return the rank of the true value along
-        # with the top k_max candidates
-        sorted_candidates = dissimilarities.argsort(dim=1, descending=False)
+        dissimilarities_filtered = dissimilarities.copy()
+        dissimilarities_filtered[self.kg.list_of_heads]
+
+        # return the rank of the true value along with the sorted top k_max candidates
+        _, sorted_candidates = topk(dissimilarities, self.k_max, dim=1, largest=False, sorted=True)
         rank_true_entities = get_rank(sorted_candidates, true)
 
-        return rank_true_entities, sorted_candidates[:, :self.k_max]
+        return rank_true_entities, sorted_candidates
 
     def evaluate(self, batch_size, k_max):
         """

@@ -4,8 +4,10 @@ Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
 
-from torch import Tensor, randint, bernoulli
-from torch.utils.data import Dataset
+from torch import Tensor, cuda, randint, bernoulli, cat
+from torch.utils.data import Dataset, DataLoader
+
+from torchkge.utils import get_dictionaries, compute_lists, get_max
 
 
 class KnowledgeGraph(Dataset):
@@ -43,28 +45,37 @@ class KnowledgeGraph(Dataset):
 
     """
 
-    def __init__(self, df, ent2ix=None, rel2ix=None):
+    def __init__(self, df=None, kg=None,
+                 ent2ix=None, rel2ix=None, list_of_heads=None, list_of_tails=None):
+
         if ent2ix is None:
-            tmp = list(set(df['from'].unique()).union(set(df['to'].unique())))
-            self.ent2ix = {ent: i for i, ent in enumerate(tmp)}
-            del tmp
+            self.ent2ix = get_dictionaries(df, ent=True)
         else:
             self.ent2ix = ent2ix
 
         if rel2ix is None:
-            tmp = list(df['rel'].unique())
-            self.rel2ix = {rel: i for i, rel in enumerate(tmp)}
-            del tmp
+            self.rel2ix = get_dictionaries(df, ent=False)
         else:
             self.rel2ix = rel2ix
 
         self.n_ent = max(self.ent2ix.values()) + 1
         self.n_rel = max(self.rel2ix.values()) + 1
-        self.n_sample = len(df)
 
-        self.head_idx = Tensor(df['from'].map(self.ent2ix).values).long()
-        self.tail_idx = Tensor(df['to'].map(self.ent2ix).values).long()
-        self.relations = Tensor(df['rel'].map(self.rel2ix).values).long()
+        if df is not None:
+            assert kg is None
+            self.n_sample = len(df)
+            self.head_idx = Tensor(df['from'].map(self.ent2ix).values).long()
+            self.tail_idx = Tensor(df['to'].map(self.ent2ix).values).long()
+            self.relations = Tensor(df['rel'].map(self.rel2ix).values).long()
+        else:
+            assert kg is not None
+            self.n_sample = kg[0].shape[0]
+            self.head_idx = kg[0]
+            self.tail_idx = kg[1]
+            self.relations = kg[2]
+
+        self.list_of_heads = list_of_heads
+        self.list_of_tails = list_of_tails
 
         self.use_cuda = False
 
@@ -81,6 +92,64 @@ class KnowledgeGraph(Dataset):
         self.head_idx = self.head_idx.cuda()
         self.tail_idx = self.tail_idx.cuda()
         self.relations = self.relations.cuda()
+        if self.list_of_heads is not None:
+            self.list_of_heads = self.list_of_heads.cuda()
+        if self.list_of_tails is not None:
+            self.list_of_tails = self.list_of_tails.cuda()
+
+    def evaluate_lists(self, batch_size=100):
+        if not self.use_cuda:
+            print('Please consider using CUDA.')
+
+        dataloader = DataLoader(self, batch_size=batch_size, shuffle=False)
+
+        self.list_of_heads = Tensor().long()
+        self.list_of_tails = Tensor().long()
+
+        if self.use_cuda:
+            self.list_of_heads = self.list_of_heads.cuda()
+            self.list_of_tails = self.list_of_tails.cuda()
+
+        m1 = get_max(self.head_idx, self.relations)
+        m2 = get_max(self.tail_idx, self.relations)
+
+        for i, batch in enumerate(dataloader):
+
+            heads, tails, rels = batch[0], batch[1], batch[2]
+            if self.use_cuda and cuda.is_available():
+                heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
+
+            self.list_of_heads = cat((self.list_of_heads,
+                                      compute_lists(tails, rels, heads)),
+                                     dim=0)
+            self.list_of_tails = cat((self.list_of_tails,
+                                      compute_lists(heads, rels, tails)),
+                                     dim=0)
+
+    def split_kg(self, share=0.8):
+        if self.list_of_heads is None or self.list_of_tails is None:
+            print('Please note that lists of heads and tails are not evaluated.')
+            print('Those should be evaluated before splitting the graph.')
+
+        mask = (Tensor(self.head_idx.shape).uniform_() < share)
+
+        train_kg = KnowledgeGraph(
+            kg=(self.head_idx[mask], self.tail_idx[mask], self.relations[mask]),
+            ent2ix=self.ent2ix, rel2ix=self.rel2ix,
+            list_of_heads=self.list_of_heads[mask],
+            list_of_tails=self.list_of_tails[mask])
+
+        test_kg = KnowledgeGraph(
+            kg=(self.head_idx[~mask], self.tail_idx[~mask], self.relations[~mask]),
+            ent2ix=self.ent2ix, rel2ix=self.rel2ix,
+            list_of_heads=self.list_of_heads[~mask],
+            list_of_tails=self.list_of_tails[~mask])
+
+        if self.use_cuda:
+            train_kg.cuda()
+            test_kg.cuda()
+
+        return train_kg, test_kg
 
     def corrupt_batch(self, heads, tails):
         """For each golden triplet, produce a corrupted one not different from any other golden triplet.
