@@ -11,7 +11,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['Click>=6.0', 'torch==1.0.1.post2', 'torchvision']
+requirements = ['Click>=6.0', 'torch==1.0.1.post2', 'torchvision', 'tqdm==4.31.1']
 
 setup_requirements = ['pytest-runner', ]
 
