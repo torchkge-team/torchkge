@@ -3,7 +3,6 @@
 Copyright TorchKGE developers
 aboschin@enst.fr
 """
-
 from torch import Tensor, cat
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
