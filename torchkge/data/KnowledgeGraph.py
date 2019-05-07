@@ -122,17 +122,16 @@ class KnowledgeGraph(Dataset):
 
         for i in tqdm(range(self.n_sample)):
             self.dict_of_heads[(self.tail_idx[i].item(),
-                                self.relations[i].item())].append(self.head_idx[i].item())
+                                self.relations[i].item())].extend([self.head_idx[i].item()])
             self.dict_of_tails[(self.head_idx[i].item(),
-                                self.relations[i].item())].append(self.tail_idx[i].item())
-
-        if self.use_cuda:
-            self.cuda()
+                                self.relations[i].item())].extend([self.tail_idx[i].item()])
 
         dataloader = DataLoader(self, batch_size=batch_size, shuffle=False)
 
         self.list_of_heads = Tensor().long()
         self.list_of_tails = Tensor().long()
+        if self.use_cuda:
+            self.cuda()
 
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             heads, tails, rels = batch[0], batch[1], batch[2]
