@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-armand.boschin@telecom-paristech.fr
+aboschin@enst.fr
 """
 
-from torch import Tensor, cuda, randint, bernoulli, cat
+from torch import Tensor, cuda, randint, bernoulli
 from torch.utils.data import Dataset, DataLoader
 
-from torchkge.utils import get_dictionaries, compute_lists, get_max
+from torchkge.utils import get_dictionaries, lists_from_dicts, concatenate_diff_sizes
+
+from tqdm import tqdm
+from collections import defaultdict
 
 
 class KnowledgeGraph(Dataset):
@@ -69,21 +72,32 @@ class KnowledgeGraph(Dataset):
             self.relations = Tensor(df['rel'].map(self.rel2ix).values).long()
         else:
             assert kg is not None
-            self.n_sample = kg[0].shape[0]
-            self.head_idx = kg[0]
-            self.tail_idx = kg[1]
-            self.relations = kg[2]
+            self.n_sample = kg['heads'].shape[0]
+            self.head_idx = kg['heads']
+            self.tail_idx = kg['tails']
+            self.relations = kg['relations']
 
+        self.dict_of_heads = defaultdict(list)
+        self.dict_of_tails = defaultdict(list)
         self.list_of_heads = list_of_heads
         self.list_of_tails = list_of_tails
 
         self.use_cuda = False
+        if self.list_of_heads is None or self.list_of_tails is None:
+            self.list_evaluated = False
+        else:
+            self.list_evaluated = True
 
     def __len__(self):
         return self.n_sample
 
     def __getitem__(self, item):
-        return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
+        if not self.list_evaluated:
+            return self.head_idx[item].item(), self.tail_idx[item].item(), \
+                   self.relations[item].item()
+        else:
+            return self.head_idx[item].item(), self.tail_idx[item].item(), \
+                   self.relations[item].item(), self.list_of_heads[item], self.list_of_tails[item]
 
     def cuda(self):
         """Move the KnowledgeGraph object to cuda
@@ -97,53 +111,76 @@ class KnowledgeGraph(Dataset):
         if self.list_of_tails is not None:
             self.list_of_tails = self.list_of_tails.cuda()
 
-    def evaluate_lists(self, batch_size=100):
-        if not self.use_cuda:
-            print('Please consider using CUDA.')
+    def evaluate_lists(self, batch_size=1000):
+        """Evaluate lists of possible alternatives to an entity in a fact that still gives a true
+        fact in the entire knowledge graph.
+
+        Parameters
+        ----------
+        batch_size : int
+        """
+
+        for i in tqdm(range(self.n_sample)):
+            self.dict_of_heads[(self.tail_idx[i].item(),
+                                self.relations[i].item())].append(self.head_idx[i].item())
+            self.dict_of_tails[(self.head_idx[i].item(),
+                                self.relations[i].item())].append(self.tail_idx[i].item())
+
+        if self.use_cuda:
+            self.cuda()
 
         dataloader = DataLoader(self, batch_size=batch_size, shuffle=False)
 
         self.list_of_heads = Tensor().long()
         self.list_of_tails = Tensor().long()
 
-        if self.use_cuda:
-            self.list_of_heads = self.list_of_heads.cuda()
-            self.list_of_tails = self.list_of_tails.cuda()
-
-        m1 = get_max(self.head_idx, self.relations)
-        m2 = get_max(self.tail_idx, self.relations)
-
-        for i, batch in enumerate(dataloader):
-
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             heads, tails, rels = batch[0], batch[1], batch[2]
+
             if self.use_cuda and cuda.is_available():
                 heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
 
-            self.list_of_heads = cat((self.list_of_heads,
-                                      compute_lists(tails, rels, heads)),
-                                     dim=0)
-            self.list_of_tails = cat((self.list_of_tails,
-                                      compute_lists(heads, rels, tails)),
-                                     dim=0)
+            self.list_of_heads = concatenate_diff_sizes(self.list_of_heads,
+                                                        lists_from_dicts(self.dict_of_heads,
+                                                                         tails, rels, heads))
+            self.list_of_tails = concatenate_diff_sizes(self.list_of_tails,
+                                                        lists_from_dicts(self.dict_of_tails,
+                                                                         heads, rels, tails))
+
+        self.list_evaluated = True
 
     def split_kg(self, share=0.8):
-        if self.list_of_heads is None or self.list_of_tails is None:
+        """Split the knowledge graph into train and test.
+
+        Parameters
+        ----------
+        share : float
+            Percentage to allocate to train set.
+
+        Returns
+        -------
+        train_kg : KnowledgeGraph
+        test_kg : KnowledgeGraph
+        """
+        if not self.list_evaluated:
             print('Please note that lists of heads and tails are not evaluated.')
             print('Those should be evaluated before splitting the graph.')
 
         mask = (Tensor(self.head_idx.shape).uniform_() < share)
 
         train_kg = KnowledgeGraph(
-            kg=(self.head_idx[mask], self.tail_idx[mask], self.relations[mask]),
+            kg={'heads': self.head_idx[mask],
+                'tails': self.tail_idx[mask],
+                'relations': self.relations[mask]},
             ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-            list_of_heads=self.list_of_heads[mask],
-            list_of_tails=self.list_of_tails[mask])
+            list_of_heads=self.list_of_heads[mask], list_of_tails=self.list_of_tails[mask])
 
         test_kg = KnowledgeGraph(
-            kg=(self.head_idx[~mask], self.tail_idx[~mask], self.relations[~mask]),
+            kg={'heads': self.head_idx[~mask],
+                'tails': self.tail_idx[~mask],
+                'relations': self.relations[~mask]},
             ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-            list_of_heads=self.list_of_heads[~mask],
-            list_of_tails=self.list_of_tails[~mask])
+            list_of_heads=self.list_of_heads[~mask], list_of_tails=self.list_of_tails[~mask])
 
         if self.use_cuda:
             train_kg.cuda()
