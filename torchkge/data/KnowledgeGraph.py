@@ -49,7 +49,7 @@ class KnowledgeGraph(Dataset):
     """
 
     def __init__(self, df=None, kg=None,
-                 ent2ix=None, rel2ix=None, list_of_heads=None, list_of_tails=None):
+                 ent2ix=None, rel2ix=None, dict_of_heads=None, dict_of_tails=None):
 
         if ent2ix is None:
             self.ent2ix = get_dictionaries(df, ent=True)
@@ -77,26 +77,36 @@ class KnowledgeGraph(Dataset):
             self.tail_idx = kg['tails']
             self.relations = kg['relations']
 
-        self.dict_of_heads = defaultdict(list)
-        self.dict_of_tails = defaultdict(list)
-        self.list_of_heads = list_of_heads
-        self.list_of_tails = list_of_tails
+        if dict_of_heads is None or dict_of_tails is None:
+            self.dict_of_heads = defaultdict(list)
+            self.dict_of_tails = defaultdict(list)
 
-        if self.list_of_heads is None or self.list_of_tails is None:
-            self.list_evaluated = False
         else:
-            self.list_evaluated = True
+            self.dict_of_heads = dict_of_heads
+            self.dict_of_tails = dict_of_tails
+
+        # self.list_of_heads = list_of_heads
+        # self.list_of_tails = list_of_tails
+
+        # if self.list_of_heads is None or self.list_of_tails is None:
+        #     self.list_evaluated = False
+        # else:
+        #     self.list_evaluated = True
 
     def __len__(self):
         return self.n_sample
 
     def __getitem__(self, item):
+        """
         if not self.list_evaluated:
             return self.head_idx[item].item(), self.tail_idx[item].item(), \
                    self.relations[item].item()
         else:
             return self.head_idx[item].item(), self.tail_idx[item].item(), \
                    self.relations[item].item(), self.list_of_heads[item], self.list_of_tails[item]
+        """
+        return self.head_idx[item].item(), self.tail_idx[item].item(), \
+               self.relations[item].item()
 
     def split_kg(self, share=0.8, train_size=None):
         """Split the knowledge graph into train and test.
@@ -114,17 +124,17 @@ class KnowledgeGraph(Dataset):
         train_kg : KnowledgeGraph
         test_kg : KnowledgeGraph
         """
-        if not self.list_evaluated:
-            print('Please note that lists of heads and tails are not evaluated.')
-            print('Those should be evaluated before splitting the graph.')
+        #if not self.list_evaluated:
+        #    print('Please note that lists of heads and tails are not evaluated.')
+        #    print('Those should be evaluated before splitting the graph.')
 
         if train_size is None:
-            mask = (tensor(self.head_idx.shape).uniform_() < share)
+            mask = (Tensor(self.head_idx.shape).uniform_() < share)
         else:
             mask = cat([tensor([1 for _ in range(train_size)]),
                         tensor([0 for _ in range(self.head_idx.shape[0] - train_size)])])
             mask = mask.byte()
-
+        """
         if self.list_evaluated:
             train_kg = KnowledgeGraph(
                 kg={'heads': self.head_idx[mask],
@@ -140,19 +150,22 @@ class KnowledgeGraph(Dataset):
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix,
                 list_of_heads=self.list_of_heads[~mask], list_of_tails=self.list_of_tails[~mask])
         else:
-            train_kg = KnowledgeGraph(
-                kg={'heads': self.head_idx[mask],
-                    'tails': self.tail_idx[mask],
-                    'relations': self.relations[mask]},
-                ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-                list_of_heads=None, list_of_tails=None)
+        """
+        train_kg = KnowledgeGraph(
+            kg={'heads': self.head_idx[mask],
+                'tails': self.tail_idx[mask],
+                'relations': self.relations[mask]},
+            ent2ix=self.ent2ix, rel2ix=self.rel2ix,
+            dict_of_heads=self.dict_of_heads,
+            dict_of_tails=self.dict_of_tails)
 
-            test_kg = KnowledgeGraph(
-                kg={'heads': self.head_idx[~mask],
-                    'tails': self.tail_idx[~mask],
-                    'relations': self.relations[~mask]},
-                ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-                list_of_heads=None, list_of_tails=None)
+        test_kg = KnowledgeGraph(
+            kg={'heads': self.head_idx[~mask],
+                'tails': self.tail_idx[~mask],
+                'relations': self.relations[~mask]},
+            ent2ix=self.ent2ix, rel2ix=self.rel2ix,
+            dict_of_heads=self.dict_of_heads,
+            dict_of_tails=self.dict_of_tails)
 
         return train_kg, test_kg
 
@@ -171,7 +184,7 @@ class KnowledgeGraph(Dataset):
                                 self.relations[i].item())].extend([self.head_idx[i].item()])
             self.dict_of_tails[(self.head_idx[i].item(),
                                 self.relations[i].item())].extend([self.tail_idx[i].item()])
-
+        """
         self.list_of_heads = Tensor().long()
         self.list_of_tails = Tensor().long()
 
@@ -192,3 +205,4 @@ class KnowledgeGraph(Dataset):
                                                                          cuda=False))
         gc.collect()
         self.list_evaluated = True
+        """
