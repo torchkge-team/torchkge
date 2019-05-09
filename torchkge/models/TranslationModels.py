@@ -331,7 +331,7 @@ class TransRModel(TransEModel):
 
         entities : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
-        projection_matrices : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim, ent_emb_dim)
+        projection_matrices : torch tensor, dtype = float, shape = (b_size, r_emb_dim, e_emb_dim)
             Projection matrices for the current relations.
 
         Returns

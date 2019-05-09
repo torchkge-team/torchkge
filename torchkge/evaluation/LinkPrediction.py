@@ -173,7 +173,7 @@ class LinkPredictionEvaluator(object):
         rank_true_entities = get_rank(dissimilarities, true_idx)
         filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
 
-        if e_emb.is_cuda:
+        if e_emb.is_cuda:  # in this case model is cuda so tensors are in cuda
             return rank_true_entities.cpu(), filtered_rank_true_entities.cpu()
         else:
             return rank_true_entities, filtered_rank_true_entities

@@ -3,13 +3,11 @@
 Copyright TorchKGE developers
 aboschin@enst.fr
 """
-import gc
 
-from torch import Tensor, tensor, cat
-from torch.utils.data import Dataset, DataLoader
+from torch import empty, tensor, cat
+from torch.utils.data import Dataset
 
-from torchkge.data.utils import get_dictionaries, lists_from_dicts
-from torchkge.utils import concatenate_diff_sizes
+from torchkge.data.utils import get_dictionaries
 
 from tqdm import tqdm
 from collections import defaultdict
@@ -85,14 +83,6 @@ class KnowledgeGraph(Dataset):
             self.dict_of_heads = dict_of_heads
             self.dict_of_tails = dict_of_tails
 
-        # self.list_of_heads = list_of_heads
-        # self.list_of_tails = list_of_tails
-
-        # if self.list_of_heads is None or self.list_of_tails is None:
-        #     self.list_evaluated = False
-        # else:
-        #     self.list_evaluated = True
-
     def __len__(self):
         return self.n_sample
 
@@ -105,8 +95,7 @@ class KnowledgeGraph(Dataset):
             return self.head_idx[item].item(), self.tail_idx[item].item(), \
                    self.relations[item].item(), self.list_of_heads[item], self.list_of_tails[item]
         """
-        return self.head_idx[item].item(), self.tail_idx[item].item(), \
-               self.relations[item].item()
+        return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
 
     def split_kg(self, share=0.8, train_size=None):
         """Split the knowledge graph into train and test.
@@ -124,33 +113,14 @@ class KnowledgeGraph(Dataset):
         train_kg : KnowledgeGraph
         test_kg : KnowledgeGraph
         """
-        #if not self.list_evaluated:
-        #    print('Please note that lists of heads and tails are not evaluated.')
-        #    print('Those should be evaluated before splitting the graph.')
 
         if train_size is None:
-            mask = (Tensor(self.head_idx.shape).uniform_() < share)
+            mask = (empty(self.head_idx.shape).uniform_() < share)
         else:
             mask = cat([tensor([1 for _ in range(train_size)]),
                         tensor([0 for _ in range(self.head_idx.shape[0] - train_size)])])
             mask = mask.byte()
-        """
-        if self.list_evaluated:
-            train_kg = KnowledgeGraph(
-                kg={'heads': self.head_idx[mask],
-                    'tails': self.tail_idx[mask],
-                    'relations': self.relations[mask]},
-                ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-                list_of_heads=self.list_of_heads[mask], list_of_tails=self.list_of_tails[mask])
 
-            test_kg = KnowledgeGraph(
-                kg={'heads': self.head_idx[~mask],
-                    'tails': self.tail_idx[~mask],
-                    'relations': self.relations[~mask]},
-                ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-                list_of_heads=self.list_of_heads[~mask], list_of_tails=self.list_of_tails[~mask])
-        else:
-        """
         train_kg = KnowledgeGraph(
             kg={'heads': self.head_idx[mask],
                 'tails': self.tail_idx[mask],
@@ -169,14 +139,10 @@ class KnowledgeGraph(Dataset):
 
         return train_kg, test_kg
 
-    def evaluate_lists(self, batch_size=1000, use_cuda=None):
-        """Evaluate lists of possible alternatives to an entity in a fact that still gives a true
+    def evaluate_dicts(self):
+        """Evaluate dicts of possible alternatives to an entity in a fact that still gives a true
         fact in the entire knowledge graph.
 
-        Parameters
-        ----------
-        batch_size : int
-        use_cuda : boolean
         """
 
         for i in tqdm(range(self.n_sample)):
@@ -184,25 +150,3 @@ class KnowledgeGraph(Dataset):
                                 self.relations[i].item())].extend([self.head_idx[i].item()])
             self.dict_of_tails[(self.head_idx[i].item(),
                                 self.relations[i].item())].extend([self.tail_idx[i].item()])
-        """
-        self.list_of_heads = Tensor().long()
-        self.list_of_tails = Tensor().long()
-
-        dataloader = DataLoader(self, batch_size=batch_size, shuffle=False, pin_memory=use_cuda)
-
-        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-            heads, tails, rels = batch[0], batch[1], batch[2]
-            if heads.is_pinned():
-                heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
-
-            self.list_of_heads = concatenate_diff_sizes(self.list_of_heads,
-                                                        lists_from_dicts(self.dict_of_heads,
-                                                                         tails, rels, heads,
-                                                                         cuda=False))
-            self.list_of_tails = concatenate_diff_sizes(self.list_of_tails,
-                                                        lists_from_dicts(self.dict_of_tails,
-                                                                         heads, rels, tails,
-                                                                         cuda=False))
-        gc.collect()
-        self.list_evaluated = True
-        """
