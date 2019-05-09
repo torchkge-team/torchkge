@@ -3,6 +3,7 @@
 Copyright TorchKGE developers
 aboschin@enst.fr
 """
+import torch.cuda as ccc
 from torch import Tensor, cat
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
@@ -37,10 +38,6 @@ class LinkPredictionEvaluator(object):
         kg : torchkge.data.KnowledgeGraph.KnowledgeGraph
             Knowledge graph in the form of an object implemented in
             torchkge.data.KnowledgeGraph.KnowledgeGraph
-        top_head_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
-            List of the top k_max most similar tails for each (head, rel) pair.
-        top_tail_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
-            List of the top k_max most similar heads for each (rel, tail) pair.
         rank_true_heads : torch tensor, dtype = TODO, shape = TODO
             TODO
         rank_true_tails : torch tensor, dtype = TODO, shape = TODO
@@ -48,8 +45,6 @@ class LinkPredictionEvaluator(object):
         evaluated : bool
             Indicates if the method LinkPredictionEvaluator.evaluate() has been called on\
             current object
-        use_cuda : bool
-            Indicates if the current LinkPredictionEvaluator instance has been moved to cuda.
         k_max : bool, default = 10
             Max value to be used to compute the hit@k score.
 
@@ -61,37 +56,17 @@ class LinkPredictionEvaluator(object):
         self.dissimilarity = dissimilarity
         self.kg = knowledge_graph
 
-        self.top_head_candidates = Tensor().long()
-        self.top_tail_candidates = Tensor().long()
+        if not self.kg.list_evaluated:
+            raise NotYetEvaluated(
+                'Knowledge graph lists not evaluated call LinkPredictionEvaluator.evaluate')
+
         self.rank_true_heads = Tensor().long()
         self.rank_true_tails = Tensor().long()
-
-        self.filt_top_head_candidates = Tensor().long()
-        self.filt_top_tail_candidates = Tensor().long()
         self.filt_rank_true_heads = Tensor().long()
         self.filt_rank_true_tails = Tensor().long()
 
         self.evaluated = False
-        self.use_cuda = False
         self.k_max = 10
-
-    def cuda(self):
-        """Move current evaluator object to CUDA
-        """
-        self.use_cuda = True
-        self.kg.cuda()
-        self.rel_embed.cuda()
-        self.ent_embed.cuda()
-
-        self.top_head_candidates = self.top_head_candidates.cuda()
-        self.top_tail_candidates = self.top_tail_candidates.cuda()
-        self.rank_true_heads = self.rank_true_heads.cuda()
-        self.rank_true_tails = self.rank_true_tails.cuda()
-
-        self.filt_top_head_candidates = self.filt_top_head_candidates.cuda()
-        self.filt_top_tail_candidates = self.filt_top_tail_candidates.cuda()
-        self.filt_rank_true_heads = self.filt_rank_true_heads.cuda()
-        self.filt_rank_true_tails = self.filt_rank_true_tails.cuda()
 
     def evaluate(self, batch_size, k_max):
         """
@@ -104,39 +79,41 @@ class LinkPredictionEvaluator(object):
             Maximal k value we plan to use for Hit@k. This is used to truncate tensor so that it \
             fits in memory.
         """
-        dataloader = DataLoader(self.kg, batch_size=batch_size)
+        print(ccc.memory_allocated(), ccc.memory_allocated())
         self.k_max = k_max
-
+        use_cuda = self.ent_embed.weight.is_cuda
+        dataloader = DataLoader(self.kg, batch_size=batch_size, pin_memory=use_cuda)
+        print(ccc.memory_allocated(), ccc.memory_allocated())
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-
+            print(ccc.memory_allocated(), ccc.memory_allocated())
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
             list_of_heads, list_of_tails = batch[3], batch[4]
-
-            if self.use_cuda:
-                h_idx, t_idx, r_idx = h_idx.cuda(), t_idx.cuda(), r_idx.cuda()
+            print(ccc.memory_allocated(), ccc.memory_allocated())
+            h_emb = self.ent_embed.weight[h_idx]
+            t_emb = self.ent_embed.weight[t_idx]
+            r_emb = self.rel_embed.weight[r_idx]
+            print(ccc.memory_allocated(), ccc.memory_allocated())
+            if list_of_heads.is_pinned():
+                h_idx, t_idx = h_idx.cuda(), t_idx.cuda()
                 list_of_heads, list_of_tails = list_of_heads.cuda(), list_of_tails.cuda()
-
-            heads = self.ent_embed.weight[h_idx]
-            tails = self.ent_embed.weight[t_idx]
-            relations = self.rel_embed.weight[r_idx]
-
+            print(ccc.memory_allocated(), ccc.memory_allocated())
             # evaluate both ways (head, rel) -> tail and (rel, tail) -> head
-            rank_true_tails, filt_rank_true_tails  = self.evaluate_pair(heads, relations, t_idx,
-                                                                        list_of_tails, heads=1)
-            rank_true_heads, filt_rank_true_heads = self.evaluate_pair(tails, relations, h_idx,
+            rank_true_tails, filt_rank_true_tails = self.evaluate_pair(h_emb, r_emb, t_idx,
+                                                                       list_of_tails, heads=1)
+            print(ccc.memory_allocated(), ccc.memory_allocated())
+            rank_true_heads, filt_rank_true_heads = self.evaluate_pair(t_emb, r_emb, h_idx,
                                                                        list_of_heads, heads=-1)
+            print(ccc.memory_allocated(), ccc.memory_allocated())
 
-            # self.top_tail_candidates = cat((self.top_tail_candidates, top_tail_candidates), dim=0)
-            # self.top_head_candidates = cat((self.top_head_candidates, top_head_candidates), dim=0)
             self.rank_true_tails = cat((self.rank_true_tails, rank_true_tails))
+            print(ccc.memory_allocated(), ccc.memory_allocated())
             self.rank_true_heads = cat((self.rank_true_heads, rank_true_heads))
+            print(ccc.memory_allocated(), ccc.memory_allocated())
 
-            # self.filt_top_tail_candidates = cat((self.filt_top_tail_candidates,
-            #                                     filt_top_tail_candidates), dim=0)
-            # self.filt_top_head_candidates = cat((self.filt_top_head_candidates,
-            #                                     filt_top_head_candidates), dim=0)
             self.filt_rank_true_tails = cat((self.filt_rank_true_tails, filt_rank_true_tails))
+            print(ccc.memory_allocated(), ccc.memory_allocated())
             self.filt_rank_true_heads = cat((self.filt_rank_true_heads, filt_rank_true_heads))
+            print(ccc.memory_allocated(), ccc.memory_allocated())
 
         self.evaluated = True
 
@@ -182,12 +159,12 @@ class LinkPredictionEvaluator(object):
 
         # compute either dissimilarity(heads + relation, candidates) or
         # dissimilarity(-candidates, relation - tails)
-        # filter out the true negative samples by assigning infinite dissimilarity
         candidates = self.ent_embed.weight.transpose(0, 1)
         dissimilarities = self.dissimilarity(tmp_sum, heads * candidates)
 
+        # filter out the true negative samples by assigning infinite dissimilarity
         # this masks lines full of -1
-        # (facts for which (entitie, relation) has only one target possible)
+        # (facts for which (entity, relation) has only one target possible)
         filt_dissimilarities = dissimilarities.clone()
         mask = (filter_list.sum(dim=1) != -filter_list.shape[1])
         if mask.sum().item() > 0:
@@ -198,17 +175,23 @@ class LinkPredictionEvaluator(object):
         rank_true_entities = get_rank(dissimilarities, true)
         filtered_rank_true_entities = get_rank(filt_dissimilarities, true)
 
-        return rank_true_entities, filtered_rank_true_entities
+        if entities.is_cuda:
+            return rank_true_entities.cpu(), filtered_rank_true_entities.cpu()
+        else:
+            return rank_true_entities, filtered_rank_true_entities
 
-    def mean_rank(self):
+    def mean_rank(self, use_cuda):
         """
+
+        Parameters
+        ----------
+        use_cuda : bool
 
         Returns
         -------
         mean_rank : float
             The mean rank of the true entity when replacing alternatively head and tail in\
-        any fact of the dataset.
-
+            any fact of the dataset.
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')

@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
 
-from torch import Tensor, matmul, eye
+from torch import tensor, matmul, eye
 from torch.nn import Module, Parameter, Embedding
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
@@ -58,9 +58,9 @@ class TransEModel(Module):
         self.relation_embeddings = Embedding(self.number_relations, self.rel_emb_dim)
 
         # fill the embedding weights with Xavier initialized values
-        self.entity_embeddings.weight = Parameter(xavier_uniform_(Tensor(self.number_entities,
+        self.entity_embeddings.weight = Parameter(xavier_uniform_(tensor(self.number_entities,
                                                                          self.ent_emb_dim)))
-        self.relation_embeddings.weight = Parameter(xavier_uniform_(Tensor(self.number_relations,
+        self.relation_embeddings.weight = Parameter(xavier_uniform_(tensor(self.number_relations,
                                                                            self.rel_emb_dim)))
 
         # normalize the embeddings
@@ -157,7 +157,7 @@ class TransHModel(TransEModel):
         super().__init__(config, dissimilarity)
 
         # initialize and normalize normal vector
-        self.normal_vectors = Parameter(xavier_uniform_(Tensor(self.number_relations,
+        self.normal_vectors = Parameter(xavier_uniform_(tensor(self.number_relations,
                                                                self.ent_emb_dim)))
         self.normal_vectors.data = normalize(self.normal_vectors.data, p=2, dim=1)
 
@@ -276,7 +276,7 @@ class TransRModel(TransEModel):
         super().__init__(config, dissimilarity)
 
         # initialize and normalize projection matrices
-        self.projection_matrices = Parameter(xavier_uniform_(Tensor(self.number_relations,
+        self.projection_matrices = Parameter(xavier_uniform_(tensor(self.number_relations,
                                                                     self.rel_emb_dim,
                                                                     self.ent_emb_dim)))
 
@@ -395,9 +395,9 @@ class TransDModel(TransEModel):
         super().__init__(config, dissimilarity)
 
         # initialize and normalize projection vectors
-        self.ent_proj_vects = Parameter(xavier_uniform_(Tensor(self.number_entities,
+        self.ent_proj_vects = Parameter(xavier_uniform_(tensor(self.number_entities,
                                                                self.ent_emb_dim)))
-        self.rel_proj_vects = Parameter(xavier_uniform_(Tensor(self.number_relations,
+        self.rel_proj_vects = Parameter(xavier_uniform_(tensor(self.number_relations,
                                                                self.rel_emb_dim)))
 
         self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
