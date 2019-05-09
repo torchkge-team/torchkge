@@ -78,6 +78,8 @@ class KnowledgeGraph(Dataset):
         if dict_of_heads is None or dict_of_tails is None:
             self.dict_of_heads = defaultdict(list)
             self.dict_of_tails = defaultdict(list)
+            print('Evaluating dictionaries.')
+            self.evaluate_dicts()
 
         else:
             self.dict_of_heads = dict_of_heads
