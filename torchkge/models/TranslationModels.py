@@ -237,7 +237,7 @@ class TransHModel(TransEModel):
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
-        self.normal_vectors = normalize(self.normal_vectors, p=2, dim=1)
+        self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
 
 
 class TransRModel(TransEModel):
@@ -355,8 +355,9 @@ class TransRModel(TransEModel):
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=2, dim=1)
-        self.relation_embeddings = normalize(self.relation_embeddings, p=2, dim=1)
-        self.projection_matrices = normalize(self.projection_matrices, p=2, dim=2)
+        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
+                                                         p=2, dim=1)
+        self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
 
 
 class TransDModel(TransEModel):
@@ -487,7 +488,9 @@ class TransDModel(TransEModel):
     def normalize_parameters(self):
         """Normalize the parameters of the model using only L2 norm.
         """
-        self.entity_embeddings = normalize(self.entity_embeddings, p=2, dim=1)
-        self.relation_embeddings = normalize(self.relation_embeddings, p=2, dim=1)
-        self.ent_proj_vects = normalize(self.ent_proj_vects, p=2, dim=1)
-        self.rel_proj_vects = normalize(self.rel_proj_vects, p=2, dim=1)
+        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
+                                                       p=2, dim=1)
+        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
+                                                         p=2, dim=1)
+        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
+        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
