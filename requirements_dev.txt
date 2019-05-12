@@ -10,7 +10,7 @@ twine==1.13.0
 numpydoc==0.9.1
 tqdm==4.31.1
 
-pytest==4.4.2
+pytest==4.5.0
 pytest-runner==4.4
 
 torch==1.1.0
