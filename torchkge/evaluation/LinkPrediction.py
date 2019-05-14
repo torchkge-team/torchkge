@@ -50,10 +50,8 @@ class LinkPredictionEvaluator(object):
 
     """
 
-    def __init__(self, ent_emb, rel_emb, dissimilarity, knowledge_graph):
-        self.ent_embed = ent_emb
-        self.rel_embed = rel_emb
-        self.dissimilarity = dissimilarity
+    def __init__(self, model, knowledge_graph):
+        self.model = model
         self.kg = knowledge_graph
 
         self.rank_true_heads = Tensor().long()
@@ -76,14 +74,14 @@ class LinkPredictionEvaluator(object):
             fits in memory.
         """
         self.k_max = k_max
-        use_cuda = self.ent_embed.weight.is_cuda
+        use_cuda = self.model.is_cuda
         dataloader = DataLoader(self.kg, batch_size=batch_size, pin_memory=use_cuda)
 
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
 
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
-            h_emb = self.ent_embed.weight[h_idx]
+            h_emb = self.model.ent_embed.weight[h_idx]
             t_emb = self.ent_embed.weight[t_idx]
             r_emb = self.rel_embed.weight[r_idx]
 
