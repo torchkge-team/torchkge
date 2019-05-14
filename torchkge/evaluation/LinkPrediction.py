@@ -17,24 +17,14 @@ class LinkPredictionEvaluator(object):
 
         Parameters
         ----------
-        ent_emb : torch tensor, dtype = Float, shape = (n_entities, ent_emb_dim)
-            Embeddings of the entities.
-        rel_emb : torch tensor, dtype = Float, shape = (n_relations, ent_emb_dim)
-            Embeddings of the relations.
-        dissimilarity : function
-            Function used to compute the dissimilarity between head + relation and tail.
+        model : torchkge model
         knowledge_graph : torchkge.data.KnowledgeGraph.KnowledgeGraph
             Knowledge graph in the form of an object implemented in
             torchkge.data.KnowledgeGraph.KnowledgeGraph
 
         Attributes
         ----------
-        ent_embed : torch tensor, dtype = Float, shape = (n_entities, ent_emb_dim)
-            Embeddings of the entities.
-        rel_embed : torch tensor, dtype = Float, shape = (n_relations, ent_emb_dim)
-            Embeddings of the relations.
-        dissimilarity : function
-            Function used to compute the dissimilarity between head + relation and tail.
+        model : torchkge model
         kg : torchkge.data.KnowledgeGraph.KnowledgeGraph
             Knowledge graph in the form of an object implemented in
             torchkge.data.KnowledgeGraph.KnowledgeGraph
@@ -74,28 +64,27 @@ class LinkPredictionEvaluator(object):
             fits in memory.
         """
         self.k_max = k_max
-        use_cuda = self.model.is_cuda
+        use_cuda = self.model.entity_embeddings.weight.is_cuda
         dataloader = DataLoader(self.kg, batch_size=batch_size, pin_memory=use_cuda)
 
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
 
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
-            h_emb = self.model.ent_embed.weight[h_idx]
-            t_emb = self.ent_embed.weight[t_idx]
-            r_emb = self.rel_embed.weight[r_idx]
-
             if h_idx.is_pinned():
                 h_idx, t_idx, r_idx = h_idx.cuda(), t_idx.cuda(), r_idx.cuda()
 
+            proj_h_emb, proj_t_emb, proj_candidates, r_emb = self.model.evaluate(h_idx, t_idx,
+                                                                                 r_idx)
+
             # evaluate both ways (head, rel) -> tail and (rel, tail) -> head
-            rank_true_tails, filt_rank_true_tails = self.evaluate_pair(h_emb, r_emb, h_idx, r_idx,
-                                                                       t_idx,
-                                                                       self.kg.dict_of_tails,
+            rank_true_tails, filt_rank_true_tails = self.evaluate_pair(proj_h_emb, proj_candidates,
+                                                                       r_emb, h_idx, r_idx,
+                                                                       t_idx, self.kg.dict_of_tails,
                                                                        heads=1)
-            rank_true_heads, filt_rank_true_heads = self.evaluate_pair(t_emb, r_emb, t_idx, r_idx,
-                                                                       h_idx,
-                                                                       self.kg.dict_of_heads,
+            rank_true_heads, filt_rank_true_heads = self.evaluate_pair(proj_t_emb, proj_candidates,
+                                                                       r_emb, t_idx, r_idx,
+                                                                       h_idx, self.kg.dict_of_heads,
                                                                        heads=-1)
 
             self.rank_true_tails = cat((self.rank_true_tails, rank_true_tails))
@@ -106,13 +95,16 @@ class LinkPredictionEvaluator(object):
 
         self.evaluated = True
 
-    def evaluate_pair(self, e_emb, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
+    def evaluate_pair(self, proj_e_emb, proj_candidates,
+                      r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """
 
         Parameters
         ----------
-        e_emb : torch tensor, shape = (batch_size, ent_emb_dim), dtype = float
-            Tensor containing current embeddings of entities.
+        proj_e_emb : torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
+            Tensor containing current projected embeddings of entities.
+        proj_candidates : torch tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+            Tensor containing projected embeddings of all entities.
         r_emb : torch tensor, shape = (batch_size, ent_emb_dim), dtype = float
             Tensor containing current embeddings of relations.
         e_idx : torch tensor, shape = (batch_size), dtype = long
@@ -145,16 +137,15 @@ class LinkPredictionEvaluator(object):
             decreasing dissimilarity d(hear+relation, tail) with only true corrupted triplets.
 
         """
-        current_batch_size, embedding_dimension = e_emb.shape
+        current_batch_size, embedding_dimension = proj_e_emb.shape
 
-        # tmp_sum is either heads + r_emb or r_emb - tails
-        tmp_sum = (heads * e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
+        # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
+        tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
         tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.kg.n_ent))
 
-        # compute either dissimilarity(heads + relation, candidates) or
-        # dissimilarity(-candidates, relation - tails)
-        candidates = self.ent_embed.weight.transpose(0, 1)
-        dissimilarities = self.dissimilarity(tmp_sum, heads * candidates)
+        # compute either dissimilarity(heads + relation, proj_candidates) or
+        # dissimilarity(-proj_candidates, relation - tails)
+        dissimilarities = self.model.dissimilarity(tmp_sum, heads * proj_candidates)
 
         # filter out the true negative samples by assigning infinite dissimilarity
         filt_dissimilarities = dissimilarities.clone()
@@ -167,11 +158,11 @@ class LinkPredictionEvaluator(object):
             true_targets = tensor(true_targets).long()
             filt_dissimilarities[i][true_targets] = float('Inf')
 
-        # from dissimilarities, extract the rank of the true entity and the k_max top e_emb.
+        # from dissimilarities, extract the rank of the true entity and the k_max top proj_e_emb.
         rank_true_entities = get_rank(dissimilarities, true_idx)
         filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
 
-        if e_emb.is_cuda:  # in this case model is cuda so tensors are in cuda
+        if proj_e_emb.is_cuda:  # in this case model is cuda so tensors are in cuda
             return rank_true_entities.cpu(), filtered_rank_true_entities.cpu()
         else:
             return rank_true_entities, filtered_rank_true_entities
