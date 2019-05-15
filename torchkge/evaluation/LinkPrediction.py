@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import Tensor, tensor, cat, empty
+from torch import tensor, empty
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
 from torchkge.utils import get_rank
@@ -28,12 +28,20 @@ class LinkPredictionEvaluator(object):
         kg : torchkge.data.KnowledgeGraph.KnowledgeGraph
             Knowledge graph in the form of an object implemented in
             torchkge.data.KnowledgeGraph.KnowledgeGraph
-        rank_true_heads : torch tensor, dtype = TODO, shape = TODO
-            TODO
-        rank_true_tails : torch tensor, dtype = TODO, shape = TODO
-            TODO
+        rank_true_heads : torch tensor, shape = (n_facts), dtype = int
+            Rank of the true head when all possible entities are ranked in term of dissimilarity\
+            with tail - relation.
+        rank_true_tails : torch tensor, shape = (n_facts), dtype = int
+            Rank of the true tail when all possible entities are ranked in term of dissimilarity\
+            with head + relation.
+        filt_rank_true_heads : torch tensor, shape = (n_facts), dtype = int
+            Filtered rank of the true tail when all possible entities are ranked in term of \
+            dissimilarity with head + relation.
+        filt_rank_true_tails : torch tensor, shape = (n_facts), dtype = int
+            Filtered rank of the true tail when all possible entities are ranked in term of \
+            dissimilarity with head + relation.
         evaluated : bool
-            Indicates if the method LinkPredictionEvaluator.evaluate() has been called on\
+            Indicates if the method LinkPredictionEvaluator.evaluate() has been called on \
             current object
         k_max : bool, default = 10
             Max value to be used to compute the hit@k score.
