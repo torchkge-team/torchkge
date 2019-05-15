@@ -151,7 +151,6 @@ class LinkPredictionEvaluator(object):
         filt_dissimilarities = dissimilarities.clone()
         for i in range(current_batch_size):
             true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
-            # print(true_targets, true_idx[i].item())
             if len(true_targets) == 1:
                 continue
             true_targets.remove(true_idx[i].item())

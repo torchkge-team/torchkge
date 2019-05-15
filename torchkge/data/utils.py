@@ -100,7 +100,7 @@ def corrupt_batch(heads, tails, n_ent):
     batch_size = heads.shape[0]
     neg_heads, neg_tails = heads.clone(), tails.clone()
 
-    # TODO : implement smarter corruption (cf TransH paper)
+    # TODO : Implement bernoulli negative sampling
     # Randomly choose which samples will have head/tail corrupted
     mask = bernoulli(ones(size=(batch_size,), device=device)/2).double()
     n_heads_corrupted = int(mask.sum().item())
