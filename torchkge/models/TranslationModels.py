@@ -4,10 +4,13 @@ Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
 
-from torch import empty, matmul, eye
+from torch import empty, matmul, eye, arange, tensor
 from torch.nn import Module, Parameter, Embedding
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
+from torch.cuda import empty_cache
+
+from tqdm import tqdm
 
 
 class TransEModel(Module):
@@ -94,30 +97,69 @@ class TransEModel(Module):
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Dissimilarities between h+r and t for negatively sampled triplets.
         """
-        # recover and normalize entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads), p=self.norm_type, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails), p=self.norm_type, dim=1)
-        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads),
-                                         p=self.norm_type, dim=1)
-        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails),
-                                         p=self.norm_type, dim=1)
+        # recover, project and normalize entity embeddings
+        h_emb = self.recover_project_normalize(heads, normalize_=True)
+        t_emb = self.recover_project_normalize(tails, normalize_=True)
+        n_h_emb = self.recover_project_normalize(negative_heads, normalize_=True)
+        n_t_emb = self.recover_project_normalize(negative_tails, normalize_=True)
 
         # recover relations embeddings
-        relations_embeddings = self.relation_embeddings(relations)
+        r_emb = self.relation_embeddings(relations)
 
-        # compute dissimilarities
-        golden_triplets = self.dissimilarity(heads_embeddings + relations_embeddings,
-                                             tails_embeddings)
-        negative_triplets = self.dissimilarity(neg_heads_embeddings + relations_embeddings,
-                                               neg_tails_embeddings)
+        # compute dissimilarity
+        golden_triplets = self.dissimilarity(h_emb + r_emb, t_emb)
+        negative_triplets = self.dissimilarity(n_h_emb + r_emb, n_t_emb)
 
         return golden_triplets, negative_triplets
+
+    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
+        """
+
+        Parameters
+        ----------
+        ent_idx : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of entities
+        normalize_ : bool
+            Whether entities embeddings should be normalized or not.
+
+        Returns
+        -------
+        projections : torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+            Embedded entities normalized.
+        """
+        # recover entity embeddings
+        ent_emb = self.entity_embeddings(ent_idx)
+
+        # normalize entity embeddings
+        if normalize_:
+            ent_emb = normalize(ent_emb, p=self.norm_type, dim=1)
+
+        return ent_emb
 
     def normalize_parameters(self):
         """Normalize the parameters of the model using the model-specified norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
+
+    def evaluate(self, h_idx, t_idx, r_idx):
+        # recover, project and normalize entity embeddings
+        all_idx = arange(0, self.number_entities).long()
+
+        if h_idx.is_cuda:
+            all_idx = all_idx.cuda()
+        proj_candidates = self.recover_project_normalize(all_idx, normalize_=False)
+
+        proj_h_emb = proj_candidates[h_idx]
+        proj_t_emb = proj_candidates[t_idx]
+        r_emb = self.relation_embeddings(r_idx)
+
+        b_size, emb_dim = proj_h_emb.shape
+        proj_candidates = proj_candidates.transpose(0, 1)
+        proj_candidates = proj_candidates.view(1, emb_dim, self.number_entities)
+        proj_candidates = proj_candidates.expand(b_size, emb_dim, self.number_entities)
+
+        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
 class TransHModel(TransEModel):
@@ -191,10 +233,15 @@ class TransHModel(TransEModel):
         normal_vectors = normalize(self.normal_vectors[relations], p=2, dim=1)
 
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_and_project(heads, normal_vectors)
-        projected_tails = self.recover_and_project(tails, normal_vectors)
-        projected_neg_heads = self.recover_and_project(negative_heads, normal_vectors)
-        projected_neg_tails = self.recover_and_project(negative_tails, normal_vectors)
+
+        projected_heads = self.recover_project_normalize(heads, normalize_=True,
+                                                         normal_vectors=normal_vectors)
+        projected_tails = self.recover_project_normalize(tails, normalize_=True,
+                                                         normal_vectors=normal_vectors)
+        projected_neg_heads = self.recover_project_normalize(negative_heads, normalize_=True,
+                                                             normal_vectors=normal_vectors)
+        projected_neg_tails = self.recover_project_normalize(negative_tails, normalize_=True,
+                                                             normal_vectors=normal_vectors)
 
         # compute dissimilarities
         golden_triplets = self.dissimilarity(projected_heads + relations_embeddings,
@@ -204,15 +251,17 @@ class TransHModel(TransEModel):
 
         return golden_triplets, negative_triplets
 
-    def recover_and_project(self, entities, normal_vectors):
+    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
         provided normal vectors.
 
         Parameters
         ----------
 
-        entities : torch tensor, dtype = long, shape = (batch_size)
+        ent_idx : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        normalize_ : bool
+            Whether entities embeddings should be normalized or not.
         normal_vectors : torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
             Normal vectors relative to the current relations.
 
@@ -223,10 +272,15 @@ class TransHModel(TransEModel):
             Projection of the embedded entities on the hyperplanes defined by the provided normal\
             vectors.
         """
-        # recover and normalize embeddings
-        ent_emb = normalize(self.entity_embeddings(entities), p=self.norm_type, dim=1)
+        # recover entity embeddings
+        ent_emb = self.entity_embeddings(ent_idx)
+
+        # normalize entity embeddings
+        if normalize_:
+            ent_emb = normalize(ent_emb, p=self.norm_type, dim=1)
 
         # project entities into relation space
+        normal_vectors = kwargs['normal_vectors']
         normal_component = (ent_emb * normal_vectors).sum(dim=1).view((-1, 1))
 
         return ent_emb - normal_component * normal_vectors
@@ -238,6 +292,40 @@ class TransHModel(TransEModel):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
         self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
+
+    def evaluate(self, h_idx, t_idx, r_idx):
+        # recover relations embeddings and normal projection vectors
+        r_emb = self.relation_embeddings(r_idx)
+        normal_vectors = normalize(self.normal_vectors[r_idx], p=2, dim=1)
+        b_size, _ = normal_vectors.shape
+
+        # recover candidates
+        all_idx = arange(0, self.number_entities).long()
+        if h_idx.is_cuda:
+            all_idx = all_idx.cuda()
+        candidates = self.entity_embeddings(all_idx).transpose(0, 1)
+        candidates = candidates.view((1,
+                                      self.ent_emb_dim,
+                                      self.number_entities)).expand((b_size,
+                                                                     self.ent_emb_dim,
+                                                                     self.number_entities))
+
+        # project each candidates with each normal vector
+        normal_components = candidates * normal_vectors.view((b_size, self.ent_emb_dim, 1))
+        normal_components = normal_components.sum(dim=1).view(b_size, 1, self.number_entities)
+        normal_components = normal_components * normal_vectors.view(b_size, self.ent_emb_dim, 1)
+        proj_candidates = candidates - normal_components
+
+        assert proj_candidates.shape == (b_size, self.ent_emb_dim, self.number_entities)
+
+        # recover, project and normalize entity embeddings
+        mask = h_idx.view(b_size, 1, 1).expand(b_size, self.ent_emb_dim, 1)
+        proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.ent_emb_dim)
+
+        mask = t_idx.view(b_size, 1, 1).expand(b_size, self.ent_emb_dim, 1)
+        proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.ent_emb_dim)
+
+        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
 class TransRModel(TransEModel):
@@ -310,10 +398,16 @@ class TransRModel(TransEModel):
         projection_matrices = normalize(self.projection_matrices[relations], p=2, dim=2)
 
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_and_project(heads, projection_matrices)
-        projected_tails = self.recover_and_project(tails, projection_matrices)
-        projected_neg_heads = self.recover_and_project(negative_heads, projection_matrices)
-        projected_neg_tails = self.recover_and_project(negative_tails, projection_matrices)
+        projected_heads = self.recover_project_normalize(heads, normalize_=True,
+                                                         projection_matrices=projection_matrices)
+        projected_tails = self.recover_project_normalize(tails, normalize_=True,
+                                                         projection_matrices=projection_matrices)
+        projected_neg_heads = self.recover_project_normalize(negative_heads, normalize_=True,
+                                                             projection_matrices=projection_matrices
+                                                             )
+        projected_neg_tails = self.recover_project_normalize(negative_tails, normalize_=True,
+                                                             projection_matrices=projection_matrices
+                                                             )
 
         # compute dissimilarities
         golden_triplets = self.dissimilarity(projected_heads + relations_embeddings,
@@ -322,15 +416,17 @@ class TransRModel(TransEModel):
                                                projected_neg_tails)
         return golden_triplets, negative_triplets
 
-    def recover_and_project(self, entities, projection_matrices):
+    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
         provided projection matrices.
 
         Parameters
         ----------
 
-        entities : torch tensor, dtype = long, shape = (batch_size)
+        ent_idx : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        normalize_ : bool
+            Whether entities embeddings should be normalized or not.
         projection_matrices : torch tensor, dtype = float, shape = (b_size, r_emb_dim, e_emb_dim)
             Projection matrices for the current relations.
 
@@ -340,15 +436,18 @@ class TransRModel(TransEModel):
         projections : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """
-        b_size = len(entities)
+        b_size = len(ent_idx)
         # recover and normalize embeddings
-        ent_emb = normalize(self.entity_embeddings(entities), p=2, dim=1)
+        ent_emb = self.entity_embeddings(ent_idx)
+        if normalize_:
+            ent_emb = normalize(ent_emb, p=2, dim=1)
 
         # project entities into relation space
-        new_shape = (b_size, 1, self.ent_emb_dim)
-        projection = matmul(ent_emb.view(new_shape), projection_matrices.transpose(1, 2))
+        new_shape = (b_size, self.ent_emb_dim, 1)
+        projection_matrices = kwargs['projection_matrices']
+        projection = matmul(projection_matrices, ent_emb.view(new_shape))
 
-        return projection.view(len(entities), self.rel_emb_dim)
+        return projection.view(b_size, self.rel_emb_dim)
 
     def normalize_parameters(self):
         """Normalize the parameters of the model using only L2 norm.
@@ -358,6 +457,34 @@ class TransRModel(TransEModel):
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
                                                          p=2, dim=1)
         self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
+
+    def evaluate(self, h_idx, t_idx, r_idx):
+        # recover relations embeddings and normal projection matrices
+        r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
+        projection_matrices = normalize(self.projection_matrices[r_idx], p=2, dim=2)
+        b_size, _, _ = projection_matrices.shape
+
+        # recover candidates
+        all_idx = arange(0, self.number_entities).long()
+        if h_idx.is_cuda:
+            all_idx = all_idx.cuda()
+        candidates = self.entity_embeddings(all_idx).transpose(0, 1)
+        candidates = candidates.view((1,
+                                      self.ent_emb_dim,
+                                      self.number_entities)).expand((b_size,
+                                                                     self.ent_emb_dim,
+                                                                     self.number_entities))
+
+        # project each candidates with each projection matrix
+        proj_candidates = matmul(projection_matrices, candidates)
+
+        mask = h_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
+        proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
+
+        mask = t_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
+        proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
+
+        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
 class TransDModel(TransEModel):
@@ -404,6 +531,11 @@ class TransDModel(TransEModel):
         self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
         self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
 
+        self.evaluated_projections = False
+        self.projected_entities = Parameter(empty(size=(self.number_relations,
+                                                        self.rel_emb_dim,
+                                                        self.number_entities)), requires_grad=False)
+
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
 
@@ -429,15 +561,19 @@ class TransDModel(TransEModel):
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Dissimilarities between h+r and t for negatively sampled triplets.
         """
+        self.evaluated_projections = False
+
         # recover relations projection vectors and relations embeddings
         rel_proj = normalize(self.rel_proj_vects[relations], p=2, dim=1)
         relations_embeddings = normalize(self.relation_embeddings(relations), p=2, dim=1)
 
         # project
-        projected_heads = self.recover_and_project(heads, rel_proj)
-        projected_tails = self.recover_and_project(tails, rel_proj)
-        projected_neg_heads = self.recover_and_project(negative_heads, rel_proj)
-        projected_neg_tails = self.recover_and_project(negative_tails, rel_proj)
+        projected_heads = self.recover_project_normalize(heads, normalize_=True, rel_proj=rel_proj)
+        projected_tails = self.recover_project_normalize(tails, normalize_=True, rel_proj=rel_proj)
+        projected_neg_heads = self.recover_project_normalize(negative_heads,
+                                                             normalize_=True, rel_proj=rel_proj)
+        projected_neg_tails = self.recover_project_normalize(negative_tails,
+                                                             normalize_=True, rel_proj=rel_proj)
 
         # compute dissimilarities
         golden_triplets = self.dissimilarity(projected_heads + relations_embeddings,
@@ -447,15 +583,17 @@ class TransDModel(TransEModel):
 
         return golden_triplets, negative_triplets
 
-    def recover_and_project(self, entities, rel_proj):
+    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
         provided normal vectors.
 
         Parameters
         ----------
 
-        entities : torch tensor, dtype = long, shape = (batch_size)
+        ent_idx : torch tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        normalize_ : bool
+            Whether entities embeddings should be normalized or not.
         rel_proj : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection vectors for the current relations.
 
@@ -465,23 +603,27 @@ class TransDModel(TransEModel):
         projections : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """
-        b_size = len(entities)
+        b_size = len(ent_idx)
 
-        # recover and normalize embeddings
-        ent_emb = normalize(self.entity_embeddings(entities), p=2, dim=1)
+        # recover entities embeddings and projection vectors
+        ent_emb = self.entity_embeddings(ent_idx)
+        ent_proj = self.ent_proj_vects[ent_idx]
 
-        # recover projection vectors
-        ent_proj = normalize(self.ent_proj_vects[entities], p=2, dim=1)
+        if normalize_:
+            ent_emb = normalize(ent_emb, p=2, dim=1)
+            ent_proj = normalize(ent_proj, p=2, dim=1)
 
         # project entities into relation space
+        rel_proj = kwargs['rel_proj']
         proj_mat = matmul(rel_proj.view((b_size, self.rel_emb_dim, 1)),
                           ent_proj.view((b_size, 1, self.ent_emb_dim)))
+
         if proj_mat.is_cuda:
             proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device='cuda')
         else:
             proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
 
-        projection = matmul(ent_emb.view((b_size, 1, self.ent_emb_dim)), proj_mat.transpose(1, 2))
+        projection = matmul(proj_mat, ent_emb.view((b_size, self.ent_emb_dim, 1)))
 
         return projection.view((b_size, self.rel_emb_dim))
 
@@ -494,3 +636,63 @@ class TransDModel(TransEModel):
                                                          p=2, dim=1)
         self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
         self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
+
+    def evaluate_projections(self):
+        # TODO turn this to batch computation
+
+        if self.evaluated_projections:
+            return
+
+        print('Projecting entities in relations spaces.')
+
+        for i in tqdm(range(self.number_entities)):
+            ent_proj_vect = self.ent_proj_vects.data[i].view(1, -1)
+            rel_proj_vects = self.rel_proj_vects.data.view(self.number_relations,
+                                                           self.rel_emb_dim, 1)
+
+            projection_matrices = matmul(rel_proj_vects, ent_proj_vect)
+
+            if projection_matrices.is_cuda:
+                id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device='cuda')
+            else:
+                id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
+
+            id_mat = id_mat.view(1, self.rel_emb_dim, self.ent_emb_dim)
+
+            projection_matrices += id_mat.expand(self.number_relations, self.rel_emb_dim, self.ent_emb_dim)
+
+            empty_cache()
+
+            mask = tensor([i]).long()
+
+            if self.entity_embeddings.weight.is_cuda:
+                assert self.projected_entities.is_cuda
+                empty_cache()
+                mask = mask.cuda()
+
+            entity = self.entity_embeddings(mask.cuda())
+            projected_entity = matmul(projection_matrices, entity.view(-1)).detach()
+            projected_entity = projected_entity.view(self.number_relations, self.rel_emb_dim, 1)
+            self.projected_entities[:, :, i] = projected_entity.view(self.number_relations,
+                                                                     self.rel_emb_dim)
+
+            del projected_entity
+
+        self.evaluated_projections = True
+
+    def evaluate(self, h_idx, t_idx, r_idx):
+        b_size = len(h_idx)
+        if not self.evaluated_projections:
+            self.evaluate_projections()
+
+        # recover relations embeddings and projected candidates
+        r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
+        proj_candidates = self.projected_entities[r_idx]
+
+        mask = h_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
+        proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
+
+        mask = t_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
+        proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
+
+        return proj_h_emb, proj_t_emb, proj_candidates, r_emb

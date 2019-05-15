@@ -1,5 +1,10 @@
 .. include:: ../HISTORY.rst
 
+0.4.0 (2019-05-15)
+------------------
+
+* Fixed a major bug/problem in the Evaluation protocol of LinkPrediction.
+
 0.3.1 (2019-05-10)
 ------------------
 
