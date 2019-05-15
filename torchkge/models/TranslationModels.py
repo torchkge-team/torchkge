@@ -4,11 +4,11 @@ Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
 
-from torch import FloatTensor, empty, matmul, eye, arange, cat, tensor
+from torch import empty, matmul, eye, arange, tensor
 from torch.nn import Module, Parameter, Embedding
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
-from torch.cuda import empty_cache, memory_allocated, memory_cached
+from torch.cuda import empty_cache
 
 from tqdm import tqdm
 
@@ -532,6 +532,9 @@ class TransDModel(TransEModel):
         self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
 
         self.evaluated_projections = False
+        self.projected_entities = Parameter(empty(size=(self.number_relations,
+                                                        self.rel_emb_dim,
+                                                        self.number_entities)), requires_grad=False)
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
@@ -620,7 +623,7 @@ class TransDModel(TransEModel):
         else:
             proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
 
-        projection = matmul(proj_mat, ent_emb.view((b_size, self.ent_emb_dim), 1))
+        projection = matmul(proj_mat, ent_emb.view((b_size, self.ent_emb_dim, 1)))
 
         return projection.view((b_size, self.rel_emb_dim))
 
@@ -635,75 +638,61 @@ class TransDModel(TransEModel):
         self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
 
     def evaluate_projections(self):
+        # TODO turn this to batch computation
+
         if self.evaluated_projections:
             return
 
-        projected_entities = []
+        print('Projecting entities in relations spaces.')
 
         for i in tqdm(range(self.number_entities)):
-            ent_proj_vect = self.ent_proj_vects.data[i]
-            ent_proj_vect = ent_proj_vect.view(1, -1)
-            rel_proj_vects = self.rel_proj_vects.data
-            rel_proj_vects = rel_proj_vects.view(self.number_relations, self.rel_emb_dim, 1)
+            ent_proj_vect = self.ent_proj_vects.data[i].view(1, -1)
+            rel_proj_vects = self.rel_proj_vects.data.view(self.number_relations,
+                                                           self.rel_emb_dim, 1)
 
             projection_matrices = matmul(rel_proj_vects, ent_proj_vect)
+
+            if projection_matrices.is_cuda:
+                id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device='cuda')
+            else:
+                id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
+
+            id_mat = id_mat.view(1, self.rel_emb_dim, self.ent_emb_dim)
+
+            projection_matrices += id_mat.expand(self.number_relations, self.rel_emb_dim, self.ent_emb_dim)
+
             empty_cache()
 
             mask = tensor([i]).long()
 
             if self.entity_embeddings.weight.is_cuda:
+                assert self.projected_entities.is_cuda
                 empty_cache()
                 mask = mask.cuda()
 
             entity = self.entity_embeddings(mask.cuda())
-            projected_entity = matmul(projection_matrices, entity.view(-1))
+            projected_entity = matmul(projection_matrices, entity.view(-1)).detach()
             projected_entity = projected_entity.view(self.number_relations, self.rel_emb_dim, 1)
-            projected_entity = projected_entity.cpu()
+            self.projected_entities[:, :, i] = projected_entity.view(self.number_relations,
+                                                                     self.rel_emb_dim)
 
             del projected_entity
 
         self.evaluated_projections = True
 
     def evaluate(self, h_idx, t_idx, r_idx):
-
+        b_size = len(h_idx)
         if not self.evaluated_projections:
             self.evaluate_projections()
 
-        # recover relations projection vectors and relations embeddings
-        rel_proj = normalize(self.rel_proj_vects[r_idx], p=2, dim=1)
+        # recover relations embeddings and projected candidates
         r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
-        b_size, _= rel_proj.shape
+        proj_candidates = self.projected_entities[r_idx]
 
-        # recover candidates
-        all_idx = arange(0, self.number_entities).long()
-        if h_idx.is_cuda:
-            all_idx = all_idx.cuda()
-        candidates = self.entity_embeddings(all_idx).transpose(0, 1)
-        candidates = candidates.view((1,
-                                      self.ent_emb_dim,
-                                      self.number_entities)).expand((b_size,
-                                                                     self.ent_emb_dim,
-                                                                     self.number_entities))
-
-        # project each candidates with each projection matrix
-        ent_proj = self.ent_proj_vects.transpose(0, 1).view(1, 1, self.ent_emb_dim, self.number_entities)
-        ent_proj = ent_proj.expand(b_size, 1, self.ent_emb_dim, self.number_entities)
-        rel_proj = rel_proj.view((b_size, self.rel_emb_dim, 1))
-        print(rel_proj.shape, ent_proj.shape)
-        projection_matrices = matmul(rel_proj, ent_proj)
-        proj_candidates = matmul(projection_matrices, candidates)
-
-        print(proj_candidates.shape)
         mask = h_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
         proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
 
         mask = t_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
         proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
-
-        # recover, project and normalize entity embeddings
-        proj_h_emb = self.recover_project_normalize(h_idx, normalize_=False, rel_proj=rel_proj)
-        proj_t_emb = self.recover_project_normalize(t_idx, normalize_=False, rel_proj=rel_proj)
-        proj_candidates = self.recover_project_normalize(arange(0, self.number_entities).long(),
-                                                         normalize_=False, rel_proj=rel_proj)
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
