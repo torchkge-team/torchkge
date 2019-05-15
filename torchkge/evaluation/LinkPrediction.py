@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import Tensor, tensor, cat
+from torch import Tensor, tensor, cat, empty
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
 from torchkge.utils import get_rank
@@ -44,10 +44,10 @@ class LinkPredictionEvaluator(object):
         self.model = model
         self.kg = knowledge_graph
 
-        self.rank_true_heads = Tensor().long()
-        self.rank_true_tails = Tensor().long()
-        self.filt_rank_true_heads = Tensor().long()
-        self.filt_rank_true_tails = Tensor().long()
+        self.rank_true_heads = empty(size=(self.kg.n_sample,)).long()
+        self.rank_true_tails = empty(size=(self.kg.n_sample,)).long()
+        self.filt_rank_true_heads = empty(size=(self.kg.n_sample,)).long()
+        self.filt_rank_true_tails = empty(size=(self.kg.n_sample,)).long()
 
         self.evaluated = False
         self.k_max = 10
@@ -66,6 +66,12 @@ class LinkPredictionEvaluator(object):
         self.k_max = k_max
         use_cuda = self.model.entity_embeddings.weight.is_cuda
         dataloader = DataLoader(self.kg, batch_size=batch_size, pin_memory=use_cuda)
+
+        if use_cuda:
+            self.rank_true_heads = self.rank_true_heads.cuda()
+            self.rank_true_tails = self.rank_true_tails.cuda()
+            self.filt_rank_true_heads = self.filt_rank_true_heads.cuda()
+            self.filt_rank_true_tails = self.filt_rank_true_tails.cuda()
 
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
 
@@ -86,14 +92,19 @@ class LinkPredictionEvaluator(object):
                                                                        r_emb, t_idx, r_idx,
                                                                        h_idx, self.kg.dict_of_heads,
                                                                        heads=-1)
+            self.rank_true_heads[i*batch_size: (i+1)*batch_size] = rank_true_heads
+            self.rank_true_tails[i*batch_size: (i+1)*batch_size] = rank_true_tails
 
-            self.rank_true_tails = cat((self.rank_true_tails, rank_true_tails))
-            self.rank_true_heads = cat((self.rank_true_heads, rank_true_heads))
-
-            self.filt_rank_true_tails = cat((self.filt_rank_true_tails, filt_rank_true_tails))
-            self.filt_rank_true_heads = cat((self.filt_rank_true_heads, filt_rank_true_heads))
+            self.filt_rank_true_heads[i*batch_size: (i+1)*batch_size] = filt_rank_true_heads
+            self.filt_rank_true_tails[i*batch_size: (i+1)*batch_size] = filt_rank_true_tails
 
         self.evaluated = True
+
+        if use_cuda:
+            self.rank_true_heads = self.rank_true_heads.cpu()
+            self.rank_true_tails = self.rank_true_tails.cpu()
+            self.filt_rank_true_heads = self.filt_rank_true_heads.cpu()
+            self.filt_rank_true_tails = self.filt_rank_true_tails.cpu()
 
     def evaluate_pair(self, proj_e_emb, proj_candidates,
                       r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
@@ -123,19 +134,12 @@ class LinkPredictionEvaluator(object):
 
         Returns
         -------
-        rank_true_entities : integer tensor
-            Tensor of shape (batch_size) containing the rank of the true entities when ranking any\
-            entities based on computation of d(hear+relation, tail).
-            sorted_candidates : integer tensor
-            Tensor of shape (batch_size, self.k_max) containing the k_max best entities ranked by\
-            decreasing dissimilarity d(hear+relation, tail).
-        filtered_rank_true_entities : integer tensor
-            Tensor of shape (batch_size) containing the rank of the true entities when ranking only\
-            true false entities based on computation of d(hear+relation, tail).
-            filtered_sorted_candidates : integer tensor
-            Tensor of shape (batch_size, self.k_max) containing the k_max best entities ranked by\
-            decreasing dissimilarity d(hear+relation, tail) with only true corrupted triplets.
-
+        rank_true_entities : torch Tensor, shape = (b_size), dtype = int
+            Tensor containing the rank of the true entities when ranking any entity based on \
+            computation of d(hear+relation, tail).
+        filtered_rank_true_entities : torch Tensor, shape = (b_size), dtype = int
+            Tensor containing the rank of the true entities when ranking only true false entities \
+             based on computation of d(hear+relation, tail).
         """
         current_batch_size, embedding_dimension = proj_e_emb.shape
 
@@ -161,10 +165,7 @@ class LinkPredictionEvaluator(object):
         rank_true_entities = get_rank(dissimilarities, true_idx)
         filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
 
-        if proj_e_emb.is_cuda:  # in this case model is cuda so tensors are in cuda
-            return rank_true_entities.cpu(), filtered_rank_true_entities.cpu()
-        else:
-            return rank_true_entities, filtered_rank_true_entities
+        return rank_true_entities, filtered_rank_true_entities
 
     def mean_rank(self):
         """
