@@ -3,6 +3,7 @@
 Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
+# TODO : define evaluate_projections for each model (speedup evaluate function)
 
 from torch import empty, matmul, eye, arange, tensor
 from torch.nn import Module, Parameter, Embedding
@@ -143,6 +144,28 @@ class TransEModel(Module):
                                                        p=self.norm_type, dim=1)
 
     def evaluate(self, h_idx, t_idx, r_idx):
+        """Project current entities and candidates into relation-specific sub-spaces.
+
+        Parameters
+        ----------
+        h_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current head entities.
+        t_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current tail entities.
+        r_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current relations.
+        Returns
+        -------
+        proj_h_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities projected in relation space.
+        proj_t_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities projected in relation space.
+        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+            Tensor containing all entities projected in each relation spaces (relations
+            corresponding to current batch's relations).
+        r_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing current relations embeddings.
+        """
         # recover, project and normalize entity embeddings
         all_idx = arange(0, self.number_entities).long()
 
@@ -294,6 +317,28 @@ class TransHModel(TransEModel):
         self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
 
     def evaluate(self, h_idx, t_idx, r_idx):
+        """Project current entities and candidates into relation-specific sub-spaces.
+
+        Parameters
+        ----------
+        h_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current head entities.
+        t_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current tail entities.
+        r_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current relations.
+        Returns
+        -------
+        proj_h_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities projected in relation space.
+        proj_t_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities projected in relation space.
+        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+            Tensor containing all entities projected in each relation spaces (relations
+            corresponding to current batch's relations).
+        r_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing current relations embeddings.
+        """
         # recover relations embeddings and normal projection vectors
         r_emb = self.relation_embeddings(r_idx)
         normal_vectors = normalize(self.normal_vectors[r_idx], p=2, dim=1)
@@ -459,6 +504,28 @@ class TransRModel(TransEModel):
         self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
 
     def evaluate(self, h_idx, t_idx, r_idx):
+        """Project current entities and candidates into relation-specific sub-spaces.
+
+        Parameters
+        ----------
+        h_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current head entities.
+        t_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current tail entities.
+        r_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current relations.
+        Returns
+        -------
+        proj_h_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities projected in relation space.
+        proj_t_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities projected in relation space.
+        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+            Tensor containing all entities projected in each relation spaces (relations
+            corresponding to current batch's relations).
+        r_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing current relations embeddings.
+        """
         # recover relations embeddings and normal projection matrices
         r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
         projection_matrices = normalize(self.projection_matrices[r_idx], p=2, dim=2)
@@ -638,6 +705,8 @@ class TransDModel(TransEModel):
         self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
 
     def evaluate_projections(self):
+        """Project all entities according to each relation.
+        """
         # TODO turn this to batch computation
 
         if self.evaluated_projections:
@@ -681,6 +750,28 @@ class TransDModel(TransEModel):
         self.evaluated_projections = True
 
     def evaluate(self, h_idx, t_idx, r_idx):
+        """Project current entities and candidates into relation-specific sub-spaces.
+
+        Parameters
+        ----------
+        h_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current head entities.
+        t_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current tail entities.
+        r_idx : torch Tensor, shape = (b_size), dtype = long
+            Tensor containing indices of current relations.
+        Returns
+        -------
+        proj_h_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities projected in relation space.
+        proj_t_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities projected in relation space.
+        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+            Tensor containing all entities projected in each relation spaces (relations
+            corresponding to current batch's relations).
+        r_emb : torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+            Tensor containing current relations embeddings.
+        """
         b_size = len(h_idx)
         if not self.evaluated_projections:
             self.evaluate_projections()
