@@ -56,8 +56,6 @@ To use TorchKGE in a project::
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False,
                             pin_memory=cuda.is_available())
 
-    print('___________________')
-    print('Start of training :')
     for epoch in range(nb_epochs):
 
         epoch_time = time()
