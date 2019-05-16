@@ -84,6 +84,7 @@ To use TorchKGE in a project::
             if i == 0:
                 first_loss = current_loss
 
+        model.normalize_parameters()
         print('Epoch {} loss : {} to {} (duration : {}s)'.format(epoch + 1,
                                                                  first_loss, current_loss,
                                                                  time() - epoch_time))
@@ -91,7 +92,6 @@ To use TorchKGE in a project::
     #############################################################################################
     # Evaluate model
     #############################################################################################
-    model.normalize_parameters()
     b_size_eval = 10
     train_evaluator = LinkPredictionEvaluator(model, kg_train)
     test_evaluator = LinkPredictionEvaluator(model, kg_test)
