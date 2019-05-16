@@ -5,7 +5,7 @@ Credits
 Development Lead
 ----------------
 
-* Armand Boschin <armand.boschin@telecom-paristech.fr>
+* Armand Boschin <aboschin@enst.fr>
 
 Contributors
 ------------
