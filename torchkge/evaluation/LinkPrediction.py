@@ -183,6 +183,9 @@ class LinkPredictionEvaluator(object):
         mean_rank : float
             The mean rank of the true entity when replacing alternatively head and tail in\
             any fact of the dataset.
+        filt_mean_rank : float
+            The filtered mean rank of the true entity when replacing alternatively head and tail in\
+            any fact of the dataset.
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
@@ -205,6 +208,9 @@ class LinkPredictionEvaluator(object):
         -------
         avg_hitatk : float
             Average of hit@k for head and tail replacement. Computation is done in a \
+            vectorized way.
+        filt_avg_hitatk : float
+            Filtered Average of hit@k for head and tail replacement. Computation is done in a \
             vectorized way.
         """
         if not self.evaluated:
