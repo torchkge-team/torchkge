@@ -12,4 +12,4 @@ twine==1.13.0
 numpydoc==0.9.1
 tqdm==4.32.1
 torch==1.1.0
-torchvision==0.2.2.post3
+torchvision==0.3.0
