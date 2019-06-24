@@ -188,7 +188,6 @@ class TransEModel(Module):
     def compute_ranks(self, proj_e_emb, proj_candidates,
                       r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """
-
         Parameters
         ----------
         proj_e_emb : torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
