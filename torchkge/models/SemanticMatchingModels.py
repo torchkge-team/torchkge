@@ -56,6 +56,9 @@ class RESCALModel(Module):
     def normalize_parameters(self):
         pass
 
+    def evaluate_pair(self):
+        pass
+
 
 class DistMulModel(Module):
     def __init__(self):

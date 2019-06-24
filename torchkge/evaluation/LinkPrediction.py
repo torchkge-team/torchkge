@@ -4,10 +4,9 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import tensor, empty
+from torch import empty
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
-from torchkge.utils import get_rank
 
 from tqdm import tqdm
 
@@ -88,23 +87,14 @@ class LinkPredictionEvaluator(object):
             if h_idx.is_pinned():
                 h_idx, t_idx, r_idx = h_idx.cuda(), t_idx.cuda(), r_idx.cuda()
 
-            proj_h_emb, proj_t_emb, proj_candidates, r_emb = self.model.evaluate(h_idx, t_idx,
-                                                                                 r_idx)
+            rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads \
+                = self.model.evaluate_candidates(h_idx, t_idx, r_idx, self.kg)
 
-            # evaluate both ways (head, rel) -> tail and (rel, tail) -> head
-            rank_true_tails, filt_rank_true_tails = self.evaluate_pair(proj_h_emb, proj_candidates,
-                                                                       r_emb, h_idx, r_idx,
-                                                                       t_idx, self.kg.dict_of_tails,
-                                                                       heads=1)
-            rank_true_heads, filt_rank_true_heads = self.evaluate_pair(proj_t_emb, proj_candidates,
-                                                                       r_emb, t_idx, r_idx,
-                                                                       h_idx, self.kg.dict_of_heads,
-                                                                       heads=-1)
-            self.rank_true_heads[i*batch_size: (i+1)*batch_size] = rank_true_heads
-            self.rank_true_tails[i*batch_size: (i+1)*batch_size] = rank_true_tails
+            self.rank_true_heads[i * batch_size: (i + 1) * batch_size] = rank_true_heads
+            self.rank_true_tails[i * batch_size: (i + 1) * batch_size] = rank_true_tails
 
-            self.filt_rank_true_heads[i*batch_size: (i+1)*batch_size] = filt_rank_true_heads
-            self.filt_rank_true_tails[i*batch_size: (i+1)*batch_size] = filt_rank_true_tails
+            self.filt_rank_true_heads[i * batch_size: (i + 1) * batch_size] = filt_rank_true_heads
+            self.filt_rank_true_tails[i * batch_size: (i + 1) * batch_size] = filt_rank_true_tails
 
         self.evaluated = True
 
@@ -113,67 +103,6 @@ class LinkPredictionEvaluator(object):
             self.rank_true_tails = self.rank_true_tails.cpu()
             self.filt_rank_true_heads = self.filt_rank_true_heads.cpu()
             self.filt_rank_true_tails = self.filt_rank_true_tails.cpu()
-
-    def evaluate_pair(self, proj_e_emb, proj_candidates,
-                      r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """
-
-        Parameters
-        ----------
-        proj_e_emb : torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
-            Tensor containing current projected embeddings of entities.
-        proj_candidates : torch tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
-            Tensor containing projected embeddings of all entities.
-        r_emb : torch tensor, shape = (batch_size, ent_emb_dim), dtype = float
-            Tensor containing current embeddings of relations.
-        e_idx : torch tensor, shape = (batch_size), dtype = long
-            Tensor containing the indices of entities.
-        r_idx : torch tensor, shape = (batch_size), dtype = long
-            Tensor containing the indices of relations.
-        true_idx : torch tensor, shape = (batch_size), dtype = long
-            Tensor containing the true entity for each sample.
-        dictionary : default dict
-            Dictionary of keys (int, int) and values list of ints giving all possible entities for
-            the (entity, relation) pair.
-        heads : integer
-            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
-            We test dissimilarity between heads * entities + relations and heads * targets.
-
-
-        Returns
-        -------
-        rank_true_entities : torch Tensor, shape = (b_size), dtype = int
-            Tensor containing the rank of the true entities when ranking any entity based on \
-            computation of d(hear+relation, tail).
-        filtered_rank_true_entities : torch Tensor, shape = (b_size), dtype = int
-            Tensor containing the rank of the true entities when ranking only true false entities \
-             based on computation of d(hear+relation, tail).
-        """
-        current_batch_size, embedding_dimension = proj_e_emb.shape
-
-        # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
-        tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
-        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.kg.n_ent))
-
-        # compute either dissimilarity(heads + relation, proj_candidates) or
-        # dissimilarity(-proj_candidates, relation - tails)
-        dissimilarities = self.model.dissimilarity(tmp_sum, heads * proj_candidates)
-
-        # filter out the true negative samples by assigning infinite dissimilarity
-        filt_dissimilarities = dissimilarities.clone()
-        for i in range(current_batch_size):
-            true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
-            if len(true_targets) == 1:
-                continue
-            true_targets.remove(true_idx[i].item())
-            true_targets = tensor(true_targets).long()
-            filt_dissimilarities[i][true_targets] = float('Inf')
-
-        # from dissimilarities, extract the rank of the true entity and the k_max top proj_e_emb.
-        rank_true_entities = get_rank(dissimilarities, true_idx)
-        filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
-
-        return rank_true_entities, filtered_rank_true_entities
 
     def mean_rank(self):
         """

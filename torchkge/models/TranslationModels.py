@@ -3,13 +3,14 @@
 Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
-# TODO : define evaluate_projections for each model (speedup evaluate function)
+# TODO : define evaluate_projections for each model (speedup evaluation_helper function)
 
 from torch import empty, matmul, eye, arange, tensor
 from torch.nn import Module, Parameter, Embedding
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
+from torchkge.utils import get_rank
 
 from tqdm import tqdm
 
@@ -143,7 +144,7 @@ class TransEModel(Module):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -184,6 +185,86 @@ class TransEModel(Module):
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
+    def compute_ranks(self, proj_e_emb, proj_candidates,
+                      r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
+        """
+
+        Parameters
+        ----------
+        proj_e_emb : torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
+            Tensor containing current projected embeddings of entities.
+        proj_candidates : torch tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+            Tensor containing projected embeddings of all entities.
+        r_emb : torch tensor, shape = (batch_size, ent_emb_dim), dtype = float
+            Tensor containing current embeddings of relations.
+        e_idx : torch tensor, shape = (batch_size), dtype = long
+            Tensor containing the indices of entities.
+        r_idx : torch tensor, shape = (batch_size), dtype = long
+            Tensor containing the indices of relations.
+        true_idx : torch tensor, shape = (batch_size), dtype = long
+            Tensor containing the true entity for each sample.
+        dictionary : default dict
+            Dictionary of keys (int, int) and values list of ints giving all possible entities for
+            the (entity, relation) pair.
+        heads : integer
+            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
+            We test dissimilarity between heads * entities + relations and heads * targets.
+
+
+        Returns
+        -------
+        rank_true_entities : torch Tensor, shape = (b_size), dtype = int
+            Tensor containing the rank of the true entities when ranking any entity based on \
+            computation of d(hear+relation, tail).
+        filtered_rank_true_entities : torch Tensor, shape = (b_size), dtype = int
+            Tensor containing the rank of the true entities when ranking only true false entities \
+             based on computation of d(hear+relation, tail).
+        """
+        current_batch_size, embedding_dimension = proj_e_emb.shape
+
+        # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
+        tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
+        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.number_entities))
+
+        # compute either dissimilarity(heads + relation, proj_candidates) or
+        # dissimilarity(-proj_candidates, relation - tails)
+        dissimilarities = self.dissimilarity(tmp_sum, heads * proj_candidates)
+
+        # filter out the true negative samples by assigning infinite dissimilarity
+        filt_dissimilarities = dissimilarities.clone()
+        for i in range(current_batch_size):
+            true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
+            if len(true_targets) == 1:
+                continue
+            true_targets.remove(true_idx[i].item())
+            true_targets = tensor(true_targets).long()
+            filt_dissimilarities[i][true_targets] = float('Inf')
+
+        # from dissimilarities, extract the rank of the true entity and the k_max top proj_e_emb.
+        rank_true_entities = get_rank(dissimilarities, true_idx)
+        filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
+
+        return rank_true_entities, filtered_rank_true_entities
+
+    def evaluate_candidates(self, h_idx, t_idx, r_idx, kg):
+        proj_h_emb, proj_t_emb, proj_candidates, r_emb = self.evaluation_helper(h_idx, t_idx, r_idx)
+
+        # evaluation_helper both ways (head, rel) -> tail and (rel, tail) -> head
+        rank_true_tails, filt_rank_true_tails = self.compute_ranks(proj_h_emb,
+                                                                   proj_candidates,
+                                                                   r_emb, h_idx, r_idx,
+                                                                   t_idx,
+                                                                   kg.dict_of_tails,
+                                                                   heads=1)
+        rank_true_heads, filt_rank_true_heads = self.compute_ranks(proj_t_emb,
+                                                                   proj_candidates,
+                                                                   r_emb, t_idx, r_idx,
+                                                                   h_idx,
+                                                                   kg.dict_of_heads,
+                                                                   heads=-1)
+
+        return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
+
 
 class TransHModel(TransEModel):
     """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
@@ -217,6 +298,7 @@ class TransHModel(TransEModel):
          normalized.
 
     """
+
     def __init__(self, config, dissimilarity):
         # initialize and normalize embeddings
         super().__init__(config, dissimilarity)
@@ -316,7 +398,7 @@ class TransHModel(TransEModel):
                                                        p=self.norm_type, dim=1)
         self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -405,6 +487,7 @@ class TransRModel(TransEModel):
          normalized.
 
         """
+
     def __init__(self, config, dissimilarity):
         super().__init__(config, dissimilarity)
 
@@ -503,7 +586,7 @@ class TransRModel(TransEModel):
                                                          p=2, dim=1)
         self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -586,6 +669,7 @@ class TransDModel(TransEModel):
          normalized.
 
     """
+
     def __init__(self, config, dissimilarity):
         super().__init__(config, dissimilarity)
 
@@ -728,7 +812,8 @@ class TransDModel(TransEModel):
 
             id_mat = id_mat.view(1, self.rel_emb_dim, self.ent_emb_dim)
 
-            projection_matrices += id_mat.expand(self.number_relations, self.rel_emb_dim, self.ent_emb_dim)
+            projection_matrices += id_mat.expand(self.number_relations, self.rel_emb_dim,
+                                                 self.ent_emb_dim)
 
             empty_cache()
 
@@ -749,7 +834,7 @@ class TransDModel(TransEModel):
 
         self.evaluated_projections = True
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
