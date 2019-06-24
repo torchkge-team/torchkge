@@ -3,7 +3,7 @@
 Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
-# TODO : define evaluate_projections for each model (speedup evaluate function)
+# TODO : define evaluate_projections for each model (speedup evaluation_helper function)
 
 from torch import empty, matmul, eye, arange, tensor
 from torch.nn import Module, Parameter, Embedding
@@ -144,7 +144,7 @@ class TransEModel(Module):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -185,8 +185,8 @@ class TransEModel(Module):
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
-    def evaluation_helper(self, proj_e_emb, proj_candidates,
-                          r_emb, e_idx, r_idx, true_idx, dictionary, number_candidates, heads=1):
+    def compute_ranks(self, proj_e_emb, proj_candidates,
+                      r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """
 
         Parameters
@@ -206,8 +206,6 @@ class TransEModel(Module):
         dictionary : default dict
             Dictionary of keys (int, int) and values list of ints giving all possible entities for
             the (entity, relation) pair.
-        number_candidates : int
-            Integer value of the number of candidates.
         heads : integer
             1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
             We test dissimilarity between heads * entities + relations and heads * targets.
@@ -226,7 +224,7 @@ class TransEModel(Module):
 
         # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
         tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
-        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, number_candidates))
+        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.number_entities))
 
         # compute either dissimilarity(heads + relation, proj_candidates) or
         # dissimilarity(-proj_candidates, relation - tails)
@@ -249,23 +247,21 @@ class TransEModel(Module):
         return rank_true_entities, filtered_rank_true_entities
 
     def evaluate_candidates(self, h_idx, t_idx, r_idx, kg):
-        proj_h_emb, proj_t_emb, proj_candidates, r_emb = self.evaluate(h_idx, t_idx, r_idx)
+        proj_h_emb, proj_t_emb, proj_candidates, r_emb = self.evaluation_helper(h_idx, t_idx, r_idx)
 
-        # evaluate both ways (head, rel) -> tail and (rel, tail) -> head
-        rank_true_tails, filt_rank_true_tails = self.evaluation_helper(proj_h_emb,
-                                                                       proj_candidates,
-                                                                       r_emb, h_idx, r_idx,
-                                                                       t_idx,
-                                                                       kg.dict_of_tails,
-                                                                       number_candidates=kg.n_ent,
-                                                                       heads=1)
-        rank_true_heads, filt_rank_true_heads = self.evaluation_helper(proj_t_emb,
-                                                                       proj_candidates,
-                                                                       r_emb, t_idx, r_idx,
-                                                                       h_idx,
-                                                                       kg.dict_of_heads,
-                                                                       number_candidates=kg.n_ent,
-                                                                       heads=-1)
+        # evaluation_helper both ways (head, rel) -> tail and (rel, tail) -> head
+        rank_true_tails, filt_rank_true_tails = self.compute_ranks(proj_h_emb,
+                                                                   proj_candidates,
+                                                                   r_emb, h_idx, r_idx,
+                                                                   t_idx,
+                                                                   kg.dict_of_tails,
+                                                                   heads=1)
+        rank_true_heads, filt_rank_true_heads = self.compute_ranks(proj_t_emb,
+                                                                   proj_candidates,
+                                                                   r_emb, t_idx, r_idx,
+                                                                   h_idx,
+                                                                   kg.dict_of_heads,
+                                                                   heads=-1)
 
         return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
 
@@ -402,7 +398,7 @@ class TransHModel(TransEModel):
                                                        p=self.norm_type, dim=1)
         self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -590,7 +586,7 @@ class TransRModel(TransEModel):
                                                          p=2, dim=1)
         self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -838,7 +834,7 @@ class TransDModel(TransEModel):
 
         self.evaluated_projections = True
 
-    def evaluate(self, h_idx, t_idx, r_idx):
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
