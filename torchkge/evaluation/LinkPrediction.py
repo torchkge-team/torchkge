@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import tensor, empty
+from torch import empty
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluated
 

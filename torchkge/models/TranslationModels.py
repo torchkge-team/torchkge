@@ -206,6 +206,8 @@ class TransEModel(Module):
         dictionary : default dict
             Dictionary of keys (int, int) and values list of ints giving all possible entities for
             the (entity, relation) pair.
+        number_candidates : int
+            Integer value of the number of candidates.
         heads : integer
             1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
             We test dissimilarity between heads * entities + relations and heads * targets.
