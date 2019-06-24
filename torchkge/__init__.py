@@ -17,6 +17,9 @@ from .models.TranslationModels import TransHModel
 from .models.TranslationModels import TransRModel
 from .models.TranslationModels import TransDModel
 
+from .models.Losses import MSE
+from .models.SemanticMatchingModels import RESCALModel
+
 from .data.KnowledgeGraph import KnowledgeGraph
 
 from .utils import Config
