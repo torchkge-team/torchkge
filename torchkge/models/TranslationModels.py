@@ -240,7 +240,7 @@ class TransEModel(Module):
             true_targets = tensor(true_targets).long()
             filt_dissimilarities[i][true_targets] = float('Inf')
 
-        # from dissimilarities, extract the rank of the true entity and the k_max top proj_e_emb.
+        # from dissimilarities, extract the rank of the true entity.
         rank_true_entities = get_rank(dissimilarities, true_idx)
         filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
 

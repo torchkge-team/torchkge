@@ -24,7 +24,7 @@ def compute_weight(mask, k):
     return 1 / weight.float()
 
 
-def get_rank(data, true):
+def get_rank(data, true, low_values=True):
     """
 
     Parameters
@@ -39,7 +39,10 @@ def get_rank(data, true):
     """
     true_data = data.gather(1, true.long().view(-1, 1))
 
-    return (data <= true_data).sum(dim=1)
+    if low_values:
+        return (data <= true_data).sum(dim=1)
+    else:
+        return (data >= true_data).sum(dim=1)
 
 
 def pad_with_last_value(t, k):

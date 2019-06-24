@@ -4,10 +4,11 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, matmul
+from torch import empty, matmul, tensor
 from torch.nn import Module, Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
+from torchkge.utils import get_rank
 
 
 class RESCALModel(Module):
@@ -15,6 +16,7 @@ class RESCALModel(Module):
     This module should be implemented with ALS. For the time being it is implemented with SGD
     but the loss is still missing sum(true - predicted)**2.
     """
+
     def __init__(self, config):
         super().__init__()
         self.ent_emb_dim = config.entities_embedding_dimension
@@ -50,14 +52,76 @@ class RESCALModel(Module):
 
     def compute_product(self, heads, tails, rel_mat):
         b_size = len(heads)
-        tmp = matmul(heads.view(b_size, 1, self.ent_emb_dim), rel_mat)
-        return matmul(tmp, tails.view(b_size, self.ent_emb_dim, 1)).view(b_size)
+        if len(tails.shape) == 3:
+            tails = tails.transpose(1, 2)
+        else:
+            tails = tails.view(b_size, self.ent_emb_dim, 1)
+
+        if len(heads.shape) == 2:
+            heads = heads.view(b_size, 1, self.ent_emb_dim)
+
+        if (len(heads.shape) == 3) or (len(tails.shape) == 3):
+            return matmul(matmul(heads, rel_mat), tails).view(b_size, -1)
+        else:
+            return matmul(matmul(heads, rel_mat), tails).view(b_size)
 
     def normalize_parameters(self):
         pass
 
-    def evaluate_pair(self):
-        pass
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
+        b_size = len(h_idx)
+
+        candidates = self.entity_embeddings.weight.data
+        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
+        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
+
+        h_emb = self.entity_embeddings(h_idx)
+        t_emb = self.entity_embeddings(t_idx)
+        r_mat = self.relation_matrices[r_idx]
+
+        return h_emb, t_emb, r_mat, candidates
+
+    def compute_ranks(self, e_emb, candidates, r_mat, e_idx, r_idx, true_idx, dictionary, heads=1):
+        current_batch_size, _ = e_emb.shape
+
+        if heads == 1:
+            scores = self.compute_product(e_emb, candidates, r_mat)
+        else:
+            scores = self.compute_product(candidates, e_emb, r_mat)
+
+        # filter out the true negative samples by assigning negative score
+        filt_scores = scores.clone()
+        for i in range(current_batch_size):
+            true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
+            if len(true_targets) == 1:
+                continue
+            true_targets.remove(true_idx[i].item())
+            true_targets = tensor(true_targets).long()
+            filt_scores[i][true_targets] = float(-1)
+
+        # from dissimilarities, extract the rank of the true entity.
+        rank_true_entities = get_rank(scores, true_idx, low_values=False)
+        filtered_rank_true_entities = get_rank(filt_scores, true_idx, low_values=False)
+
+        return rank_true_entities, filtered_rank_true_entities
+
+    def evaluate_candidates(self, h_idx, t_idx, r_idx, kg):
+        h_emb, t_emb, r_mat, candidates = self.evaluation_helper(h_idx, t_idx, r_idx)
+
+        rank_true_tails, filt_rank_true_tails = self.compute_ranks(h_emb,
+                                                                   candidates,
+                                                                   r_mat, h_idx, r_idx,
+                                                                   t_idx,
+                                                                   kg.dict_of_tails,
+                                                                   heads=1)
+        rank_true_heads, filt_rank_true_heads = self.compute_ranks(t_emb,
+                                                                   candidates,
+                                                                   r_mat, t_idx, r_idx,
+                                                                   h_idx,
+                                                                   kg.dict_of_heads,
+                                                                   heads=-1)
+
+        return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
 
 
 class DistMulModel(Module):
