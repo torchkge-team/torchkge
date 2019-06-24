@@ -2,6 +2,13 @@
 History
 =======
 
+0.5.0 (2019-06-24)
+------------------
+
+* Changed implementation of LinkPrediction ranks by moving functions to model methods.
+* Implemented RESCAL.
+
+
 0.4.0 (2019-05-15)
 ------------------
 
