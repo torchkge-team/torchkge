@@ -151,3 +151,25 @@ class LinkPredictionEvaluator(object):
         filt_tail_hit = (self.filt_rank_true_tails < k).float().mean()
 
         return (head_hit + tail_hit).item() / 2, (filt_head_hit + filt_tail_hit).item() / 2
+
+    def mrr(self):
+        """
+
+        Returns
+        -------
+        avg_mrr : float
+            Average of mean recovery rank for head and tail replacement. Computation is done in a \
+            vectorized way.
+        filt_avg_mrr : float
+            Filtered Average of mean recovery rank for head and tail replacement. Computation is \
+            done in a vectorized way.
+        """
+        if not self.evaluated:
+            raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
+
+        head_mrr = (self.rank_true_heads.float()**(-1)).mean()
+        tail_mrr = (self.rank_true_tails.float()**(-1)).mean()
+        filt_head_mrr = (self.filt_rank_true_heads.float()**(-1)).mean()
+        filt_tail_mrr = (self.filt_rank_true_tails.float()**(-1)).mean()
+
+        return (head_mrr + tail_mrr).item() / 2, (filt_head_mrr + filt_tail_mrr).item() / 2
