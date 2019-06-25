@@ -24,7 +24,7 @@ def compute_weight(mask, k):
     return 1 / weight.float()
 
 
-def get_rank(data, true, low_values=True):
+def get_rank(data, true, low_values=False):
     """
 
     Parameters
