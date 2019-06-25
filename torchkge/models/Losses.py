@@ -15,7 +15,7 @@ class MarginLoss(Module):
 
     def forward(self, output):
         golden_triplets, negative_triplets = output[0], output[1]
-        return self.loss(golden_triplets, negative_triplets, target=-ones_like(golden_triplets))
+        return self.loss(golden_triplets, negative_triplets, target=ones_like(golden_triplets))
 
 
 class LogisticLoss(Module):
