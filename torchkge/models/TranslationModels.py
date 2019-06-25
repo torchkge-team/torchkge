@@ -95,9 +95,10 @@ class TransEModel(Module):
         -------
 
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for golden triplets.
+            Score function : opposite of dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for negatively sampled triplets.
+            Score function : opposite of dissimilarities between h+r and t for negatively
+            sampled triplets.
         """
         # recover, project and normalize entity embeddings
         h_emb = self.recover_project_normalize(heads, normalize_=True)
@@ -112,7 +113,7 @@ class TransEModel(Module):
         golden_triplets = self.dissimilarity(h_emb + r_emb, t_emb)
         negative_triplets = self.dissimilarity(n_h_emb + r_emb, n_t_emb)
 
-        return golden_triplets, negative_triplets
+        return -golden_triplets, -negative_triplets
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """
@@ -328,9 +329,10 @@ class TransHModel(TransEModel):
         -------
 
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for golden triplets.
+            Score function : opposite of dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for negatively sampled triplets.
+            Score function : opposite of dissimilarities between h+r and t for negatively
+            sampled triplets.
         """
         # recover relations embeddings and normal projection vectors
         relations_embeddings = self.relation_embeddings(relations)
@@ -353,7 +355,7 @@ class TransHModel(TransEModel):
         negative_triplets = self.dissimilarity(projected_neg_heads + relations_embeddings,
                                                projected_neg_tails)
 
-        return golden_triplets, negative_triplets
+        return -golden_triplets, -negative_triplets
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
@@ -516,9 +518,10 @@ class TransRModel(TransEModel):
         -------
 
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for golden triplets.
+            Score function : opposite of dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for negatively sampled triplets.
+            Score function : opposite of dissimilarities between h+r and t for negatively
+            sampled triplets.
         """
         # recover relations embeddings and normal projection matrices
         relations_embeddings = normalize(self.relation_embeddings(relations), p=2, dim=1)
@@ -541,7 +544,7 @@ class TransRModel(TransEModel):
                                              projected_tails)
         negative_triplets = self.dissimilarity(projected_neg_heads + relations_embeddings,
                                                projected_neg_tails)
-        return golden_triplets, negative_triplets
+        return -golden_triplets, -negative_triplets
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
@@ -707,9 +710,10 @@ class TransDModel(TransEModel):
         -------
 
         golden_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for golden triplets.
+            Score function : opposite of dissimilarities between h+r and t for golden triplets.
         negative_triplets : torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Dissimilarities between h+r and t for negatively sampled triplets.
+            Score function : opposite of dissimilarities between h+r and t for negatively
+            sampled triplets.
         """
         self.evaluated_projections = False
 
@@ -731,7 +735,7 @@ class TransDModel(TransEModel):
         negative_triplets = self.dissimilarity(projected_neg_heads + relations_embeddings,
                                                projected_neg_tails)
 
-        return golden_triplets, negative_triplets
+        return - golden_triplets, - negative_triplets
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
