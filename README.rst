@@ -29,7 +29,10 @@ TorchKGE : Knowledge Graph embedding in Python and Pytorch.
 Features
 --------
 
-* TODO
+* Translational models (TransE, TransH, TransR, TransD)
+* Semantic Matching models (RESCAL, DistMult)
+
+More models to come.
 
 Credits
 -------
