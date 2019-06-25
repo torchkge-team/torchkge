@@ -2,6 +2,13 @@
 History
 =======
 
+0.7.0 (2019-06-**)
+------------------
+
+* Implemented Mean Reciprocal Rank measure of performance.
+* Implemented Logistic Loss.
+* Changed implementation of margin loss to use torch methods.
+
 0.6.0 (2019-06-25)
 ------------------
 
