@@ -4,20 +4,18 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch.nn import Module
-from torch.nn import SoftMarginLoss
+from torch.nn import Module, MarginRankingLoss, SoftMarginLoss
 from torch import ones_like
-import torch.nn.functional as F
 
 
 class MarginLoss(Module):
     def __init__(self, margin):
         super().__init__()
-        self.margin = margin
+        self.loss = MarginRankingLoss(margin=margin, reduction='sum')
 
     def forward(self, output):
         golden_triplets, negative_triplets = output[0], output[1]
-        return F.relu(self.margin + golden_triplets - negative_triplets).sum()
+        return self.loss(golden_triplets, negative_triplets, target=ones_like(golden_triplets))
 
 
 class LogisticLoss(Module):
