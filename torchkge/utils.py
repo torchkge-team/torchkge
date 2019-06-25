@@ -31,6 +31,8 @@ def get_rank(data, true, low_values=True):
     ----------
     data : torch tensor, dtype = float, shape = (n_sample, dimensions)
     true : torch tensor, dtype = int, shape = (n_sample)
+    low_values : bool
+        if True, best rank is the lowest score else it is the highest
 
     Returns
     -------

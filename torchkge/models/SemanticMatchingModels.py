@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, matmul, tensor
+from torch import empty, matmul, tensor, diag_embed
 from torch.nn import Module, Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
@@ -53,8 +53,7 @@ class RESCALModel(Module):
             empty(size=(self.number_entities, self.ent_emb_dim))))
 
         # normalize the embeddings
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+        self.normalize_parameters()
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
@@ -81,10 +80,10 @@ class RESCALModel(Module):
             Estimation of the true value that should be 0 (by matrix factorization).
         """
         # recover entities embeddings
-        heads_embeddings = self.entity_embeddings(heads)
-        tails_embeddings = self.entity_embeddings(tails)
-        neg_heads_embeddings = self.entity_embeddings(negative_heads)
-        neg_tails_embeddings = self.entity_embeddings(negative_tails)
+        heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
+        tails_embeddings = normalize(self.entity_embeddings(tails), p=2, dim=1)
+        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads), p=2, dim=1)
+        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
 
         # recover relation matrices
         relation_matrices = self.relation_matrices[relations]
@@ -93,8 +92,8 @@ class RESCALModel(Module):
             self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
 
     def normalize_parameters(self):
-        # TODO
-        pass
+        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
+                                                       p=2, dim=1)
 
     def compute_product(self, heads, tails, rel_mat):
         """Compute the matrix product hRt^t with proper reshapes. It can do the batch matrix
@@ -103,9 +102,11 @@ class RESCALModel(Module):
 
         Parameters
         ----------
-        heads : torch Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities, self.ent_emb_dim), dtype = float
+        heads : torch Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities, \
+        self.ent_emb_dim), dtype = float
             Tensor containing embeddings of current head entities or candidates.
-        tails : torch.Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities, self.ent_emb_dim), dtype = float
+        tails : torch.Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities, \
+        self.ent_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities or canditates.
         rel_mat : torch.Tensor, shape = (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype = float
             Tensor containing relation matrices for current relations.
@@ -151,7 +152,7 @@ class RESCALModel(Module):
         candidates : torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
             Tensor containing all entities as candidates for each sample of the batch.
         """
-        b_size = len(h_idx)
+        b_size = h_idx.shape[0]
 
         candidates = self.entity_embeddings.weight.data
         candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
@@ -214,8 +215,8 @@ class RESCALModel(Module):
             filt_scores[i][true_targets] = float(-1)
 
         # from dissimilarities, extract the rank of the true entity.
-        rank_true_entities = get_rank(scores, true_idx, low_values=False)
-        filtered_rank_true_entities = get_rank(filt_scores, true_idx, low_values=False)
+        rank_true_entities = get_rank(scores, true_idx)
+        filtered_rank_true_entities = get_rank(filt_scores, true_idx)
 
         return rank_true_entities, filtered_rank_true_entities
 
@@ -238,16 +239,85 @@ class RESCALModel(Module):
         return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
 
 
-class DistMulModel(Module):
-    def __init__(self):
-        super().__init__()
-        pass
+class DistMultModel(RESCALModel):
+    def __init__(self, config):
+        super().__init__(config)
 
-    def forward(self):
-        pass
+        del self.relation_matrices
+        self.relation_vectors = Parameter(
+            xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))))
 
-    def normalize_parameters(self):
-        pass
+    def forward(self, heads, tails, negative_heads, negative_tails, relations):
+        """Forward pass on the current batch.
+        Parameters
+        ----------
+
+        heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled heads.
+        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled tails.
+        relations : torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+
+        golden_triplets : torch tensor, dtype = float, shape = (batch_size)
+            Estimation of the true value that should be 1 (by matrix factorization).
+        negative_triplets : torch tensor, dtype = float, shape = (batch_size)
+            Estimation of the true value that should be 0 (by matrix factorization).
+        """
+        # recover entities embeddings
+        heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
+        tails_embeddings = normalize(self.entity_embeddings(tails), p=2, dim=1)
+        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads), p=2, dim=1)
+        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
+
+        # recover relation matrices
+        relation_vectors = self.relation_vectors[relations]
+        relation_matrices = diag_embed(relation_vectors)
+
+        return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
+            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
+        """
+        Parameters
+        ----------
+        h_idx : torch.Tensor, shape = (b_size,), dtype = long
+            Tensor containing indices of current head entities.
+        t_idx : torch.Tensor, shape = (b_size,), dtype = long
+            Tensor containing indices of current tail entities.
+        r_idx : torch.Tensor, shape = (b_size,), dtype = long
+            Tensor containing indices of current relations.
+
+        Returns
+        -------
+        h_emb : torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities.
+        t_emb : torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities.
+        r_mat : torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
+            Tensor containing matrices of current relations.
+        candidates : torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
+            Tensor containing all entities as candidates for each sample of the batch.
+        """
+        b_size = h_idx.shape[0]
+
+        candidates = self.entity_embeddings.weight.data
+        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
+        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
+
+        h_emb = self.entity_embeddings(h_idx)
+        t_emb = self.entity_embeddings(t_idx)
+        r_vec = self.relation_vectors[r_idx]
+        r_mat = diag_embed(r_vec)
+
+        return h_emb, t_emb, r_mat, candidates
 
 
 class HolEModel(Module):

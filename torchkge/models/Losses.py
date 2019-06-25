@@ -25,4 +25,3 @@ class MSE(Module):
     def forward(self, output):
         golden_triplets, negative_triplets = output[0], output[1]
         return 1/2 * (((1 - golden_triplets)**2).sum() + (negative_triplets**2).sum())
-
