@@ -28,6 +28,11 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     description="Knowledge Graph embedding in Python and Pytorch.",
+    entry_points={
+        'console_scripts': [
+            'torchkge=torchkge.cli:main',
+        ],
+    },
     install_requires=requirements,
     license="BSD license",
     long_description=readme + '\n\n' + history,
