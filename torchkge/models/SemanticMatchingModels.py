@@ -12,8 +12,15 @@ from torchkge.utils import get_rank
 
 
 class RESCALModel(Module):
-    """Implement torch.nn.Module interface. This model should be implemented with ALS. For the time
-    being it is implemented with SGD.
+    """Implement torch.nn.Module interface. This model should be implemented with ALS as in the
+    original paper.
+
+    References
+    ----------
+    * Maximilian Nickel, Volker Tresp, and Hans-Peter Kriegel.
+      A Three-way Model for Collective Learning on Multi-relational Data.
+      In Proceedings of the 28th International Conference on Machine Learning, 2011.
+      https://dl.acm.org/citation.cfm?id=3104584
 
     Parameters
     ----------
@@ -133,6 +140,7 @@ class RESCALModel(Module):
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
+
         Parameters
         ----------
         h_idx : torch.Tensor, shape = (b_size,), dtype = long
@@ -167,6 +175,7 @@ class RESCALModel(Module):
 
     def compute_ranks(self, e_emb, candidates, r_mat, e_idx, r_idx, true_idx, dictionary, heads=1):
         """
+
         Parameters
         ----------
         e_emb : torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
@@ -241,6 +250,37 @@ class RESCALModel(Module):
 
 
 class DistMultModel(RESCALModel):
+    """Implement torch.nn.Module interface and inherits \
+    torchkge.models.SemanticMatchingModels.RESCALModel.
+
+    References
+    ----------
+    * Bishan Yang, Wen-tau Yih, Xiaodong He, Jianfeng Gao, and Li Deng.
+      Embedding Entities and Relations for Learning and Inference in Knowledge Bases.
+      arXiv :1412.6575 [cs], December 2014. arXiv : 1412.6575.
+      https://arxiv.org/abs/1412.6575
+
+    Parameters
+    ----------
+
+    config : Config object
+        Contains all configuration parameters.
+
+    Attributes
+    ----------
+
+    ent_emb_dim : int
+        Dimension of the embedding of entities
+    number_entities : int
+        Number of entities in the current data set.
+    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_vectors : torch Parameter, shape = (number_relations, ent_emb_dim)
+        Contains the vectors to build diagonal matrices of the relations. It is initialized with
+        Xavier uniform.
+
+    """
     def __init__(self, config):
         super().__init__(config)
 
@@ -250,7 +290,7 @@ class DistMultModel(RESCALModel):
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
-        
+
         Parameters
         ----------
 
@@ -288,6 +328,7 @@ class DistMultModel(RESCALModel):
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
+
         Parameters
         ----------
         h_idx : torch.Tensor, shape = (b_size,), dtype = long

@@ -18,6 +18,13 @@ from tqdm import tqdm
 class TransEModel(Module):
     """Implement torch.nn.Module interface.
 
+    References
+    ----------
+    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston, and Oksana Yakhnenko.
+      Translating Embeddings for Modeling Multi-relational Data.
+      In Advances in Neural Information Processing Systems 26, pages 2787–2795, 2013.
+      https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
+
     Parameters
     ----------
 
@@ -241,8 +248,8 @@ class TransEModel(Module):
             filt_dissimilarities[i][true_targets] = float('Inf')
 
         # from dissimilarities, extract the rank of the true entity.
-        rank_true_entities = get_rank(dissimilarities, true_idx)
-        filtered_rank_true_entities = get_rank(filt_dissimilarities, true_idx)
+        rank_true_entities = get_rank(-dissimilarities, true_idx)
+        filtered_rank_true_entities = get_rank(-filt_dissimilarities, true_idx)
 
         return rank_true_entities, filtered_rank_true_entities
 
@@ -267,7 +274,15 @@ class TransEModel(Module):
 
 
 class TransHModel(TransEModel):
-    """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
+    """Implement torch.nn.Module interface and inherits \
+    torchkge.models.TranslationModels.TransEModel.
+
+    References
+    ----------
+    * Zhen Wang, Jianwen Zhang, Jianlin Feng, and Zheng Chen.
+      Knowledge Graph Embedding by Translating on Hyperplanes.
+      In Twenty-Eighth AAAI Conference on Artificial Intelligence, June 2014.
+      https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531
 
     Parameters
     ----------
@@ -457,7 +472,15 @@ class TransHModel(TransEModel):
 
 
 class TransRModel(TransEModel):
-    """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
+    """Implement torch.nn.Module interface and inherits \
+    torchkge.models.TranslationModels.TransEModel.
+
+    References
+    ----------
+    * Yankai Lin, Zhiyuan Liu, Maosong Sun, Yang Liu, and Xuan Zhu.
+      Learning Entity and Relation Embeddings for Knowledge Graph Completion.
+      In Twenty-Ninth AAAI Conference on Artificial Intelligence, February 2015
+      https://www.aaai.org/ocs/index.php/AAAI/AAAI15/paper/view/9571/9523
 
     Parameters
     ----------
@@ -640,7 +663,17 @@ class TransRModel(TransEModel):
 
 
 class TransDModel(TransEModel):
-    """Implement torch.nn.Module interface and inherits torchkge.models.translational_models.TransE.
+    """Implement torch.nn.Module interface and inherits \
+    torchkge.models.TranslationModels.TransEModel.
+
+    References
+    ----------
+    * Guoliang Ji, Shizhu He, Liheng Xu, Kang Liu, and Jun Zhao.
+      Knowledge Graph Embedding via Dynamic Mapping Matrix.
+      In Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and
+      the 7th International Joint Conference on Natural Language Processing (Volume 1 : Long Papers)
+      pages 687–696, Beijing, China, July 2015. Association for Computational Linguistics.
+      https://aclweb.org/anthology/papers/P/P15/P15-1067/
 
     Parameters
     ----------
