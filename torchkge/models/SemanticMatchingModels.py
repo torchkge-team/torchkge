@@ -57,6 +57,7 @@ class RESCALModel(Module):
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
+
         Parameters
         ----------
 
@@ -249,6 +250,7 @@ class DistMultModel(RESCALModel):
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
+        
         Parameters
         ----------
 
