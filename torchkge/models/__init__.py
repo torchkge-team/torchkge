@@ -1,5 +1,5 @@
 from .Losses import MarginLoss
-from .Losses import MSE
+from .Losses import LogisticLoss
 from .TranslationModels import TransEModel
 from .TranslationModels import TransHModel
 from .TranslationModels import TransRModel
