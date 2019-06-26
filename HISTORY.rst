@@ -2,7 +2,7 @@
 History
 =======
 
-0.7.0 (2019-06-**)
+0.7.0 (2019-06-01)
 ------------------
 
 * Implemented Mean Reciprocal Rank measure of performance.
