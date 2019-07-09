@@ -1,8 +1,8 @@
 .. _data:
 
 
-Data
-****
+Data Representation
+*******************
 
 .. currentmodule:: torchkge.data
 
