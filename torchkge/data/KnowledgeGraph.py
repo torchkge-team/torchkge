@@ -4,10 +4,10 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, tensor, cat
+from torch import empty, tensor, cat, bernoulli, ones, randint
 from torch.utils.data import Dataset
 
-from torchkge.data.utils import get_dictionaries
+from torchkge.data.utils import get_dictionaries, get_bern_probs
 
 from tqdm import tqdm
 from collections import defaultdict
@@ -18,31 +18,34 @@ class KnowledgeGraph(Dataset):
 
         Parameters
         ----------
-        df : pandas Dataframe
+        df: pandas Dataframe
             Data frame containing three columns [from, to, rel].
-        ent2ix : dict, optional
+        ent2ix: dict, optional
             Dictionary mapping entity labels to their integer key.
-        rel2ix : dict, optional
+        rel2ix: dict, optional
             Dictionary mapping relation labels to their integer key.
 
         Attributes
         ----------
-        ent2ix : dict
+        ent2ix: dict
             Dictionary mapping entity labels to their integer key.
-        rel2ix : dict
+        rel2ix: dict
             Dictionary mapping relation labels to their integer key.
-        n_ent : int
+        n_ent: int
             Number of distinct entities in the data set.
-        n_rel : int
+        n_rel: int
             Number of distinct entities in the data set.
-        n_sample : int
+        n_sample: int
             Number of samples in the data set. A sample is a fact : a triplet (h, r, l).
-        head_idx : torch tensor, dtype = long, shape = (n_sample)
+        head_idx: torch tensor, dtype = long, shape = (n_sample)
             List of the int key of heads for each sample (fact).
-        tail_idx : torch tensor, dtype = long, shape = (n_sample)
+        tail_idx: torch tensor, dtype = long, shape = (n_sample)
             List of the int key of tails for each sample (facts).
-        relations : torch tensor, dtype = long, shape = (n_sample)
+        relations: torch tensor, dtype = long, shape = (n_sample)
             List of the int key of relations for each sample (facts).
+        bern_probs: torch tensor, dtype = float, shape = (n_sample)
+            List of the Bernoulli probabilities for sampling head or tail for each relation.
+            (cf. Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531)
 
     """
 
@@ -68,17 +71,19 @@ class KnowledgeGraph(Dataset):
             self.head_idx = tensor(df['from'].map(self.ent2ix).values).long()
             self.tail_idx = tensor(df['to'].map(self.ent2ix).values).long()
             self.relations = tensor(df['rel'].map(self.rel2ix).values).long()
+            self.evaluate_bern_probs(df)
         else:
             assert kg is not None
             self.n_sample = kg['heads'].shape[0]
             self.head_idx = kg['heads']
             self.tail_idx = kg['tails']
             self.relations = kg['relations']
+            self.bern_probs = kg['bern_probs']
 
         if dict_of_heads is None or dict_of_tails is None:
             self.dict_of_heads = defaultdict(list)
             self.dict_of_tails = defaultdict(list)
-            print('Evaluating dictionaries.')
+            print('Evaluating dictionaries of possible heads and tails for relations.')
             self.evaluate_dicts()
 
         else:
@@ -89,14 +94,6 @@ class KnowledgeGraph(Dataset):
         return self.n_sample
 
     def __getitem__(self, item):
-        """
-        if not self.list_evaluated:
-            return self.head_idx[item].item(), self.tail_idx[item].item(), \
-                   self.relations[item].item()
-        else:
-            return self.head_idx[item].item(), self.tail_idx[item].item(), \
-                   self.relations[item].item(), self.list_of_heads[item], self.list_of_tails[item]
-        """
         return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
 
     def split_kg(self, share=0.8, train_size=None):
@@ -104,16 +101,16 @@ class KnowledgeGraph(Dataset):
 
         Parameters
         ----------
-        share : float
+        share: float
             Percentage to allocate to train set.
-        train_size : integer
+        train_size: integer
             Length of the training set. If this is not None, the first values of the knowledge
             graph will be used as training set and the rest as test set.
 
         Returns
         -------
-        train_kg : KnowledgeGraph
-        test_kg : KnowledgeGraph
+        train_kg: torchkge.data.KnowledgeGraph
+        test_kg: torchkge.data.KnowledgeGraph
         """
 
         if train_size is None:
@@ -126,7 +123,8 @@ class KnowledgeGraph(Dataset):
         train_kg = KnowledgeGraph(
             kg={'heads': self.head_idx[mask],
                 'tails': self.tail_idx[mask],
-                'relations': self.relations[mask]},
+                'relations': self.relations[mask],
+                'bern_probs': self.bern_probs},
             ent2ix=self.ent2ix, rel2ix=self.rel2ix,
             dict_of_heads=self.dict_of_heads,
             dict_of_tails=self.dict_of_tails)
@@ -134,7 +132,8 @@ class KnowledgeGraph(Dataset):
         test_kg = KnowledgeGraph(
             kg={'heads': self.head_idx[~mask],
                 'tails': self.tail_idx[~mask],
-                'relations': self.relations[~mask]},
+                'relations': self.relations[~mask],
+                'bern_probs': self.bern_probs},
             ent2ix=self.ent2ix, rel2ix=self.rel2ix,
             dict_of_heads=self.dict_of_heads,
             dict_of_tails=self.dict_of_tails)
@@ -152,3 +151,68 @@ class KnowledgeGraph(Dataset):
                                 self.relations[i].item())].extend([self.head_idx[i].item()])
             self.dict_of_tails[(self.head_idx[i].item(),
                                 self.relations[i].item())].extend([self.tail_idx[i].item()])
+
+    def evaluate_bern_probs(self, df):
+        """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original
+        paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.
+
+        Parameters
+        ----------
+        df: pandas.DataFrame
+            DataFrame from which the torchkge.data.KnowledgeGraph object is built.
+
+
+        """
+        bern_probs = get_bern_probs(df)
+        assert len(bern_probs) == len(self.rel2ix)
+        bern_probs = {self.rel2ix[rel]: bern_probs[rel] for rel in bern_probs.keys()}
+        self.bern_probs = tensor([bern_probs[k] for k in sorted(bern_probs.keys())]).float()
+
+    def corrupt_batch(self, heads, tails, relations, n_ent, sampling='uniform'):
+        """For each golden triplet, produce a corrupted one not different from any other golden
+        triplet.
+
+        Parameters
+        ----------
+        heads: torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of heads of the relations in the current batch.
+        tails: torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of tails of the relations in the current batch.
+        relations : torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of relations in the current batch.
+        n_ent: int
+            Number of entities in the entire dataset.
+        sampling : str
+            Specifies the way of sampling head or tail when choosing the one to corrupt. Either
+            'uniform' or 'bernoulli'.
+
+        Returns
+        -------
+        neg_heads: torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of negatively sampled heads of the relations \
+            in the current batch.
+        neg_tails: torch tensor, dtype = long, shape = (batch_size)
+            Tensor containing the integer key of negatively sampled tails of the relations \
+            in the current batch.
+        """
+        assert sampling in ['uniform', 'bernoulli']
+        use_cuda = heads.is_cuda
+        assert (use_cuda == tails.is_cuda)
+        if use_cuda:
+            device = 'cuda'
+        else:
+            device = 'cpu'
+
+        batch_size = heads.shape[0]
+        neg_heads, neg_tails = heads.clone(), tails.clone()
+
+        # Randomly choose which samples will have head/tail corrupted
+        if sampling == 'uniform':
+            mask = bernoulli(ones(size=(batch_size,), device=device) / 2).double()
+        else:
+            mask = bernoulli(self.bern_probs[relations]).double()
+        n_heads_corrupted = int(mask.sum().item())
+        neg_heads[mask == 1] = randint(1, n_ent, (n_heads_corrupted,), device=device)
+        neg_tails[mask == 0] = randint(1, n_ent, (batch_size - n_heads_corrupted,), device=device)
+
+        return neg_heads.long(), neg_tails.long()

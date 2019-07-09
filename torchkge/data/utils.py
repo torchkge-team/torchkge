@@ -1,4 +1,4 @@
-from torch import Tensor, tensor, bernoulli, ones, randint
+from torch import Tensor, tensor
 
 from torchkge.utils import concatenate_diff_sizes
 
@@ -8,14 +8,14 @@ def get_dictionaries(df, ent=True):
 
     Parameters
     ----------
-    df : pandas Dataframe
+    df: pandas Dataframe
         Data frame containing three columns [from, to, rel].
-    ent : bool
+    ent: bool
         if True then ent2ix is returned, if False then rel2ix is returned.
 
     Returns
     -------
-    dict : dictionary
+    dict: dictionary
         Either ent2ix or rel2ix.
     """
     if ent:
@@ -31,20 +31,20 @@ def lists_from_dicts(dictionary, entities, relations, targets, cuda):
 
     Parameters
     ----------
-    dictionary : dict
-        keys : (ent, rel), values : list of entities
-    entities : torch tensor, dtype = long, shape = (batch_size)
+    dictionary: dict
+        keys: (ent, rel), values: list of entities
+    entities: torch tensor, dtype = long, shape = (batch_size)
         Heads (resp. tails) of facts.
-    relations : torch tensor, dtype = long, shape = (batch_size)
+    relations: torch tensor, dtype = long, shape = (batch_size)
         Relations of facts
-    targets : torch tensor, dtype = long, shape = (batch_size)
+    targets: torch tensor, dtype = long, shape = (batch_size)
         Tails (resp. heads) of facts.
-    cuda : bool
+    cuda: bool
         If True, result is returned as CUDA tensor.
 
     Returns
     -------
-    result : torch tensor, dtype = long, shape = (k)
+    result: torch tensor, dtype = long, shape = (k)
         k is the largest number of possible alternative to the target in a fact.
         This tensor contains for each line (fact) the list of possible alternatives to the target.
         If there are no alternatives, then the line is full of -1.
@@ -69,42 +69,40 @@ def lists_from_dicts(dictionary, entities, relations, targets, cuda):
         return result.cpu()
 
 
-def corrupt_batch(heads, tails, n_ent):
-    """For each golden triplet, produce a corrupted one not different from any other golden triplet.
+def get_tph(df):
+    df = df.groupby(['from', 'rel']).count().groupby('rel').mean()
+    df.reset_index(inplace=True)
+    return {df.loc[i].values[0]: df.loc[i].values[1] for i in df.index}
+
+
+def get_hpt(df):
+    df = df.groupby(['rel', 'to']).count().groupby('rel').mean()
+    df.reset_index(inplace=True)
+    return {df.loc[i].values[0]: df.loc[i].values[1] for i in df.index}
+
+
+def get_bern_probs(df):
+    """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original
+    paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.
 
     Parameters
     ----------
-    heads : torch tensor, dtype = long, shape = (batch_size)
-        Tensor containing the integer key of heads of the relations in the current batch.
-    tails : torch tensor, dtype = long, shape = (batch_size)
-        Tensor containing the integer key of tails of the relations in the current batch.
-    n_ent : int
-        Number of entities in the entire dataset.
+    df: pandas.DataFrame
+        Dataframe from which the torchkge.data.KnowledgeGraph object is built.
 
     Returns
     -------
-    neg_heads : torch tensor, dtype = long, shape = (batch_size)
-        Tensor containing the integer key of negatively sampled heads of the relations \
-        in the current batch.
-    neg_tails : torch tensor, dtype = long, shape = (batch_size)
-        Tensor containing the integer key of negatively sampled tails of the relations \
-        in the current batch.
+    tph: dict
+        keys: relations as they appear in the pandas dataframe df, values: sampling probabilities
+        as described by Wang et al. in their paper.
+
     """
-    use_cuda = heads.is_cuda
-    assert (use_cuda == tails.is_cuda)
-    if use_cuda:
-        device = 'cuda'
-    else:
-        device = 'cpu'
+    hpt = get_hpt(df)
+    tph = get_tph(df)
 
-    batch_size = heads.shape[0]
-    neg_heads, neg_tails = heads.clone(), tails.clone()
+    assert hpt.keys() == tph.keys()
 
-    # TODO : Implement bernoulli negative sampling
-    # Randomly choose which samples will have head/tail corrupted
-    mask = bernoulli(ones(size=(batch_size,), device=device)/2).double()
-    n_heads_corrupted = int(mask.sum().item())
-    neg_heads[mask == 1] = randint(1, n_ent, (n_heads_corrupted,), device=device)
-    neg_tails[mask == 0] = randint(1, n_ent, (batch_size - n_heads_corrupted,), device=device)
+    for k in tph.keys():
+        tph[k] = tph[k] / (tph[k] + hpt[k])
 
-    return neg_heads.long(), neg_tails.long()
+    return tph
