@@ -68,7 +68,7 @@ To use TorchKGE in a project::
                 heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
 
             # Create Negative Samples
-            neg_heads, neg_tails = kg_train.corrupt_batch(heads, tails, n_ent=kg.n_ent
+            neg_heads, neg_tails = kg_train.corrupt_batch(heads, tails, rels, n_ent=kg.n_ent
                                                           sampling=neg_sampling)
 
             # zero model gradient
