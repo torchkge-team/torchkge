@@ -36,14 +36,14 @@ class KnowledgeGraph(Dataset):
         n_rel: int
             Number of distinct entities in the data set.
         n_sample: int
-            Number of samples in the data set. A sample is a fact : a triplet (h, r, l).
-        head_idx: torch tensor, dtype = long, shape = (n_sample)
+            Number of samples in the data set. A sample is a fact: a triplet (h, r, l).
+        head_idx: torch.Tensor, dtype = long, shape = (n_sample)
             List of the int key of heads for each sample (fact).
-        tail_idx: torch tensor, dtype = long, shape = (n_sample)
+        tail_idx: torch.Tensor, dtype = long, shape = (n_sample)
             List of the int key of tails for each sample (facts).
-        relations: torch tensor, dtype = long, shape = (n_sample)
+        relations: torch.Tensor, dtype = long, shape = (n_sample)
             List of the int key of relations for each sample (facts).
-        bern_probs: torch tensor, dtype = float, shape = (n_sample)
+        bern_probs: torch.Tensor, dtype = float, shape = (n_sample)
             List of the Bernoulli probabilities for sampling head or tail for each relation\
             (cf. Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531)
 
@@ -174,24 +174,24 @@ class KnowledgeGraph(Dataset):
 
         Parameters
         ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
+        heads: torch.Tensor, dtype = long, shape = (batch_size)
             Tensor containing the integer key of heads of the relations in the current batch.
-        tails: torch tensor, dtype = long, shape = (batch_size)
+        tails: torch.Tensor, dtype = long, shape = (batch_size)
             Tensor containing the integer key of tails of the relations in the current batch.
-        relations : torch tensor, dtype = long, shape = (batch_size)
+        relations: torch.Tensor, dtype = long, shape = (batch_size)
             Tensor containing the integer key of relations in the current batch.
         n_ent: int
             Number of entities in the entire dataset.
-        sampling : str
+        sampling: str
             Specifies the way of sampling head or tail when choosing the one to corrupt. Either\
             'uniform' or 'bernoulli'.
 
         Returns
         -------
-        neg_heads: torch tensor, dtype = long, shape = (batch_size)
+        neg_heads: torch.Tensor, dtype = long, shape = (batch_size)
             Tensor containing the integer key of negatively sampled heads of the relations\
             in the current batch.
-        neg_tails: torch tensor, dtype = long, shape = (batch_size)
+        neg_tails: torch.Tensor, dtype = long, shape = (batch_size)
             Tensor containing the integer key of negatively sampled tails of the relations\
             in the current batch.
         """

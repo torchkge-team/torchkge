@@ -19,7 +19,7 @@ TorchKGE
 
 
 
-TorchKGE : Knowledge Graph embedding in Python and Pytorch.
+TorchKGE: Knowledge Graph embedding in Python and Pytorch.
 
 
 * Free software: BSD license

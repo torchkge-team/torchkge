@@ -29,14 +29,14 @@ def get_rank(data, true, low_values=False):
 
     Parameters
     ----------
-    data : torch tensor, dtype = float, shape = (n_sample, dimensions)
-    true : torch tensor, dtype = int, shape = (n_sample)
-    low_values : bool
+    data: torch.Tensor, dtype = float, shape = (n_sample, dimensions)
+    true: torch.Tensor, dtype = int, shape = (n_sample)
+    low_values: bool
         if True, best rank is the lowest score else it is the highest
 
     Returns
     -------
-    ranks : torch tensor, dtype = int, shape = (n_sample)
+    ranks: torch.Tensor, dtype = int, shape = (n_sample)
         data[ranks[i]] = true[i]
     """
     true_data = data.gather(1, true.long().view(-1, 1))
@@ -52,8 +52,8 @@ def pad_with_last_value(t, k):
 
     Parameters
     ----------
-    t : torch tensor, shape = (n,m)
-    k : integer
+    t: torch.Tensor, shape = (n,m)
+    k: integer
 
     Returns
     -------
@@ -71,12 +71,12 @@ def concatenate_diff_sizes(a, b):
 
     Parameters
     ----------
-    a : torch tensor, shape = (n, m)
-    b : torch tensor, shape = (k, l)
+    a: torch.Tensor, shape = (n, m)
+    b: torch.Tensor, shape = (k, l)
 
     Returns
     -------
-    torch tensor of shape (n+k, max(m, l))
+    torch.Tensor of shape (n+k, max(m, l))
     """
     try:
         _, i = a.shape
@@ -96,17 +96,17 @@ def process_dissimilarities(dissimilarities, true, k_max):
 
     Parameters
     ----------
-    dissimilarities : torch tensor, dtype = float, shape = (batch_size, n_ent)
-    true : torch tensor, dtype = long, shape = (batch_size),
+    dissimilarities: torch.Tensor, dtype = float, shape = (batch_size, n_ent)
+    true: torch.Tensor, dtype = long, shape = (batch_size),
         index of the the true entities for current relation
-    k_max : integer
+    k_max: integer
         Maximum value of the Hit@K measure.
 
     Returns
     -------
-    rank_true_entities : torch tensor, dtype = long, shape = (batch_size)
+    rank_true_entities: torch.Tensor, dtype = long, shape = (batch_size)
         Rank of the true entity among all possible entities (ranked by decreasing dissimilarity)
-    sorted_candidates : torch tensor, dtype = long, shape = (batch_size, k_max)
+    sorted_candidates: torch.Tensor, dtype = long, shape = (batch_size, k_max)
         Top k_max entity candidates in term of smaller dissimilarity(h+r, t).
     """
     # return the rank of the true value along with the sorted top k_max candidates

@@ -10,12 +10,12 @@ def l1_dissimilarity(a, b):
 
     Parameters
     ----------
-    a: torch tensor, dtype = float, shape = (n_sample, dim)
-    b: torch tensor, dtype = float, shape = (n_sample, dim)
+    a: torch.Tensor, dtype = float, shape = (n_sample, dim)
+    b: torch.Tensor, dtype = float, shape = (n_sample, dim)
 
     Returns
     -------
-    dist: torch tensor, dtype = float, shape = (n_sample)
+    dist: torch.Tensor, dtype = float, shape = (n_sample)
         Tensor of the row_wise L1 distance.
 
     """
@@ -27,12 +27,12 @@ def l2_dissimilarity(a, b):
 
     Parameters
     ----------
-    a: torch tensor, dtype = float, shape = (n_sample, dim)
-    b: torch tensor, dtype = float, shape = (n_sample, dim)
+    a: torch.Tensor, dtype = float, shape = (n_sample, dim)
+    b: torch.Tensor, dtype = float, shape = (n_sample, dim)
 
     Returns
     -------
-    dist : torch tensor, dtype = float, shape = (n_sample)
+    dist: torch.Tensor, dtype = float, shape = (n_sample)
         Tensor of the row_wise squared L2 distance.
 
     """

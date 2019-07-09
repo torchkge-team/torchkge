@@ -84,22 +84,22 @@ class TransEModel(Module):
 
         Parameters
         ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
+        heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
+        tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
+        relations: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -124,14 +124,14 @@ class TransEModel(Module):
 
         Parameters
         ----------
-        ent_idx: torch tensor, dtype = long, shape = (batch_size)
+        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
         Returns
         -------
-        projections: torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+        projections: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
             Embedded entities normalized.
 
         """
@@ -155,23 +155,23 @@ class TransEModel(Module):
 
         Parameters
         ----------
-        h_idx: torch Tensor, shape = (b_size), dtype = long
+        h_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current head entities.
-        t_idx: torch Tensor, shape = (b_size), dtype = long
+        t_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current tail entities.
-        r_idx: torch Tensor, shape = (b_size), dtype = long
+        r_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current relations.
 
         Returns
         -------
-        proj_h_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
             Tensor containing all entities projected in each relation spaces (relations
             corresponding to current batch's relations).
-        r_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing current relations embeddings.
 
         """
@@ -199,17 +199,17 @@ class TransEModel(Module):
 
         Parameters
         ----------
-        proj_e_emb: torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
+        proj_e_emb: torch.Tensor, shape = (batch_size, rel_emb_dim), dtype = float
             Tensor containing current projected embeddings of entities.
-        proj_candidates: torch tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
             Tensor containing projected embeddings of all entities.
-        r_emb: torch tensor, shape = (batch_size, ent_emb_dim), dtype = float
+        r_emb: torch.Tensor, shape = (batch_size, ent_emb_dim), dtype = float
             Tensor containing current embeddings of relations.
-        e_idx: torch tensor, shape = (batch_size), dtype = long
+        e_idx: torch.Tensor, shape = (batch_size), dtype = long
             Tensor containing the indices of entities.
-        r_idx: torch tensor, shape = (batch_size), dtype = long
+        r_idx: torch.Tensor, shape = (batch_size), dtype = long
             Tensor containing the indices of relations.
-        true_idx: torch tensor, shape = (batch_size), dtype = long
+        true_idx: torch.Tensor, shape = (batch_size), dtype = long
             Tensor containing the true entity for each sample.
         dictionary: default dict
             Dictionary of keys (int, int) and values list of ints giving all possible entities for
@@ -221,10 +221,10 @@ class TransEModel(Module):
 
         Returns
         -------
-        rank_true_entities: torch Tensor, shape = (b_size), dtype = int
+        rank_true_entities: torch.Tensor, shape = (b_size), dtype = int
             Tensor containing the rank of the true entities when ranking any entity based on \
             computation of d(hear+relation, tail).
-        filtered_rank_true_entities: torch Tensor, shape = (b_size), dtype = int
+        filtered_rank_true_entities: torch.Tensor, shape = (b_size), dtype = int
             Tensor containing the rank of the true entities when ranking only true false entities \
             based on computation of d(hear+relation, tail).
 
@@ -328,22 +328,22 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
+        heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
+        tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
+        relations: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -377,16 +377,16 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
-        ent_idx: torch tensor, dtype = long, shape = (batch_size)
+        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         normalize_: bool
             Whether entities embeddings should be normalized or not.
-        normal_vectors: torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+        normal_vectors: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
             Normal vectors relative to the current relations.
 
         Returns
         -------
-        projections: torch tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+        projections: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
             Projection of the embedded entities on the hyperplanes defined by the provided normal\
             vectors.
 
@@ -417,23 +417,23 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
-        h_idx: torch Tensor, shape = (b_size), dtype = long
+        h_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current head entities.
-        t_idx: torch Tensor, shape = (b_size), dtype = long
+        t_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current tail entities.
-        r_idx: torch Tensor, shape = (b_size), dtype = long
+        r_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current relations.
 
         Returns
         -------
-        proj_h_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
             Tensor containing all entities projected in each relation spaces (relations
             corresponding to current batch's relations).
-        r_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing current relations embeddings.
 
         """
@@ -523,22 +523,22 @@ class TransRModel(TransEModel):
 
         Parameters
         ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
+        heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
+        tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
+        relations: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -572,16 +572,16 @@ class TransRModel(TransEModel):
 
         Parameters
         ----------
-        ent_idx: torch tensor, dtype = long, shape = (batch_size)
+        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         normalize_: bool
             Whether entities embeddings should be normalized or not.
-        projection_matrices: torch tensor, dtype = float, shape = (b_size, r_emb_dim, e_emb_dim)
+        projection_matrices: torch.Tensor, dtype = float, shape = (b_size, r_emb_dim, e_emb_dim)
             Projection matrices for the current relations.
 
         Returns
         -------
-        projections: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        projections: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """
         b_size = len(ent_idx)
@@ -611,23 +611,23 @@ class TransRModel(TransEModel):
 
         Parameters
         ----------
-        h_idx: torch Tensor, shape = (b_size), dtype = long
+        h_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current head entities.
-        t_idx: torch Tensor, shape = (b_size), dtype = long
+        t_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current tail entities.
-        r_idx: torch Tensor, shape = (b_size), dtype = long
+        r_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current relations.
 
         Returns
         -------
-        proj_h_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
             Tensor containing all entities projected in each relation spaces (relations
             corresponding to current batch's relations).
-        r_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
             Tensor containing current relations embeddings.
 
         """
@@ -722,22 +722,22 @@ class TransDModel(TransEModel):
 
         Parameters
         ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
+        heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
+        tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
+        relations: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -770,16 +770,16 @@ class TransDModel(TransEModel):
 
         Parameters
         ----------
-        ent_idx: torch tensor, dtype = long, shape = (batch_size)
+        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
         normalize_: bool
             Whether entities embeddings should be normalized or not.
-        rel_proj: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        rel_proj: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection vectors for the current relations.
 
         Returns
         -------
-        projections: torch tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        projections: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
 
         """
@@ -868,9 +868,9 @@ class TransDModel(TransEModel):
 
         Parameters
         ----------
-        h_idx: torch Tensor, shape = (b_size), dtype = long
+        h_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current head entities.
-        t_idx: torch Tensor, shape = (b_size), dtype = long
+        t_idx: torch.Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current tail entities.
         r_idx: torch Tensor, shape = (b_size), dtype = long
             Tensor containing indices of current relations.

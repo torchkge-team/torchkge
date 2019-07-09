@@ -85,7 +85,7 @@ To use TorchKGE in a project::
                 first_loss = current_loss
 
         model.normalize_parameters()
-        print('Epoch {} loss : {} to {} (duration : {}s)'.format(epoch + 1,
+        print('Epoch {} loss: {} to {} (duration: {}s)'.format(epoch + 1,
                                                                  first_loss, current_loss,
                                                                  time() - epoch_time))
 
@@ -97,9 +97,9 @@ To use TorchKGE in a project::
     test_evaluator = LinkPredictionEvaluator(model, kg_test)
 
     train_evaluator.evaluate(batch_size=b_size_eval, k_max=30)
-    print('Hit@{} : {}'.format(10, train_evaluator.hit_at_k(k=10)))
-    print('Mean Rank : {}'.format(train_evaluator.mean_rank()))
+    print('Hit@{}: {}'.format(10, train_evaluator.hit_at_k(k=10)))
+    print('Mean Rank: {}'.format(train_evaluator.mean_rank()))
 
     test_evaluator.evaluate(batch_size=b_size_eval, k_max=30)
-    print('Hit@{} : {}'.format(10, test_evaluator.hit_at_k(k=10)))
-    print('Mean Rank : {}'.format(test_evaluator.mean_rank()))
+    print('Hit@{}: {}'.format(10, test_evaluator.hit_at_k(k=10)))
+    print('Mean Rank: {}'.format(test_evaluator.mean_rank()))
