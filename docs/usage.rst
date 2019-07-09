@@ -35,6 +35,7 @@ To use TorchKGE in a project::
     # Model definition
     #############################################################################################
     lr, nb_epochs, batch_size, margin = 0.01, 50, 500, 1
+    neg_sampling = 'bernoulli'
     config = Config(ent_emb_dim=50, rel_emb_dim=50,
                     n_ent=kg_train.n_ent, n_rel=kg_train.n_rel, norm_type=2)
 
@@ -67,7 +68,8 @@ To use TorchKGE in a project::
                 heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
 
             # Create Negative Samples
-            neg_heads, neg_tails = corrupt_batch(heads, tails, n_ent=kg.n_ent)
+            neg_heads, neg_tails = kg_train.corrupt_batch(heads, tails, n_ent=kg.n_ent
+                                                          sampling=neg_sampling)
 
             # zero model gradient
             model.zero_grad()
