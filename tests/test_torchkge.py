@@ -6,8 +6,6 @@
 
 import unittest
 
-from torchkge import torchkge
-
 
 class TestTorchkge(unittest.TestCase):
     """Tests for `torchkge` package."""
