@@ -2,6 +2,11 @@
 History
 =======
 
+0.8.0 (2019-06-09)
+------------------
+
+* Implemented Bernoulli negative sampling as in Wang et al. paper on TransH (2014).
+
 0.7.0 (2019-06-01)
 ------------------
 
