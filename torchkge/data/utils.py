@@ -17,6 +17,7 @@ def get_dictionaries(df, ent=True):
     -------
     dict: dictionary
         Either ent2ix or rel2ix.
+
     """
     if ent:
         tmp = list(set(df['from'].unique()).union(set(df['to'].unique())))
@@ -45,9 +46,10 @@ def lists_from_dicts(dictionary, entities, relations, targets, cuda):
     Returns
     -------
     result: torch tensor, dtype = long, shape = (k)
-        k is the largest number of possible alternative to the target in a fact.
-        This tensor contains for each line (fact) the list of possible alternatives to the target.
-        If there are no alternatives, then the line is full of -1.
+        k is the largest number of possible alternative to the target in a fact. This tensor\
+        contains for each line (fact) the list of possible alternatives to the target. If there\
+        are no alternatives, then the line is full of -1.
+
     """
     result = Tensor().long()
 
@@ -82,7 +84,7 @@ def get_hpt(df):
 
 
 def get_bern_probs(df):
-    """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original
+    """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original\
     paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.
 
     Parameters
@@ -93,7 +95,7 @@ def get_bern_probs(df):
     Returns
     -------
     tph: dict
-        keys: relations as they appear in the pandas dataframe df, values: sampling probabilities
+        keys: relations as they appear in the pandas dataframe df, values: sampling probabilities\
         as described by Wang et al. in their paper.
 
     """

@@ -12,38 +12,44 @@ from tqdm import tqdm
 
 
 class LinkPredictionEvaluator(object):
-    """Evaluate performance of given embedding using link prediction method. TODO : add reference.
 
-        Parameters
-        ----------
-        model : torchkge model
-        knowledge_graph : torchkge.data.KnowledgeGraph.KnowledgeGraph
-            Knowledge graph in the form of an object implemented in
-            torchkge.data.KnowledgeGraph.KnowledgeGraph
+    """Evaluate performance of given embedding using link prediction method.
 
-        Attributes
-        ----------
-        model : torchkge model
-        kg : torchkge.data.KnowledgeGraph.KnowledgeGraph
-            Knowledge graph in the form of an object implemented in
-            torchkge.data.KnowledgeGraph.KnowledgeGraph
-        rank_true_heads : torch tensor, shape = (n_facts), dtype = int
-            Rank of the true head when all possible entities are ranked in term of dissimilarity\
-            with tail - relation.
-        rank_true_tails : torch tensor, shape = (n_facts), dtype = int
-            Rank of the true tail when all possible entities are ranked in term of dissimilarity\
-            with head + relation.
-        filt_rank_true_heads : torch tensor, shape = (n_facts), dtype = int
-            Filtered rank of the true tail when all possible entities are ranked in term of \
-            dissimilarity with head + relation.
-        filt_rank_true_tails : torch tensor, shape = (n_facts), dtype = int
-            Filtered rank of the true tail when all possible entities are ranked in term of \
-            dissimilarity with head + relation.
-        evaluated : bool
-            Indicates if the method LinkPredictionEvaluator.evaluate() has been called on \
-            current object
-        k_max : bool, default = 10
-            Max value to be used to compute the hit@k score.
+    Parameters
+    ----------
+    model: torchkge model
+    knowledge_graph: torchkge.data.KnowledgeGraph
+        Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
+
+    Attributes
+    ----------
+    model: torchkge model
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
+    rank_true_heads: torch tensor, shape = (n_facts), dtype = int
+        Rank of the true head when all possible entities are ranked in term of dissimilarity\
+        with tail - relation.
+    rank_true_tails: torch tensor, shape = (n_facts), dtype = int
+        Rank of the true tail when all possible entities are ranked in term of dissimilarity\
+        with head + relation.
+    filt_rank_true_heads: torch tensor, shape = (n_facts), dtype = int
+        Filtered rank of the true tail when all possible entities are ranked in term of\
+        dissimilarity with head + relation.
+    filt_rank_true_tails: torch tensor, shape = (n_facts), dtype = int
+        Filtered rank of the true tail when all possible entities are ranked in term of\
+        dissimilarity with head + relation.
+    evaluated: bool
+        Indicates if the method LinkPredictionEvaluator.evaluate() has been called on\
+        current object
+    k_max: bool, default = 10
+        Max value to be used to compute the hit@k score.
+
+    References
+    ----------
+    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston, and Oksana Yakhnenko.
+      Translating Embeddings for Modeling Multi-relational Data.
+      In Advances in Neural Information Processing Systems 26, pages 2787–2795, 2013.
+      https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
 
     """
 
@@ -64,11 +70,12 @@ class LinkPredictionEvaluator(object):
 
         Parameters
         ----------
-        batch_size : integer
+        batch_size: int
             Size of the current batch.
-        k_max : integer
-            Maximal k value we plan to use for Hit@k. This is used to truncate tensor so that it \
+        k_max: int
+            Maximal k value we plan to use for Hit@k. This is used to truncate tensor so that it\
             fits in memory.
+
         """
         self.k_max = k_max
         use_cuda = self.model.entity_embeddings.weight.is_cuda
@@ -109,12 +116,13 @@ class LinkPredictionEvaluator(object):
 
         Returns
         -------
-        mean_rank : float
-            The mean rank of the true entity when replacing alternatively head and tail in\
+        mean_rank: float
+            Mean rank of the true entity when replacing alternatively head and tail in\
             any fact of the dataset.
-        filt_mean_rank : float
-            The filtered mean rank of the true entity when replacing alternatively head and tail in\
+        filt_mean_rank: float
+            Filtered mean rank of the true entity when replacing alternatively head and tail in\
             any fact of the dataset.
+
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
@@ -129,18 +137,19 @@ class LinkPredictionEvaluator(object):
 
         Parameters
         ----------
-        k : integer
+        k: int
             Hit@k is the number of entities that show up in the top k that give facts present\
             in the dataset.
 
         Returns
         -------
-        avg_hitatk : float
-            Average of hit@k for head and tail replacement. Computation is done in a \
+        avg_hitatk: float
+            Average of hit@k for head and tail replacement. Computation is done in a\
             vectorized way.
-        filt_avg_hitatk : float
-            Filtered Average of hit@k for head and tail replacement. Computation is done in a \
+        filt_avg_hitatk: float
+            Filtered Average of hit@k for head and tail replacement. Computation is done in a\
             vectorized way.
+
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
@@ -157,12 +166,13 @@ class LinkPredictionEvaluator(object):
 
         Returns
         -------
-        avg_mrr : float
-            Average of mean recovery rank for head and tail replacement. Computation is done in a \
+        avg_mrr: float
+            Average of mean recovery rank for head and tail replacement. Computation is done in a\
             vectorized way.
-        filt_avg_mrr : float
-            Filtered Average of mean recovery rank for head and tail replacement. Computation is \
+        filt_avg_mrr: float
+            Filtered Average of mean recovery rank for head and tail replacement. Computation is\
             done in a vectorized way.
+
         """
         if not self.evaluated:
             raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')

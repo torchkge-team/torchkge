@@ -44,7 +44,7 @@ class KnowledgeGraph(Dataset):
         relations: torch tensor, dtype = long, shape = (n_sample)
             List of the int key of relations for each sample (facts).
         bern_probs: torch tensor, dtype = float, shape = (n_sample)
-            List of the Bernoulli probabilities for sampling head or tail for each relation.
+            List of the Bernoulli probabilities for sampling head or tail for each relation\
             (cf. Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531)
 
     """
@@ -104,13 +104,14 @@ class KnowledgeGraph(Dataset):
         share: float
             Percentage to allocate to train set.
         train_size: integer
-            Length of the training set. If this is not None, the first values of the knowledge
+            Length of the training set. If this is not None, the first values of the knowledge\
             graph will be used as training set and the rest as test set.
 
         Returns
         -------
         train_kg: torchkge.data.KnowledgeGraph
         test_kg: torchkge.data.KnowledgeGraph
+
         """
 
         if train_size is None:
@@ -141,7 +142,7 @@ class KnowledgeGraph(Dataset):
         return train_kg, test_kg
 
     def evaluate_dicts(self):
-        """Evaluate dicts of possible alternatives to an entity in a fact that still gives a true
+        """Evaluate dicts of possible alternatives to an entity in a fact that still gives a true\
         fact in the entire knowledge graph.
 
         """
@@ -153,14 +154,13 @@ class KnowledgeGraph(Dataset):
                                 self.relations[i].item())].extend([self.tail_idx[i].item()])
 
     def evaluate_bern_probs(self, df):
-        """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original
+        """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original\
         paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.
 
         Parameters
         ----------
         df: pandas.DataFrame
             DataFrame from which the torchkge.data.KnowledgeGraph object is built.
-
 
         """
         bern_probs = get_bern_probs(df)
@@ -169,7 +169,7 @@ class KnowledgeGraph(Dataset):
         self.bern_probs = tensor([bern_probs[k] for k in sorted(bern_probs.keys())]).float()
 
     def corrupt_batch(self, heads, tails, relations, n_ent, sampling='uniform'):
-        """For each golden triplet, produce a corrupted one not different from any other golden
+        """For each golden triplet, produce a corrupted one not different from any other golden\
         triplet.
 
         Parameters
@@ -183,16 +183,16 @@ class KnowledgeGraph(Dataset):
         n_ent: int
             Number of entities in the entire dataset.
         sampling : str
-            Specifies the way of sampling head or tail when choosing the one to corrupt. Either
+            Specifies the way of sampling head or tail when choosing the one to corrupt. Either\
             'uniform' or 'bernoulli'.
 
         Returns
         -------
         neg_heads: torch tensor, dtype = long, shape = (batch_size)
-            Tensor containing the integer key of negatively sampled heads of the relations \
+            Tensor containing the integer key of negatively sampled heads of the relations\
             in the current batch.
         neg_tails: torch tensor, dtype = long, shape = (batch_size)
-            Tensor containing the integer key of negatively sampled tails of the relations \
+            Tensor containing the integer key of negatively sampled tails of the relations\
             in the current batch.
         """
         assert sampling in ['uniform', 'bernoulli']

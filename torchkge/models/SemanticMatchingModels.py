@@ -12,7 +12,7 @@ from torchkge.utils import get_rank
 
 
 class RESCALModel(Module):
-    """Implement torch.nn.Module interface. This model should be implemented with ALS as in the
+    """Implement torch.nn.Module interface. This model should be implemented with ALS as in the\
     original paper.
 
     References
@@ -24,21 +24,19 @@ class RESCALModel(Module):
 
     Parameters
     ----------
-
-    config : Config object
+    config: Config object
         Contains all configuration parameters.
 
     Attributes
     ----------
-
-    ent_emb_dim : int
+    ent_emb_dim: int
         Dimension of the embedding of entities
-    number_entities : int
+    number_entities: int
         Number of entities in the current data set.
-    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
-    relation_matrices : torch Parameter, shape = (number_relations, ent_emb_dim, ent_emb_dim)
+    relation_matrices: torch Parameter, shape = (number_relations, ent_emb_dim, ent_emb_dim)
         Contains the matrices of the relations. It is initialized with Xavier uniform.
 
     """
@@ -67,25 +65,24 @@ class RESCALModel(Module):
 
         Parameters
         ----------
-
-        heads : torch tensor, dtype = long, shape = (batch_size)
+        heads: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails : torch tensor, dtype = long, shape = (batch_size)
+        tails: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations : torch tensor, dtype = long, shape = (batch_size)
+        relations: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-
-        golden_triplets : torch tensor, dtype = float, shape = (batch_size)
+        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
             Estimation of the true value that should be 1 (by matrix factorization).
-        negative_triplets : torch tensor, dtype = float, shape = (batch_size)
+        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
             Estimation of the true value that should be 0 (by matrix factorization).
+
         """
         # recover entities embeddings
         heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
@@ -110,19 +107,20 @@ class RESCALModel(Module):
 
         Parameters
         ----------
-        heads : torch Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities, \
+        heads: torch Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
         self.ent_emb_dim), dtype = float
             Tensor containing embeddings of current head entities or candidates.
-        tails : torch.Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities, \
+        tails: torch.Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
         self.ent_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities or canditates.
-        rel_mat : torch.Tensor, shape = (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype = float
+        rel_mat: torch.Tensor, shape = (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype = float
             Tensor containing relation matrices for current relations.
 
         Returns
         -------
-        product : torch.Tensor, shape = (b_size) or (b_size, self.number_entities), dtype = float
+        product: torch.Tensor, shape = (b_size) or (b_size, self.number_entities), dtype = float
             Tensor containing the matrix products h.W.t^t for each sample of the batch.
+
         """
         b_size = len(heads)
         if len(tails.shape) == 3:
@@ -143,23 +141,24 @@ class RESCALModel(Module):
 
         Parameters
         ----------
-        h_idx : torch.Tensor, shape = (b_size,), dtype = long
+        h_idx: torch.Tensor, shape = (b_size,), dtype = long
             Tensor containing indices of current head entities.
-        t_idx : torch.Tensor, shape = (b_size,), dtype = long
+        t_idx: torch.Tensor, shape = (b_size,), dtype = long
             Tensor containing indices of current tail entities.
-        r_idx : torch.Tensor, shape = (b_size,), dtype = long
+        r_idx: torch.Tensor, shape = (b_size,), dtype = long
             Tensor containing indices of current relations.
 
         Returns
         -------
-        h_emb : torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+        h_emb: torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
             Tensor containing embeddings of current head entities.
-        t_emb : torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+        t_emb: torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities.
-        r_mat : torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
+        r_mat: torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
             Tensor containing matrices of current relations.
-        candidates : torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
+        candidates: torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
             Tensor containing all entities as candidates for each sample of the batch.
+
         """
         b_size = h_idx.shape[0]
 
@@ -178,34 +177,35 @@ class RESCALModel(Module):
 
         Parameters
         ----------
-        e_emb : torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
+        e_emb: torch tensor, shape = (batch_size, rel_emb_dim), dtype = float
             Tensor containing current embeddings of entities.
-        candidates : torch tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
+        candidates: torch tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
             Tensor containing projected embeddings of all entities.
-        r_mat : torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
+        r_mat: torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
             Tensor containing current matrices of relations.
-        e_idx : torch tensor, shape = (batch_size), dtype = long
+        e_idx: torch tensor, shape = (batch_size), dtype = long
             Tensor containing the indices of entities.
-        r_idx : torch tensor, shape = (batch_size), dtype = long
+        r_idx: torch tensor, shape = (batch_size), dtype = long
             Tensor containing the indices of relations.
-        true_idx : torch tensor, shape = (batch_size), dtype = long
+        true_idx: torch tensor, shape = (batch_size), dtype = long
             Tensor containing the true entity for each sample.
-        dictionary : default dict
-            Dictionary of keys (int, int) and values list of ints giving all possible entities for
+        dictionary: default dict
+            Dictionary of keys (int, int) and values list of ints giving all possible entities for\
             the (entity, relation) pair.
-        heads : integer
-            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
-            We test dissimilarity between heads * entities + relations and heads * targets.
+        heads: integer
+            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). We test\
+             dissimilarity between heads * entities + relations and heads * targets.
 
 
         Returns
         -------
-        rank_true_entities : torch Tensor, shape = (b_size), dtype = int
-            Tensor containing the rank of the true entities when ranking any entity based on \
+        rank_true_entities: torch Tensor, shape = (b_size), dtype = int
+            Tensor containing the rank of the true entities when ranking any entity based on\
             estimation of 1 or 0.
-        filtered_rank_true_entities : torch Tensor, shape = (b_size), dtype = int
-            Tensor containing the rank of the true entities when ranking only true false entities \
-             based on estimation of 1 or 0.
+        filtered_rank_true_entities: torch Tensor, shape = (b_size), dtype = int
+            Tensor containing the rank of the true entities when ranking only true false entities\
+            based on estimation of 1 or 0.
+
         """
         current_batch_size, _ = e_emb.shape
 
@@ -250,7 +250,7 @@ class RESCALModel(Module):
 
 
 class DistMultModel(RESCALModel):
-    """Implement torch.nn.Module interface and inherits \
+    """Implement torch.nn.Module interface and inherits\
     torchkge.models.SemanticMatchingModels.RESCALModel.
 
     References
@@ -262,21 +262,19 @@ class DistMultModel(RESCALModel):
 
     Parameters
     ----------
-
-    config : Config object
+    config: Config object
         Contains all configuration parameters.
 
     Attributes
     ----------
-
-    ent_emb_dim : int
+    ent_emb_dim: int
         Dimension of the embedding of entities
-    number_entities : int
+    number_entities: int
         Number of entities in the current data set.
-    entity_embeddings : torch Embedding, shape = (number_entities, ent_emb_dim)
+    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
-    relation_vectors : torch Parameter, shape = (number_relations, ent_emb_dim)
+    relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
         Contains the vectors to build diagonal matrices of the relations. It is initialized with
         Xavier uniform.
 
@@ -294,24 +292,25 @@ class DistMultModel(RESCALModel):
         Parameters
         ----------
 
-        heads : torch tensor, dtype = long, shape = (batch_size)
+        heads: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails : torch tensor, dtype = long, shape = (batch_size)
+        tails: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads : torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails : torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations : torch tensor, dtype = long, shape = (batch_size)
+        relations: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
 
-        golden_triplets : torch tensor, dtype = float, shape = (batch_size)
+        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
             Estimation of the true value that should be 1 (by matrix factorization).
-        negative_triplets : torch tensor, dtype = float, shape = (batch_size)
+        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
             Estimation of the true value that should be 0 (by matrix factorization).
+
         """
         # recover entities embeddings
         heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
@@ -331,23 +330,24 @@ class DistMultModel(RESCALModel):
 
         Parameters
         ----------
-        h_idx : torch.Tensor, shape = (b_size,), dtype = long
+        h_idx: torch.Tensor, shape = (b_size,), dtype = long
             Tensor containing indices of current head entities.
-        t_idx : torch.Tensor, shape = (b_size,), dtype = long
+        t_idx: torch.Tensor, shape = (b_size,), dtype = long
             Tensor containing indices of current tail entities.
-        r_idx : torch.Tensor, shape = (b_size,), dtype = long
+        r_idx: torch.Tensor, shape = (b_size,), dtype = long
             Tensor containing indices of current relations.
 
         Returns
         -------
-        h_emb : torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+        h_emb: torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
             Tensor containing embeddings of current head entities.
-        t_emb : torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+        t_emb: torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
             Tensor containing embeddings of current tail entities.
-        r_mat : torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
+        r_mat: torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
             Tensor containing matrices of current relations.
-        candidates : torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
+        candidates: torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
             Tensor containing all entities as candidates for each sample of the batch.
+        
         """
         b_size = h_idx.shape[0]
 
