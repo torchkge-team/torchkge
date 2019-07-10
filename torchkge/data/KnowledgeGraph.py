@@ -7,7 +7,7 @@ aboschin@enst.fr
 from torch import empty, tensor, cat, bernoulli, ones, randint
 from torch.utils.data import Dataset
 
-from torchkge.data.utils import get_dictionaries, get_bern_probs
+from torchkge.utils import get_dictionaries, get_bern_probs
 
 from tqdm import tqdm
 from collections import defaultdict
