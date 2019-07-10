@@ -1,8 +1,8 @@
 =====
-Usage
+TransE Tutorial
 =====
 
-To use TorchKGE in a project::
+To run TransE on FB15k::
 
     import pandas as pd
     import torch.cuda as cuda

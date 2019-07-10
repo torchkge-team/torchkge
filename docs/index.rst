@@ -1,20 +1,27 @@
 Welcome to TorchKGE's documentation!
 ======================================
 
+.. include:: readme.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Installation & Reference:
+
+   installation
+   reference/index
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials:
+
+   tutorials/transe
+
 .. toctree::
    :maxdepth: 1
-   :caption: Contents:
+   :caption: About:
 
-   readme
-   installation
-   usage
-   reference/index
    contributing
    authors
    history
-
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   genindex
