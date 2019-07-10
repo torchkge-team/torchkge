@@ -7,23 +7,6 @@ aboschin@enst.fr
 from torch import bincount, cat, topk
 
 
-def compute_weight(mask, k):
-    """
-
-    Parameters
-    ----------
-    mask
-    k
-
-    Returns
-    -------
-
-    """
-    weight = bincount(mask)[mask]
-    weight[weight > k] = k
-    return 1 / weight.float()
-
-
 def get_rank(data, true, low_values=False):
     """
 
@@ -45,6 +28,23 @@ def get_rank(data, true, low_values=False):
         return (data <= true_data).sum(dim=1)
     else:
         return (data >= true_data).sum(dim=1)
+
+
+def compute_weight(mask, k):
+    """
+
+    Parameters
+    ----------
+    mask
+    k
+
+    Returns
+    -------
+
+    """
+    weight = bincount(mask)[mask]
+    weight[weight > k] = k
+    return 1 / weight.float()
 
 
 def pad_with_last_value(t, k):
@@ -113,12 +113,3 @@ def process_dissimilarities(dissimilarities, true, k_max):
     _, sorted_candidates = topk(dissimilarities, k_max, dim=1, largest=False, sorted=True)
     rank_true_entities = get_rank(dissimilarities, true)
     return rank_true_entities, sorted_candidates
-
-
-class Config:
-    def __init__(self, ent_emb_dim=None, rel_emb_dim=None, n_ent=None, n_rel=None, norm_type=None):
-        self.entities_embedding_dimension = ent_emb_dim
-        self.relations_embedding_dimension = rel_emb_dim
-        self.number_entities = n_ent
-        self.number_relations = n_rel
-        self.norm_type = norm_type

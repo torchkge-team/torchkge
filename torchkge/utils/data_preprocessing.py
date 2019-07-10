@@ -1,6 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+aboschin@enst.fr
+"""
+
 from torch import Tensor, tensor
 
-from torchkge.utils import concatenate_diff_sizes
+from .operations import concatenate_diff_sizes
 
 
 def get_dictionaries(df, ent=True):
