@@ -13,11 +13,9 @@ To run TransE on FB15k::
     from torch.optim import SGD
 
     from torchkge.data import KnowledgeGraph
-    from torchkge.data.utils import corrupt_batch
-    from torchkge.evaluation import l2_dissimilarity, LinkPredictionEvaluator
-    from torchkge.utils import Config
-    from torchkge.models import TransEModel, MarginLoss
-
+    from torchkge.models import TransEModel
+    from torchkge.evaluation import LinkPredictionEvaluator
+    from torchkge.utils import Config, l2_dissimilarity, MarginLoss
 
     #############################################################################################
     # Data loading

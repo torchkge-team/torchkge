@@ -24,4 +24,3 @@ Welcome to TorchKGE's documentation!
    contributing
    authors
    history
-   genindex
