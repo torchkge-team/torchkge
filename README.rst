@@ -24,20 +24,3 @@ TorchKGE: Knowledge Graph embedding in Python and Pytorch.
 
 * Free software: BSD license
 * Documentation: https://torchkge.readthedocs.io.
-
-
-Features
---------
-
-* Translational models (TransE, TransH, TransR, TransD)
-* Semantic Matching models (RESCAL, DistMult)
-
-More models to come.
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
