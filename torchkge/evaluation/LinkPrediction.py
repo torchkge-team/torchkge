@@ -6,7 +6,7 @@ aboschin@enst.fr
 
 from torch import empty
 from torch.utils.data import DataLoader
-from torchkge.exceptions import NotYetEvaluated
+from torchkge.exceptions import NotYetEvaluatedError
 
 from tqdm import tqdm
 
@@ -125,7 +125,7 @@ class LinkPredictionEvaluator(object):
 
         """
         if not self.evaluated:
-            raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
+            raise NotYetEvaluatedError('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
         sum_ = (self.rank_true_heads.float().mean() +
                 self.rank_true_tails.float().mean()).item()
         filt_sum = (self.filt_rank_true_heads.float().mean() +
@@ -152,7 +152,7 @@ class LinkPredictionEvaluator(object):
 
         """
         if not self.evaluated:
-            raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
+            raise NotYetEvaluatedError('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
 
         head_hit = (self.rank_true_heads < k).float().mean()
         tail_hit = (self.rank_true_tails < k).float().mean()
@@ -175,7 +175,7 @@ class LinkPredictionEvaluator(object):
 
         """
         if not self.evaluated:
-            raise NotYetEvaluated('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
+            raise NotYetEvaluatedError('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
 
         head_mrr = (self.rank_true_heads.float()**(-1)).mean()
         tail_mrr = (self.rank_true_tails.float()**(-1)).mean()
