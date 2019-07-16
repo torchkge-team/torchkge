@@ -9,6 +9,7 @@ from torch.nn import Module, Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torchkge.utils import get_rank
+from torchkge.exceptions import WrongDimensionError
 
 
 class RESCALModel(Module):
@@ -291,7 +292,6 @@ class DistMultModel(RESCALModel):
 
         Parameters
         ----------
-
         heads: torch tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
         tails: torch tensor, dtype = long, shape = (batch_size)
@@ -305,7 +305,6 @@ class DistMultModel(RESCALModel):
 
         Returns
         -------
-
         golden_triplets: torch tensor, dtype = float, shape = (batch_size)
             Estimation of the true value that should be 1 (by matrix factorization).
         negative_triplets: torch tensor, dtype = float, shape = (batch_size)
@@ -388,9 +387,39 @@ class ComplexModel(Module):
 
 
 class AnalogyModel(Module):
-    def __init__(self):
+    """Implementation of ANALOGY model detailed in 2017 paper by Hanxiao Liu, Yuexin Wu, and\
+    Yiming Yang. According to their remark in the implementation details, the number of scalars on\
+    the diagonal of each relation-specific matrix is by default set to be half the embedding\
+    dimension.
+
+    References
+    ----------
+    * Hanxiao Liu, Yuexin Wu, and Yiming Yang.
+      Analogical Inference for Multi-Relational Embeddings.
+      arXiv :1705.02426 [cs], May 2017. arXiv : 1705.02426.
+      https://arxiv.org/abs/1705.02426
+    """
+    def __init__(self, config, scalar_share=0.5):
         super().__init__()
-        pass
+        try:
+            assert config.entities_embedding_dimension % 2 == 0
+        except AssertionError:
+            raise WrongDimensionError('Embedding dimension should be pair.')
+        self.ent_emb_dim = config.entities_embedding_dimension
+        self.number_entities = config.number_entities
+        self.number_relations = config.number_relations
+
+        self.scalar_share = scalar_share
+        self.number_scalars = int(self.ent_emb_dim * scalar_share)
+
+        # initialize embedding objects
+        self.entity_embeddings = Embedding(self.number_entities, self.ent_emb_dim)
+        self.relation_vectors = Parameter(self.number_relations, self.number_scalars)
+
+        # fill the embedding weights with Xavier initialized values
+
+        # normalize the embeddings
+
 
     def forward(self):
         pass
