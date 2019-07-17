@@ -4,7 +4,13 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import bincount, cat, topk
+from torch import bincount, cat, topk, zeros
+
+
+def get_mask(len, start, end):
+    mask = zeros(len)
+    mask[[i for i in range(start, end)]] = 1
+    return mask.byte()
 
 
 def get_rank(data, true, low_values=False):
