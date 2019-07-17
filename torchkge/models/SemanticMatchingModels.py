@@ -8,13 +8,14 @@ from torch import empty, matmul, tensor, diag_embed
 from torch.nn import Module, Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
-from torchkge.utils import get_rank, get_mask
+from torchkge.utils import get_rank, get_mask, get_rolling_matrix
 from torchkge.exceptions import WrongDimensionError
 
 
 class RESCALModel(Module):
-    """Implement torch.nn.Module interface. This model should be implemented with ALS as in the\
-    original paper.
+    """Implementation of DistMult model detailed in 2014 paper by Nickel et al..\
+    In the original paper, optimization is done using Alternating Least Squares (ALS). Here we use\
+    iterative gradient descent optimization.
 
     References
     ----------
@@ -95,7 +96,7 @@ class RESCALModel(Module):
         relation_matrices = self.relation_matrices[relations]
 
         return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-               self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
 
     def normalize_parameters(self):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
@@ -252,8 +253,7 @@ class RESCALModel(Module):
 
 
 class DistMultModel(RESCALModel):
-    """Implement torch.nn.Module interface and inherits\
-    torchkge.models.SemanticMatchingModels.RESCALModel.
+    """Implementation of DistMult model detailed in 2014 paper by Yang et al..
 
     References
     ----------
@@ -320,11 +320,10 @@ class DistMultModel(RESCALModel):
         neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
 
         # recover relation matrices
-        relation_vectors = self.relation_vectors[relations]
-        relation_matrices = diag_embed(relation_vectors)
+        relation_matrices = diag_embed(self.relation_vectors[relations])
 
         return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-               self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -358,19 +357,119 @@ class DistMultModel(RESCALModel):
 
         h_emb = self.entity_embeddings(h_idx)
         t_emb = self.entity_embeddings(t_idx)
-        r_vec = self.relation_vectors[r_idx]
-        r_mat = diag_embed(r_vec)
+        r_mat = diag_embed(self.relation_vectors[r_idx])
 
         return h_emb, t_emb, r_mat, candidates
 
 
-class HolEModel(Module):
-    def __init__(self):
-        super().__init__()
-        pass
+class HolEModel(RESCALModel):
+    """Implementation of HolE model detailed in 2015 paper by Nickel et al..
 
-    def forward(self):
-        pass
+        References
+        ----------
+        * Maximilian Nickel, Lorenzo Rosasco, and Tomaso Poggio.
+          Holographic Embeddings of Knowledge Graphs.
+          arXiv :1510.04935 [cs, stat], October 2015. arXiv : 1510.04935.
+          https://arxiv.org/abs/1510.04935
+
+        Parameters
+        ----------
+        config: Config object
+            Contains all configuration parameters.
+
+        Attributes
+        ----------
+        ent_emb_dim: int
+            Dimension of the embedding of entities
+        number_entities: int
+            Number of entities in the current data set.
+        entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+            Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+             normalized.
+        relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
+            Contains the vectors to build block-diagonal matrices of the relations. It is initialized
+            with Xavier uniform.
+        smaller_dim: int
+            Number of 2x2 matrices on the diagonals of relation-specific matrices.
+        """
+    def __init__(self, config):
+        super().__init__(config)
+
+        del self.relation_matrices
+        self.relation_vectors = Parameter(
+            xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))))
+
+    def forward(self, heads, tails, negative_heads, negative_tails, relations):
+        """Forward pass on the current batch.
+
+        Parameters
+        ----------
+        heads: torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails: torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        negative_heads: torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled heads.
+        negative_tails: torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's negatively sampled tails.
+        relations: torch tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
+            Estimation of the true value that should be 1 (by matrix factorization).
+        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
+            Estimation of the true value that should be 0 (by matrix factorization).
+
+        """
+        # recover entities embeddings
+        heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
+        tails_embeddings = normalize(self.entity_embeddings(tails), p=2, dim=1)
+        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads), p=2, dim=1)
+        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
+
+        # recover relation matrices
+        relation_matrices = get_rolling_matrix(self.relation_vectors[relations])
+
+        return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
+               self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
+        """
+
+        Parameters
+        ----------
+        h_idx: torch.Tensor, shape = (b_size,), dtype = long
+            Tensor containing indices of current head entities.
+        t_idx: torch.Tensor, shape = (b_size,), dtype = long
+            Tensor containing indices of current tail entities.
+        r_idx: torch.Tensor, shape = (b_size,), dtype = long
+            Tensor containing indices of current relations.
+
+        Returns
+        -------
+        h_emb: torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities.
+        t_emb: torch.Tensor, shape = (b_size, ent_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities.
+        r_mat: torch.Tensor, shape = (b_size, ent_emb_dim, ent_emb_dim), dtype = float
+            Tensor containing matrices of current relations.
+        candidates: torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
+            Tensor containing all entities as candidates for each sample of the batch.
+
+        """
+        b_size = h_idx.shape[0]
+
+        candidates = self.entity_embeddings.weight.data
+        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
+        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
+
+        h_emb = self.entity_embeddings(h_idx)
+        t_emb = self.entity_embeddings(t_idx)
+        r_mat = get_rolling_matrix(self.relation_vectors[r_idx])
+
+        return h_emb, t_emb, r_mat, candidates
 
     def normalize_parameters(self):
         pass
@@ -474,8 +573,8 @@ class ComplExModel(DistMultModel):
 
 
 class AnalogyModel(DistMultModel):
-    """Implementation of ANALOGY model detailed in 2017 paper by Hanxiao Liu, Yuexin Wu, and\
-    Yiming Yang. According to their remark in the implementation details, the number of scalars on\
+    """Implementation of ANALOGY model detailed in 2017 paper by Liu et al..\
+    According to their remark in the implementation details, the number of scalars on\
     the diagonal of each relation-specific matrix is by default set to be half the embedding\
     dimension.
 
