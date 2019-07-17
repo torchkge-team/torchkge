@@ -387,10 +387,9 @@ class HolEModel(RESCALModel):
             Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
              normalized.
         relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
-            Contains the vectors to build block-diagonal matrices of the relations. It is initialized
+            Contains the vectors to build circular matrices of the relations. It is initialized
             with Xavier uniform.
-        smaller_dim: int
-            Number of 2x2 matrices on the diagonals of relation-specific matrices.
+
         """
     def __init__(self, config):
         super().__init__(config)
@@ -433,7 +432,7 @@ class HolEModel(RESCALModel):
         relation_matrices = get_rolling_matrix(self.relation_vectors[relations])
 
         return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-               self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
