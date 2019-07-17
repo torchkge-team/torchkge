@@ -7,8 +7,8 @@ aboschin@enst.fr
 from torch import bincount, cat, topk, zeros
 
 
-def get_mask(len, start, end):
-    mask = zeros(len)
+def get_mask(length, start, end):
+    mask = zeros(length)
     mask[[i for i in range(start, end)]] = 1
     return mask.byte()
 
