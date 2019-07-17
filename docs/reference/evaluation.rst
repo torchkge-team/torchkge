@@ -6,11 +6,6 @@ Evaluation
 
 .. currentmodule:: torchkge.evaluation
 
-Dissimilarities
----------------
-.. automodule:: torchkge.evaluation.Dissimilarities
-    :members:
-
 LinkPrediction
 --------------
 .. automodule:: torchkge.evaluation.LinkPrediction

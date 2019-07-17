@@ -1,5 +1,7 @@
 .. toctree::
 
+    data
     models
     evaluation
-    data
+    utils
+    exceptions

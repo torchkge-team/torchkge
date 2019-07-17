@@ -4,24 +4,55 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import bincount, cat, topk
+from torch import empty, bincount, cat, topk, zeros
+from torch.nn import Embedding, Parameter
+from torch.nn.init import xavier_uniform_
 
 
-def compute_weight(mask, k):
+def init_embedding(n_vectors, dim):
+    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
+    """
+    entity_embeddings = Embedding(n_vectors, dim)
+    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))))
+    return entity_embeddings
+
+
+def get_mask(length, start, end):
+    """Create a mask of length `length` filled with 0s except between indices `start` (included)\
+    and `end` (excluded).
+
+    Parameters
+    ----------
+    length: int
+    start: int
+    end: int
+
+    Returns
+    -------
+    mask: torch.Tensor, shape=(length), dtype=byte
+        Mask of length `length` filled with 0s except between indices `start` (included)\
+        and `end` (excluded).
+    """
+    mask = zeros(length)
+    mask[[i for i in range(start, end)]] = 1
+    return mask.byte()
+
+
+def get_rolling_matrix(x):
     """
 
     Parameters
     ----------
-    mask
-    k
+    x: torch.Tensor, shape=(b_size, dim)
 
     Returns
     -------
-
+    mat: torch.Tensor, shape=(b_size, dim, dim)
+        Rolling matrix sur that mat[i,j] = x[i - j mod(dim)]
     """
-    weight = bincount(mask)[mask]
-    weight[weight > k] = k
-    return 1 / weight.float()
+    b_size, dim = x.shape
+    x = x.view(b_size, 1, dim)
+    return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
 
 
 def get_rank(data, true, low_values=False):
@@ -45,6 +76,23 @@ def get_rank(data, true, low_values=False):
         return (data <= true_data).sum(dim=1)
     else:
         return (data >= true_data).sum(dim=1)
+
+
+def compute_weight(mask, k):
+    """
+
+    Parameters
+    ----------
+    mask
+    k
+
+    Returns
+    -------
+
+    """
+    weight = bincount(mask)[mask]
+    weight[weight > k] = k
+    return 1 / weight.float()
 
 
 def pad_with_last_value(t, k):
@@ -113,12 +161,3 @@ def process_dissimilarities(dissimilarities, true, k_max):
     _, sorted_candidates = topk(dissimilarities, k_max, dim=1, largest=False, sorted=True)
     rank_true_entities = get_rank(dissimilarities, true)
     return rank_true_entities, sorted_candidates
-
-
-class Config:
-    def __init__(self, ent_emb_dim=None, rel_emb_dim=None, n_ent=None, n_rel=None, norm_type=None):
-        self.entities_embedding_dimension = ent_emb_dim
-        self.relations_embedding_dimension = rel_emb_dim
-        self.number_entities = n_ent
-        self.number_relations = n_rel
-        self.norm_type = norm_type

@@ -13,11 +13,9 @@ To run TransE on FB15k::
     from torch.optim import SGD
 
     from torchkge.data import KnowledgeGraph
-    from torchkge.data.utils import corrupt_batch
-    from torchkge.evaluation import l2_dissimilarity, LinkPredictionEvaluator
-    from torchkge.utils import Config
-    from torchkge.models import TransEModel, MarginLoss
-
+    from torchkge.models import TransEModel
+    from torchkge.evaluation import LinkPredictionEvaluator
+    from torchkge.utils import l2_dissimilarity, MarginLoss
 
     #############################################################################################
     # Data loading
@@ -29,17 +27,21 @@ To run TransE on FB15k::
     df = pd.concat([df1, df2])
 
     kg = KnowledgeGraph(df)
-    kg_train, kg_test = kg.split_kg(train_size=len(df1))
+    kg_train, kg_test = kg.split_kg(sizes=(len(df1), len(df2)))
 
     #############################################################################################
     # Model definition
     #############################################################################################
     lr, nb_epochs, batch_size, margin = 0.01, 50, 500, 1
     neg_sampling = 'bernoulli'
-    config = Config(ent_emb_dim=50, rel_emb_dim=50,
-                    n_ent=kg_train.n_ent, n_rel=kg_train.n_rel, norm_type=2)
+    ent_emb_dim = 50
+    n_ent = kg_train.n_ent
+    n_rel = kg_train.n_rel
+    norm_type = 2
 
-    model, criterion = TransEModel(config, dissimilarity=l2_dissimilarity), MarginLoss(margin)
+    model = TransEModel(ent_emb_dim, n_entities, n_relations, norm_type,
+                        dissimilarity=l2_dissimilarity)
+    criterion = MarginLoss(margin)
     optimizer = SGD(model.parameters(), lr=lr)
 
     #############################################################################################

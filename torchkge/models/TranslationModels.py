@@ -3,20 +3,19 @@
 Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
-# TODO: define evaluate_projections for each model (speedup evaluation_helper function)
 
 from torch import empty, matmul, eye, arange, tensor
-from torch.nn import Module, Parameter, Embedding
+from torch.nn import Module, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
-from torchkge.utils import get_rank
+from torchkge.utils import get_rank, init_embedding, l2_dissimilarity
 
 from tqdm import tqdm
 
 
 class TransEModel(Module):
-    """Implement torch.nn.Module interface.
+    """Implementation of TransE model detailed in 2013 paper by Bordes et al..
 
     References
     ----------
@@ -27,23 +26,29 @@ class TransEModel(Module):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
+    ent_emb_dim: int
+        Dimension of the embedding of entities.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
+    norm_type: int
+        1 or 2 indicates the type of the norm to be used when normalizing.
     dissimilarity: function
-        Used to compute dissimilarities.
+        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
 
     Attributes
     ----------
     ent_emb_dim: int
-        Dimension of the embedding of entities
-    rel_emb_dim: int
-        Dimension of the embedding of relations
+        Dimension of the embedding of entities.
     number_entities: int
         Number of entities in the current data set.
+    number_relations: int
+        Number of relations in the current data set.
     norm_type: int
         1 or 2 indicates the type of the norm to be used when normalizing.
     dissimilarity: function
-        Used to compute dissimilarities.
+        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
     entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
@@ -53,27 +58,26 @@ class TransEModel(Module):
 
     """
 
-    def __init__(self, config, dissimilarity):
+    def __init__(self, ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
+                 rel_emb_dim=None):
         super().__init__()
 
-        self.ent_emb_dim = config.entities_embedding_dimension
-        self.rel_emb_dim = config.relations_embedding_dimension
-        self.number_entities = config.number_entities
-        self.number_relations = config.number_relations
-        self.norm_type = config.norm_type
+        self.ent_emb_dim = ent_emb_dim
+        self.number_entities = n_entities
+        self.number_relations = n_relations
+        self.norm_type = norm_type
         self.dissimilarity = dissimilarity
 
-        # initialize embedding objects
-        self.entity_embeddings = Embedding(self.number_entities, self.ent_emb_dim)
-        self.relation_embeddings = Embedding(self.number_relations, self.rel_emb_dim)
+        if rel_emb_dim is None:
+            rel_emb_dim = ent_emb_dim
+        else:
+            self.rel_emb_dim = rel_emb_dim
 
-        # fill the embedding weights with Xavier initialized values
-        self.entity_embeddings.weight = Parameter(xavier_uniform_(
-            empty(size=(self.number_entities, self.ent_emb_dim))))
-        self.relation_embeddings.weight = Parameter(xavier_uniform_(
-            empty(size=(self.number_relations, self.rel_emb_dim))))
+        # initialize embeddings
+        self.entity_embeddings = init_embedding(self.number_entities, self.ent_emb_dim)
+        self.relation_embeddings = init_embedding(self.number_relations, rel_emb_dim)
 
-        # normalize the embeddings
+        # normalize parameters
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
@@ -276,8 +280,8 @@ class TransEModel(Module):
 
 
 class TransHModel(TransEModel):
-    """Implement torch.nn.Module interface and inherits \
-    torchkge.models.TranslationModels.TransEModel.
+    """Implementation of TransH model detailed in 2014 paper by Wang et al.. According to this\
+    paper, both normalization and dissimilarity measure are by default L2.
 
     References
     ----------
@@ -288,40 +292,45 @@ class TransHModel(TransEModel):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
-    dissimilarity: function
-        Used to compute dissimilarities.
+    ent_emb_dim: int
+        Dimension of the embedding of entities.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
+    norm_type: int (default=2)
+        1 or 2 indicates the type of the norm to be used when normalizing. Default is 2.
+    dissimilarity: function (default=torchkge.utils.dissimilarities.l2_dissimilarity)
+        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities). \
+        Default is l2_dissimilarity.
 
     Attributes
     ----------
     ent_emb_dim: int
-        Dimension of the embedding of entities
-    rel_emb_dim: int
-        Dimension of the embedding of relations
+        Dimension of the embedding of entities.
     number_entities: int
         Number of entities in the current data set.
-    norm_type: int
-        1 or 2 indicates the type of the norm to be used when normalizing.
-    dissimilarity: function
-        Used to compute dissimilarities.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    number_relations: int
+        Number of relations in the current data set.
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
-    relation_embeddings: torch Embedding, shape = (number_relations, ent_emb_dim)
+    relation_embeddings: torch.nn.Embedding, shape = (number_relations, ent_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
-         normalized.
+        normalized.
+    normal_vectors: torch.Tensor, shape = (number_relations, ent_emb_dim)
+        Normal vectors associated to each relation and used to compute the relation-specific\
+        hyperplanes entities are projected on. See paper for more details.
 
     """
 
-    def __init__(self, config, dissimilarity):
-        # initialize and normalize embeddings
-        super().__init__(config, dissimilarity)
+    def __init__(self, ent_emb_dim, n_entities, n_relations, norm_type=2,
+                 dissimilarity=l2_dissimilarity):
 
-        # initialize and normalize normal vector
-        self.normal_vectors = Parameter(xavier_uniform_(empty(size=(self.number_relations,
-                                                                    self.ent_emb_dim))))
-        self.normal_vectors.data = normalize(self.normal_vectors.data, p=2, dim=1)
+        super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity)
+
+        self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))))
+        self.normalize_parameters()
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
@@ -405,12 +414,12 @@ class TransHModel(TransEModel):
         return ent_emb - normal_component * normal_vectors
 
     def normalize_parameters(self):
-        """Normalize the embeddings of the entities using the model-specified norm and the normal \
-        vectors using the L2 norm.
+        """Normalize the parameters of the model using norm defined in self.norm_type. Default\
+        is L2.
         """
+        self.normal_vectors.data = normalize(self.normal_vectors, p=self.norm_type, dim=1)
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=self.norm_type, dim=1)
-        self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -472,8 +481,8 @@ class TransHModel(TransEModel):
 
 
 class TransRModel(TransEModel):
-    """Implement torch.nn.Module interface and inherits \
-    torchkge.models.TranslationModels.TransEModel.
+    """Implementation of TransR model detailed in 2015 paper by Lin et al.. According to this\
+    paper, both normalization and dissimilarity measure are by default L2.
 
     References
     ----------
@@ -484,39 +493,49 @@ class TransRModel(TransEModel):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
-    dissimilarity: function
-        Used to compute dissimilarities.
+    ent_emb_dim: int
+        Dimension of the embedding of entities.
+    rel_emb_dim: int
+        Dimension of the embedding of relations.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
+    norm_type: int (default=2)
+        1 or 2 indicates the type of the norm to be used when normalizing. Default is 2.
+    dissimilarity: function (default=torchkge.utils.dissimilarities.l2_dissimilarity)
+        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities). \
+        Default is l2_dissimilarity.
 
     Attributes
     ----------
     ent_emb_dim: int
-        Dimension of the embedding of entities
+        Dimension of the embedding of entities.
     rel_emb_dim: int
-        Dimension of the embedding of relations
+        Dimension of the embedding of relations.
     number_entities: int
         Number of entities in the current data set.
-    norm_type: int
-        1 or 2 indicates the type of the norm to be used when normalizing.
-    dissimilarity: function
-        Used to compute dissimilarities.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    number_relations: int
+        Number of relations in the current data set.
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
-    relation_embeddings: torch Embedding, shape = (number_relations, ent_emb_dim)
+    relation_embeddings: torch.nn.Embedding, shape = (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
-         normalized.
+        normalized.
+    projection_matrices: torch.Tensor, shape = (number_relations, rel_emb_dim, ent_emb_dim)
+        Relation-specific projection matrices. See paper for more details.
 
     """
 
-    def __init__(self, config, dissimilarity):
-        super().__init__(config, dissimilarity)
+    def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations, norm_type=2,
+                 dissimilarity=l2_dissimilarity):
 
-        # initialize and normalize projection matrices
-        self.projection_matrices = Parameter(xavier_uniform_(empty(size=(self.number_relations,
-                                                                         self.rel_emb_dim,
-                                                                         self.ent_emb_dim))))
+        super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
+                         rel_emb_dim=rel_emb_dim)
+        self.projection_matrices = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim,
+                                                                         ent_emb_dim))))
+        self.normalize_parameters()
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
@@ -598,13 +617,15 @@ class TransRModel(TransEModel):
         return projection.view(b_size, self.rel_emb_dim)
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using only L2 norm.
+        """Normalize the parameters of the model using norm defined in self.norm_type. Default\
+        is L2.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+                                                       p=self.norm_type, dim=1)
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=2, dim=1)
-        self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
+                                                         p=self.norm_type, dim=1)
+        self.projection_matrices.data = normalize(self.projection_matrices.data, p=self.norm_type,
+                                                  dim=2)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -660,8 +681,8 @@ class TransRModel(TransEModel):
 
 
 class TransDModel(TransEModel):
-    """Implement torch.nn.Module interface and inherits \
-    torchkge.models.TranslationModels.TransEModel.
+    """Implementation of TransD model detailed in 2015 paper by Ji et al.. According to this\
+    paper, both normalization and dissimilarity measure are by default L2.
 
     References
     ----------
@@ -674,43 +695,53 @@ class TransDModel(TransEModel):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
-    dissimilarity: function
-        Used to compute dissimilarities.
+    ent_emb_dim: int
+        Dimension of the embedding of entities.
+    rel_emb_dim: int
+        Dimension of the embedding of relations.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
+    norm_type: int (default=2)
+        1 or 2 indicates the type of the norm to be used when normalizing. Default is 2.
+    dissimilarity: function (default=torchkge.utils.dissimilarities.l2_dissimilarity)
+        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities). \
+        Default is l2_dissimilarity.
 
     Attributes
     ----------
     ent_emb_dim: int
-        Dimension of the embedding of entities
+        Dimension of the embedding of entities.
     rel_emb_dim: int
-        Dimension of the embedding of relations
+        Dimension of the embedding of relations.
     number_entities: int
         Number of entities in the current data set.
-    norm_type: int
-        1 or 2 indicates the type of the norm to be used when normalizing.
-    dissimilarity: function
-        Used to compute dissimilarities.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    number_relations: int
+        Number of relations in the current data set.
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
-    relation_embeddings: torch Embedding, shape = (number_relations, ent_emb_dim)
+    relation_embeddings: torch.nn.Embedding, shape = (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
-         normalized.
+        normalized.
+    ent_proj_vects: torch.Tensor, shape = (number_entities, ent_emb_dim)
+        Entity-specific vector used to build projection matrices. See paper for more details.
+    rel_proj_vects: torch.Tensor, shape = (number_relations, rel_emb_dim)
+        Relation-specific vector used to build projection matrices. See paper for more details.
 
     """
 
-    def __init__(self, config, dissimilarity):
-        super().__init__(config, dissimilarity)
+    def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations, norm_type=2,
+                 dissimilarity=l2_dissimilarity):
 
-        # initialize and normalize projection vectors
-        self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(self.number_entities,
-                                                                    self.ent_emb_dim))))
-        self.rel_proj_vects = Parameter(xavier_uniform_(empty(size=(self.number_relations,
-                                                                    self.rel_emb_dim))))
 
-        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
-        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
+        super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
+                         rel_emb_dim=rel_emb_dim)
+
+        self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))))
+        self.rel_proj_vects = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim))))
+        self.normalize_parameters()
 
         self.evaluated_projections = False
         self.projected_entities = Parameter(empty(size=(self.number_relations,
@@ -808,14 +839,15 @@ class TransDModel(TransEModel):
         return projection.view((b_size, self.rel_emb_dim))
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using only L2 norm.
+        """Normalize the parameters of the model using norm defined in self.norm_type. Default\
+        is L2.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+                                                       p=self.norm_type, dim=1)
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=2, dim=1)
-        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
-        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
+                                                         p=self.norm_type, dim=1)
+        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=self.norm_type, dim=1)
+        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=self.norm_type, dim=1)
 
     def evaluate_projections(self):
         """Project all entities according to each relation.

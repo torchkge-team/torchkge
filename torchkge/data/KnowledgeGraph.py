@@ -7,7 +7,8 @@ aboschin@enst.fr
 from torch import empty, tensor, cat, bernoulli, ones, randint
 from torch.utils.data import Dataset
 
-from torchkge.data.utils import get_dictionaries, get_bern_probs
+from torchkge.utils import get_dictionaries, get_bern_probs
+from torchkge.exceptions import SizeMismatchError
 
 from tqdm import tqdm
 from collections import defaultdict
@@ -96,50 +97,89 @@ class KnowledgeGraph(Dataset):
     def __getitem__(self, item):
         return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
 
-    def split_kg(self, share=0.8, train_size=None):
+    def split_kg(self, share=0.8, sizes=None, validation=False):
         """Split the knowledge graph into train and test.
 
         Parameters
         ----------
         share: float
             Percentage to allocate to train set.
-        train_size: integer
-            Length of the training set. If this is not None, the first values of the knowledge\
-            graph will be used as training set and the rest as test set.
+        sizes: tuple
+            Tuple of ints of length 2 or 3. If len(sizes) == 2, then the first sizes[0] values of\
+            the knowledge graph will be used as training set and the rest as test set.\
+            If len(sizes) == 3, the first sizes[0] values of the knowledge graph will be used as\
+            training set, the following sizes[1] as validation set and the last sizes[2] as testing\
+            set.
+        validation: bool
+            Indicate if a validation set should be produced along with train and test sets.
 
         Returns
         -------
         train_kg: torchkge.data.KnowledgeGraph
+        val_kg: torchkge.data.KnowledgeGraph (optional)
         test_kg: torchkge.data.KnowledgeGraph
 
         """
 
-        if train_size is None:
-            mask = (empty(self.head_idx.shape).uniform_() < share)
+        if sizes is not None:
+            try:
+                if len(sizes) == 3:
+                    assert(sizes[0] + sizes[1] + sizes[2] == self.n_sample)
+                elif len(sizes) == 2:
+                    assert (sizes[0] + sizes[1] == self.n_sample)
+                else:
+                    raise SizeMismatchError('Tuple `sizes` should be of length 2 or 3.')
+            except AssertionError:
+                raise SizeMismatchError('Tuple `sizes` should sum up to the number of facts in the '
+                                        'knowledge graph.')
+
+        if ((sizes is not None) and (len(sizes) == 3)) or ((sizes is None) and validation):
+            if (sizes is None) and validation:
+                samp = empty(self.head_idx.shape).uniform_()
+                mask_tr = (samp < share)
+                mask_val = (samp > share) & (samp < (1 + share) / 2)
+                mask_te = ~(mask_tr | mask_val)
+            else:
+                mask_tr = cat([tensor([1 for _ in range(sizes[0])]),
+                               tensor([0 for _ in range(sizes[1] + sizes[2])])]).byte()
+                mask_val = cat([tensor([0 for _ in range(sizes[0])]),
+                                tensor([1 for _ in range(sizes[1])]),
+                                tensor([0 for _ in range(sizes[2])])]).byte()
+                mask_te = ~(mask_tr | mask_val)
+
+            return KnowledgeGraph(
+                kg={'heads': self.head_idx[mask_tr], 'tails': self.tail_idx[mask_tr],
+                    'relations': self.relations[mask_tr], 'bern_probs': self.bern_probs},
+                ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
+                dict_of_tails=self.dict_of_tails), \
+                   KnowledgeGraph(
+                kg={'heads': self.head_idx[mask_val], 'tails': self.tail_idx[mask_val],
+                    'relations': self.relations[mask_val], 'bern_probs': self.bern_probs},
+                ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
+                dict_of_tails=self.dict_of_tails), \
+                   KnowledgeGraph(
+                kg={'heads': self.head_idx[mask_te], 'tails': self.tail_idx[mask_te],
+                    'relations': self.relations[mask_te], 'bern_probs': self.bern_probs},
+                ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
+                dict_of_tails=self.dict_of_tails)
         else:
-            mask = cat([tensor([1 for _ in range(train_size)]),
-                        tensor([0 for _ in range(self.head_idx.shape[0] - train_size)])])
-            mask = mask.byte()
-
-        train_kg = KnowledgeGraph(
-            kg={'heads': self.head_idx[mask],
-                'tails': self.tail_idx[mask],
-                'relations': self.relations[mask],
-                'bern_probs': self.bern_probs},
-            ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-            dict_of_heads=self.dict_of_heads,
-            dict_of_tails=self.dict_of_tails)
-
-        test_kg = KnowledgeGraph(
-            kg={'heads': self.head_idx[~mask],
-                'tails': self.tail_idx[~mask],
-                'relations': self.relations[~mask],
-                'bern_probs': self.bern_probs},
-            ent2ix=self.ent2ix, rel2ix=self.rel2ix,
-            dict_of_heads=self.dict_of_heads,
-            dict_of_tails=self.dict_of_tails)
-
-        return train_kg, test_kg
+            assert(((sizes is not None) and len(sizes) == 2) or
+                   ((sizes is None) and not validation))
+            if sizes is None:
+                mask_tr = (empty(self.head_idx.shape).uniform_() < share)
+            else:
+                mask_tr = cat([tensor([1 for _ in range(sizes[0])]),
+                               tensor([0 for _ in range(sizes[1])])]).byte()
+            return KnowledgeGraph(
+                kg={'heads': self.head_idx[mask_tr], 'tails': self.tail_idx[mask_tr],
+                    'relations': self.relations[mask_tr], 'bern_probs': self.bern_probs},
+                ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
+                dict_of_tails=self.dict_of_tails), \
+                   KnowledgeGraph(
+                kg={'heads': self.head_idx[~mask_tr], 'tails': self.tail_idx[~mask_tr],
+                    'relations': self.relations[~mask_tr], 'bern_probs': self.bern_probs},
+                ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
+                dict_of_tails=self.dict_of_tails)
 
     def evaluate_dicts(self):
         """Evaluate dicts of possible alternatives to an entity in a fact that still gives a true\

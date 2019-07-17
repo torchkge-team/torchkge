@@ -4,23 +4,16 @@
 
 __author__ = """Armand Boschin"""
 __email__ = 'aboschin@enst.fr'
-__version__ = '0.8.0'
+__version__ = '0.9.0'
 
+from .data import KnowledgeGraph
 
-from .evaluation.Dissimilarities import l1_dissimilarity
-from .evaluation.Dissimilarities import l2_dissimilarity
+from .models import TransEModel, TransHModel, TransRModel, TransDModel
+from .models import RESCALModel, DistMultModel
+
+from torchkge.utils import l1_dissimilarity, l2_dissimilarity
+from torchkge.utils import MarginLoss, LogisticLoss, MSE
+
 from .evaluation.LinkPrediction import LinkPredictionEvaluator
 
-from .models.Losses import MarginLoss
-from .models.TranslationModels import TransEModel
-from .models.TranslationModels import TransHModel
-from .models.TranslationModels import TransRModel
-from .models.TranslationModels import TransDModel
-
-from .models.Losses import MSE
-from .models.SemanticMatchingModels import RESCALModel
-
-from .data.KnowledgeGraph import KnowledgeGraph
-
-from .utils import Config
-from .exceptions import NotYetEvaluated
+from torchkge.exceptions import NotYetEvaluatedError

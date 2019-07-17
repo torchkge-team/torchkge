@@ -2,12 +2,20 @@
 History
 =======
 
-0.8.0 (2019-06-09)
+0.9.0 (2019-07-17)
+------------------
+
+* Implemented HolE model (Nickel et al.)
+* Implemented ComplEx model (Trouillon et al.)
+* Implemented ANALOGY model (Liu et al.)
+* Added knowledge graph splitting into train, validation and test instead of just train and test.
+
+0.8.0 (2019-07-09)
 ------------------
 
 * Implemented Bernoulli negative sampling as in Wang et al. paper on TransH (2014).
 
-0.7.0 (2019-06-01)
+0.7.0 (2019-07-01)
 ------------------
 
 * Implemented Mean Reciprocal Rank measure of performance.
