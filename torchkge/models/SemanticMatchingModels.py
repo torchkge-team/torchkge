@@ -376,13 +376,98 @@ class HolEModel(Module):
         pass
 
 
-class ComplexModel(Module):
-    def __init__(self):
-        super().__init__()
-        pass
+class ComplExModel(DistMultModel):
+    """Implementation of ComplEx model detailed in 2016 paper by Trouillon et al..
 
-    def forward(self):
-        pass
+    References
+    ----------
+    * Théo Trouillon, Johannes Welbl, Sebastian Riedel, Éric Gaussier, and Guillaume Bouchard.
+      Complex Embeddings for Simple Link Prediction.
+      arXiv :1606.06357 [cs, stat], June 2016. arXiv : 1606.06357.
+      https://arxiv.org/abs/1606.06357
+
+    Parameters
+    ----------
+    config: Config object
+        Contains all configuration parameters.
+
+    Attributes
+    ----------
+    ent_emb_dim: int
+        Dimension of the embedding of entities
+    number_entities: int
+        Number of entities in the current data set.
+    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
+        Contains the vectors to build block-diagonal matrices of the relations. It is initialized
+        with Xavier uniform.
+    smaller_dim: int
+        Number of 2x2 matrices on the diagonals of relation-specific matrices.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        try:
+            assert config.entities_embedding_dimension % 2 == 0
+        except AssertionError:
+            raise WrongDimensionError('Embedding dimension should be pair.')
+        self.smaller_dim = int(self.ent_emb_dim / 2)
+
+        self.real_mask = get_mask(self.ent_emb_dim, 0, self.smaller_dim)
+        self.im_mask = get_mask(self.ent_emb_dim, self.smaller_dim, self.ent_emb_dim)
+
+    def compute_product(self, heads, tails, rel_mat):
+        """Compute the matrix product h^tRt with proper reshapes. It can do the batch matrix
+        product both in the forward pass and in the evaluation pass with one matrix containing
+        all candidates.
+
+        Parameters
+        ----------
+        heads: torch Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
+        self.ent_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities or candidates.
+        tails: torch.Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
+        self.ent_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities or canditates.
+        rel_mat: torch.Tensor, shape = (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype = float
+            Tensor containing relation matrices for current relations.
+
+        Returns
+        -------
+        product: torch.Tensor, shape = (b_size, 1) or (b_size, self.number_entities), dtype = float
+            Tensor containing the matrix products h^t.W.t for each sample of the batch.
+
+        """
+        b_size = len(heads)
+        r_re = rel_mat[:, self.real_mask][:, :, self.real_mask]
+        r_im = rel_mat[:, self.im_mask][:, :, self.im_mask]
+
+        if len(heads.shape) == 2 and len(tails.shape) == 2:
+            h_re = heads[:, self.real_mask].view(b_size, 1, self.smaller_dim)
+            h_im = heads[:, self.im_mask].view(b_size, 1, self.smaller_dim)
+
+            t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
+            t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
+
+        elif len(heads.shape) == 2 and len(tails.shape) == 3:
+            h_re = heads[:, self.real_mask].view(b_size, 1, self.smaller_dim)
+            h_im = heads[:, self.im_mask].view(b_size, 1, self.smaller_dim)
+
+            t_re = tails[:, :, self.real_mask].transpose(2, 1)
+            t_im = tails[:, :, self.im_mask].transpose(2, 1)
+
+        else:
+            h_re = heads[:, :, self.real_mask]
+            h_im = heads[:, :, self.im_mask]
+
+            t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
+            t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
+
+        re = matmul(h_re, matmul(r_re, t_re) - matmul(r_im, t_im)).view(b_size, -1)
+        im = matmul(h_im, matmul(r_re, t_im) - matmul(r_im, t_re)).view(b_size, -1)
+
+        return re + im
 
     def normalize_parameters(self):
         pass
