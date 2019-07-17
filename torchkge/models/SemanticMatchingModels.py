@@ -13,7 +13,7 @@ from torchkge.exceptions import WrongDimensionError
 
 
 class RESCALModel(Module):
-    """Implementation of DistMult model detailed in 2014 paper by Nickel et al..\
+    """Implementation of RESCAL model detailed in 2011 paper by Nickel et al..\
     In the original paper, optimization is done using Alternating Least Squares (ALS). Here we use\
     iterative gradient descent optimization.
 
