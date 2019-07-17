@@ -16,4 +16,4 @@ from torchkge.utils import MarginLoss, LogisticLoss, MSE
 
 from .evaluation.LinkPrediction import LinkPredictionEvaluator
 
-from torchkge.exceptions import NotYetEvaluated
+from torchkge.exceptions import NotYetEvaluatedError

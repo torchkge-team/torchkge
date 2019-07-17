@@ -6,7 +6,7 @@ Exceptions
 
 .. currentmodule:: torchkge.exceptions
 
-NotYetEvaluated
+NotYetEvaluatedError
 -------------
-.. autoclass:: torchkge.exceptions.exceptions.NotYetEvaluated
+.. autoclass:: torchkge.exceptions.exceptions.NotYetEvaluatedError
    :members:
