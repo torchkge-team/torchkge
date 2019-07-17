@@ -4,7 +4,17 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import bincount, cat, topk, zeros
+from torch import empty, bincount, cat, topk, zeros
+from torch.nn import Embedding, Parameter
+from torch.nn.init import xavier_uniform_
+
+
+def init_embedding(n_vectors, dim):
+    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
+    """
+    entity_embeddings = Embedding(n_vectors, dim)
+    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))))
+    return entity_embeddings
 
 
 def get_mask(length, start, end):
