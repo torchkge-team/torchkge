@@ -21,11 +21,13 @@ Translational Models
    :members:
 
 Semantic Matching Models
-====================
+========================
 
 .. automodule:: torchkge.models.SemanticMatchingModels
 
 .. autoclass:: torchkge.models.SemanticMatchingModels.RESCALModel
    :members:
 .. autoclass:: torchkge.models.SemanticMatchingModels.DistMultModel
+   :members:
+.. autoclass:: torchkge.models.SemanticMatchingModels.AnalogyModel
    :members:

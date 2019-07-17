@@ -13,3 +13,8 @@ class NotYetEvaluatedError(Exception):
 class SizeMismatchError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class WrongDimensionError(Exception):
+    def __init__(self, message):
+        super().__init__(message)

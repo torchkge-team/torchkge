@@ -4,7 +4,55 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import bincount, cat, topk
+from torch import empty, bincount, cat, topk, zeros
+from torch.nn import Embedding, Parameter
+from torch.nn.init import xavier_uniform_
+
+
+def init_embedding(n_vectors, dim):
+    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
+    """
+    entity_embeddings = Embedding(n_vectors, dim)
+    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))))
+    return entity_embeddings
+
+
+def get_mask(length, start, end):
+    """Create a mask of length `length` filled with 0s except between indices `start` (included)\
+    and `end` (excluded).
+
+    Parameters
+    ----------
+    length: int
+    start: int
+    end: int
+
+    Returns
+    -------
+    mask: torch.Tensor, shape=(length), dtype=byte
+        Mask of length `length` filled with 0s except between indices `start` (included)\
+        and `end` (excluded).
+    """
+    mask = zeros(length)
+    mask[[i for i in range(start, end)]] = 1
+    return mask.byte()
+
+
+def get_rolling_matrix(x):
+    """
+
+    Parameters
+    ----------
+    x: torch.Tensor, shape=(b_size, dim)
+
+    Returns
+    -------
+    mat: torch.Tensor, shape=(b_size, dim, dim)
+        Rolling matrix sur that mat[i,j] = x[i - j mod(dim)]
+    """
+    b_size, dim = x.shape
+    x = x.view(b_size, 1, dim)
+    return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
 
 
 def get_rank(data, true, low_values=False):
