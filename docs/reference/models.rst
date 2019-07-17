@@ -29,5 +29,9 @@ Semantic Matching Models
    :members:
 .. autoclass:: torchkge.models.SemanticMatchingModels.DistMultModel
    :members:
+.. autoclass:: torchkge.models.SemanticMatchingModels.HolEModel
+   :members:
+.. autoclass:: torchkge.models.SemanticMatchingModels.ComplExModel
+   :members:
 .. autoclass:: torchkge.models.SemanticMatchingModels.AnalogyModel
    :members:

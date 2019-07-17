@@ -16,3 +16,6 @@ NotYetEvaluatedError
 
 .. autoclass:: torchkge.exceptions.exceptions.WrongDimensionError
    :members:
+
+.. autoclass:: torchkge.exceptions.exceptions.WrongDimensionError
+   :members:
