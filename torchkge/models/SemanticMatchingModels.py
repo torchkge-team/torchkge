@@ -8,7 +8,7 @@ from torch import empty, matmul, tensor, diag_embed
 from torch.nn import Module, Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
-from torchkge.utils import get_rank
+from torchkge.utils import get_rank, get_mask
 from torchkge.exceptions import WrongDimensionError
 
 
@@ -95,14 +95,14 @@ class RESCALModel(Module):
         relation_matrices = self.relation_matrices[relations]
 
         return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+               self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
 
     def normalize_parameters(self):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=2, dim=1)
 
     def compute_product(self, heads, tails, rel_mat):
-        """Compute the matrix product hRt^t with proper reshapes. It can do the batch matrix
+        """Compute the matrix product h^tRt with proper reshapes. It can do the batch matrix
         product both in the forward pass and in the evaluation pass with one matrix containing
         all candidates.
 
@@ -124,18 +124,19 @@ class RESCALModel(Module):
 
         """
         b_size = len(heads)
-        if len(tails.shape) == 3:
+
+        if len(heads.shape) == 2 and len(tails.shape) == 2:
+            heads = heads.view(b_size, 1, self.ent_emb_dim)
+            tails = tails.view(b_size, self.ent_emb_dim, 1)
+            return matmul(matmul(heads, rel_mat), tails).view(b_size)
+
+        elif len(heads.shape) == 2 and len(tails.shape) == 3:
+            heads = heads.view(b_size, 1, self.ent_emb_dim)
             tails = tails.transpose(1, 2)
         else:
             tails = tails.view(b_size, self.ent_emb_dim, 1)
 
-        if len(heads.shape) == 2:
-            heads = heads.view(b_size, 1, self.ent_emb_dim)
-
-        if (len(heads.shape) == 3) or (len(tails.shape) == 3):
-            return matmul(matmul(heads, rel_mat), tails).view(b_size, -1)
-        else:
-            return matmul(matmul(heads, rel_mat), tails).view(b_size)
+        return matmul(matmul(heads, rel_mat), tails).view(b_size, -1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -280,6 +281,7 @@ class DistMultModel(RESCALModel):
         Xavier uniform.
 
     """
+
     def __init__(self, config):
         super().__init__(config)
 
@@ -322,7 +324,7 @@ class DistMultModel(RESCALModel):
         relation_matrices = diag_embed(relation_vectors)
 
         return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+               self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -386,7 +388,7 @@ class ComplexModel(Module):
         pass
 
 
-class AnalogyModel(Module):
+class AnalogyModel(DistMultModel):
     """Implementation of ANALOGY model detailed in 2017 paper by Hanxiao Liu, Yuexin Wu, and\
     Yiming Yang. According to their remark in the implementation details, the number of scalars on\
     the diagonal of each relation-specific matrix is by default set to be half the embedding\
@@ -398,31 +400,120 @@ class AnalogyModel(Module):
       Analogical Inference for Multi-Relational Embeddings.
       arXiv :1705.02426 [cs], May 2017. arXiv : 1705.02426.
       https://arxiv.org/abs/1705.02426
+
+    Parameters
+    ----------
+    config: Config object
+        Contains all configuration parameters.
+    scalar_share: float
+        Share of the diagonal elements of the relation-specific matrices to be scalars. By default\
+        it is set to half according to the original paper.
+
+    Attributes
+    ----------
+    ent_emb_dim: int
+        Dimension of the embedding of entities
+    number_entities: int
+        Number of entities in the current data set.
+    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+         normalized.
+    relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
+        Contains the vectors to build almost-diagonal matrices of the relations. It is initialized
+        with Xavier uniform.
+    number_scalars: int
+        Number of diagonal elements of the relation-specific matrices to be scalars. By default\
+        it is set to half according to the original paper.
+    smaller_dim: int
+        Number of 2x2 matrices on the diagonals of relation-specific matrices.
     """
+
     def __init__(self, config, scalar_share=0.5):
-        super().__init__()
+        super().__init__(config)
+
         try:
             assert config.entities_embedding_dimension % 2 == 0
         except AssertionError:
             raise WrongDimensionError('Embedding dimension should be pair.')
-        self.ent_emb_dim = config.entities_embedding_dimension
-        self.number_entities = config.number_entities
-        self.number_relations = config.number_relations
 
-        self.scalar_share = scalar_share
         self.number_scalars = int(self.ent_emb_dim * scalar_share)
 
-        # initialize embedding objects
-        self.entity_embeddings = Embedding(self.number_entities, self.ent_emb_dim)
-        self.relation_vectors = Parameter(self.number_relations, self.number_scalars)
+        if (self.ent_emb_dim - self.number_scalars) % 2 == 1:
+            # the diagonal blocks are 2x2 so this dimension needs to be pair
+            self.number_scalars -= 1
+        self.smaller_dim = int((self.ent_emb_dim - self.number_scalars) / 2)
 
-        # fill the embedding weights with Xavier initialized values
+        self.scalar_mask = get_mask(self.ent_emb_dim, 0, self.number_scalars)
+        self.real_mask = get_mask(self.ent_emb_dim, self.number_scalars,
+                                  self.number_scalars + self.smaller_dim)
+        self.im_mask = get_mask(self.ent_emb_dim, self.number_scalars + self.smaller_dim,
+                                self.ent_emb_dim)
 
-        # normalize the embeddings
+        assert (self.real_mask.sum() == self.im_mask.sum() == self.smaller_dim)
+        assert (self.scalar_mask.sum() == self.real_mask.sum() * 2)
 
+    def compute_product(self, heads, tails, rel_mat):
+        """Compute the matrix product h^tRt with proper reshapes. It can do the batch matrix
+        product both in the forward pass and in the evaluation pass with one matrix containing
+        all candidates.
 
-    def forward(self):
-        pass
+        Parameters
+        ----------
+        heads: torch Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
+        self.ent_emb_dim), dtype = float
+            Tensor containing embeddings of current head entities or candidates.
+        tails: torch.Tensor, shape = (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
+        self.ent_emb_dim), dtype = float
+            Tensor containing embeddings of current tail entities or canditates.
+        rel_mat: torch.Tensor, shape = (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype = float
+            Tensor containing relation matrices for current relations.
+
+        Returns
+        -------
+        product: torch.Tensor, shape = (b_size, 1) or (b_size, self.number_entities), dtype = float
+            Tensor containing the matrix products h^t.W.t for each sample of the batch.
+
+        """
+        b_size = len(heads)
+        r_scalar = rel_mat[:, self.scalar_mask][:, :, self.scalar_mask]
+        r_re = rel_mat[:, self.real_mask][:, :, self.real_mask]
+        r_im = rel_mat[:, self.im_mask][:, :, self.im_mask]
+
+        if len(heads.shape) == 2 and len(tails.shape) == 2:
+            h_scalar = heads[:, self.scalar_mask].view(b_size, 1, self.number_scalars)
+            h_re = heads[:, self.real_mask].view(b_size, 1, self.smaller_dim)
+            h_im = heads[:, self.im_mask].view(b_size, 1, self.smaller_dim)
+
+            t_scalar = tails[:, self.scalar_mask].view(b_size, self.number_scalars, 1)
+            t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
+            t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
+
+        elif len(heads.shape) == 2 and len(tails.shape) == 3:
+            h_scalar = heads[:, self.scalar_mask].view(b_size, 1, self.number_scalars)
+            h_re = heads[:, self.real_mask].view(b_size, 1, self.smaller_dim)
+            h_im = heads[:, self.im_mask].view(b_size, 1, self.smaller_dim)
+
+            t_scalar = tails[:, :, self.scalar_mask].transpose(2, 1)
+            t_re = tails[:, :, self.real_mask].transpose(2, 1)
+            t_im = tails[:, :, self.im_mask].transpose(2, 1)
+
+        else:
+            h_scalar = heads[:, :, self.scalar_mask]
+            h_re = heads[:, :, self.real_mask]
+            h_im = heads[:, :, self.im_mask]
+
+            t_scalar = tails[:, self.scalar_mask].view(b_size, self.number_scalars, 1)
+            t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
+            t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
+
+        scalar = matmul(matmul(h_scalar, r_scalar), t_scalar).view(b_size, -1)
+        re = matmul(h_re, matmul(r_re, t_re) - matmul(r_im, t_im)).view(b_size, -1)
+        im = matmul(h_im, matmul(r_re, t_im) - matmul(r_im, t_re)).view(b_size, -1)
+
+        return scalar + re + im
 
     def normalize_parameters(self):
+        """According to original paper, no normalization should be done on the parameters.
+
+        """
         pass
