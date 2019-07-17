@@ -26,8 +26,12 @@ class RESCALModel(Module):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
+    ent_emb_dim: int
+        Dimension of embedding space.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
 
     Attributes
     ----------
@@ -35,7 +39,7 @@ class RESCALModel(Module):
         Dimension of the embedding of entities
     number_entities: int
         Number of entities in the current data set.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
     relation_matrices: torch Parameter, shape = (number_relations, ent_emb_dim, ent_emb_dim)
@@ -43,11 +47,11 @@ class RESCALModel(Module):
 
     """
 
-    def __init__(self, config):
+    def __init__(self, ent_emb_dim, n_entities, n_relations):
         super().__init__()
-        self.ent_emb_dim = config.entities_embedding_dimension
-        self.number_entities = config.number_entities
-        self.number_relations = config.number_relations
+        self.ent_emb_dim = ent_emb_dim
+        self.number_entities = n_entities
+        self.number_relations = n_relations
 
         # initialize embedding objects
         self.entity_embeddings = Embedding(self.number_entities, self.ent_emb_dim)
@@ -264,8 +268,12 @@ class DistMultModel(RESCALModel):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
+    ent_emb_dim: int
+        Dimension of embedding space.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
 
     Attributes
     ----------
@@ -273,7 +281,7 @@ class DistMultModel(RESCALModel):
         Dimension of the embedding of entities
     number_entities: int
         Number of entities in the current data set.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
     relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
@@ -282,8 +290,8 @@ class DistMultModel(RESCALModel):
 
     """
 
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, ent_emb_dim, n_entities, n_relations):
+        super().__init__(ent_emb_dim, n_entities, n_relations)
 
         del self.relation_matrices
         self.relation_vectors = Parameter(
@@ -374,8 +382,12 @@ class HolEModel(RESCALModel):
 
         Parameters
         ----------
-        config: Config object
-            Contains all configuration parameters.
+        ent_emb_dim: int
+            Dimension of embedding space.
+        n_entities: int
+            Number of entities in the current data set.
+        n_relations: int
+            Number of relations in the current data set.
 
         Attributes
         ----------
@@ -383,7 +395,7 @@ class HolEModel(RESCALModel):
             Dimension of the embedding of entities
         number_entities: int
             Number of entities in the current data set.
-        entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+        entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
             Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
              normalized.
         relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
@@ -391,8 +403,8 @@ class HolEModel(RESCALModel):
             with Xavier uniform.
 
         """
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, ent_emb_dim, n_entities, n_relations):
+        super().__init__(ent_emb_dim, n_entities, n_relations)
 
         del self.relation_matrices
         self.relation_vectors = Parameter(
@@ -486,8 +498,12 @@ class ComplExModel(DistMultModel):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
+    ent_emb_dim: int
+        Dimension of embedding space.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
 
     Attributes
     ----------
@@ -495,7 +511,7 @@ class ComplExModel(DistMultModel):
         Dimension of the embedding of entities
     number_entities: int
         Number of entities in the current data set.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
     relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
@@ -504,12 +520,14 @@ class ComplExModel(DistMultModel):
     smaller_dim: int
         Number of 2x2 matrices on the diagonals of relation-specific matrices.
     """
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, ent_emb_dim, n_entities, n_relations):
         try:
-            assert config.entities_embedding_dimension % 2 == 0
+            assert ent_emb_dim % 2 == 0
         except AssertionError:
             raise WrongDimensionError('Embedding dimension should be pair.')
+
+        super().__init__(ent_emb_dim, n_entities, n_relations)
+
         self.smaller_dim = int(self.ent_emb_dim / 2)
 
         self.real_mask = get_mask(self.ent_emb_dim, 0, self.smaller_dim)
@@ -586,8 +604,12 @@ class AnalogyModel(DistMultModel):
 
     Parameters
     ----------
-    config: Config object
-        Contains all configuration parameters.
+    ent_emb_dim: int
+        Dimension of embedding space.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
     scalar_share: float
         Share of the diagonal elements of the relation-specific matrices to be scalars. By default\
         it is set to half according to the original paper.
@@ -598,7 +620,7 @@ class AnalogyModel(DistMultModel):
         Dimension of the embedding of entities
     number_entities: int
         Number of entities in the current data set.
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
     relation_vectors: torch Parameter, shape = (number_relations, ent_emb_dim)
@@ -611,13 +633,13 @@ class AnalogyModel(DistMultModel):
         Number of 2x2 matrices on the diagonals of relation-specific matrices.
     """
 
-    def __init__(self, config, scalar_share=0.5):
-        super().__init__(config)
-
+    def __init__(self, ent_emb_dim, n_entities, n_relations, scalar_share=0.5):
         try:
-            assert config.entities_embedding_dimension % 2 == 0
+            assert ent_emb_dim % 2 == 0
         except AssertionError:
             raise WrongDimensionError('Embedding dimension should be pair.')
+
+        super().__init__(ent_emb_dim, n_entities, n_relations)
 
         self.number_scalars = int(self.ent_emb_dim * scalar_share)
 
