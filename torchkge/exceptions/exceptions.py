@@ -8,3 +8,8 @@ aboschin@enst.fr
 class NotYetEvaluated(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class WrongDimensionError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
