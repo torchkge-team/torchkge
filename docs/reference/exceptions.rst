@@ -7,15 +7,16 @@ Exceptions
 .. currentmodule:: torchkge.exceptions
 
 NotYetEvaluatedError
--------------
+--------------------
 .. autoclass:: torchkge.exceptions.exceptions.NotYetEvaluatedError
    :members:
 
+SizeMismatchError
+-----------------
 .. autoclass:: torchkge.exceptions.exceptions.SizeMismatchError
    :members:
 
-.. autoclass:: torchkge.exceptions.exceptions.WrongDimensionError
-   :members:
-
+WrongDimensionError
+-------------------
 .. autoclass:: torchkge.exceptions.exceptions.WrongDimensionError
    :members:
