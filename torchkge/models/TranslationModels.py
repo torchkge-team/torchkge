@@ -3,10 +3,9 @@
 Copyright TorchKGE developers
 armand.boschin@telecom-paristech.fr
 """
-# TODO: define evaluate_projections for each model (speedup evaluation_helper function)
 
 from torch import empty, matmul, eye, arange, tensor
-from torch.nn import Module, Parameter, Embedding
+from torch.nn import Module, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
@@ -16,7 +15,7 @@ from tqdm import tqdm
 
 
 class TransEModel(Module):
-    """Implementation of TransE model detailed in 2013 paper by Bordes et al..\
+    """Implementation of TransE model detailed in 2013 paper by Bordes et al..
 
     References
     ----------
