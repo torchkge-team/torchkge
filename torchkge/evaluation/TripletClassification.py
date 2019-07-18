@@ -6,6 +6,7 @@ aboschin@enst.fr
 
 from torchkge.sampling import PositionalNegativeSampler
 
+
 class TripletClassificationEvaluator(object):
     """Evaluate performance of given embedding using triplet classification method.
 

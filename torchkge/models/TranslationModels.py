@@ -603,7 +603,7 @@ class TransRModel(TransEModel):
         projections: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """
-        b_size = len(ent_idx)
+        b_size = ent_idx.shape[0]
         # recover and normalize embeddings
         ent_emb = self.entity_embeddings(ent_idx)
         if normalize_:
@@ -735,7 +735,6 @@ class TransDModel(TransEModel):
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations, norm_type=2,
                  dissimilarity=l2_dissimilarity):
 
-
         super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
                          rel_emb_dim=rel_emb_dim)
 
@@ -814,7 +813,7 @@ class TransDModel(TransEModel):
             Projection of the entities into relation-specific subspaces.
 
         """
-        b_size = len(ent_idx)
+        b_size = ent_idx.shape[0]
 
         # recover entities embeddings and projection vectors
         ent_emb = self.entity_embeddings(ent_idx)
@@ -919,7 +918,7 @@ class TransDModel(TransEModel):
             Tensor containing current relations embeddings.
 
         """
-        b_size = len(h_idx)
+        b_size = h_idx.shape[0]
         if not self.evaluated_projections:
             self.evaluate_projections()
 
