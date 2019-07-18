@@ -114,7 +114,7 @@ def pad_with_last_value(t, k):
 
 
 def concatenate_diff_sizes(a, b):
-    """Concatenate 2D tensors of different shape by padding last with last value the one  with
+    """Concatenate 2D tensors of different shape by padding with last value the one with
     shortest second dimension.
 
     Parameters
