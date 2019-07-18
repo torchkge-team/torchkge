@@ -4,6 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
+from torchkge.sampling import PositionalNegativeSampler
 
 class TripletClassificationEvaluator(object):
     """Evaluate performance of given embedding using triplet classification method.
@@ -31,8 +32,13 @@ class TripletClassificationEvaluator(object):
 
         self.evaluated = False
 
+        self.sampler = PositionalNegativeSampler(self.kg_val, kg_test=self.kg_test)
+
     def evaluate(self):
-        pass
+        """Find relation thresholds.
+
+        """
+        self.model.forward(self.kg_val.head_idx, self.kg_val.head_idx)
 
     def accuracy(self):
         pass
