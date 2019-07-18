@@ -101,9 +101,9 @@ class TransEModel(Module):
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -250,7 +250,7 @@ class TransEModel(Module):
             if len(true_targets) == 1:
                 continue
             true_targets.remove(true_idx[i].item())
-            true_targets = tensor(true_targets).long()
+            true_targets = tensor(list(true_targets)).long()
             filt_dissimilarities[i][true_targets] = float('Inf')
 
         # from dissimilarities, extract the rank of the true entity.
@@ -350,9 +350,9 @@ class TransHModel(TransEModel):
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -555,9 +555,9 @@ class TransRModel(TransEModel):
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 
@@ -766,9 +766,9 @@ class TransDModel(TransEModel):
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
             Score function: opposite of dissimilarities between h+r and t for negatively
             sampled triplets.
 

@@ -228,7 +228,7 @@ class RESCALModel(Module):
             if len(true_targets) == 1:
                 continue
             true_targets.remove(true_idx[i].item())
-            true_targets = tensor(true_targets).long()
+            true_targets = tensor(list(true_targets)).long()
             filt_scores[i][true_targets] = float(-1)
 
         # from dissimilarities, extract the rank of the true entity.
