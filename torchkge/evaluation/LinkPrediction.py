@@ -12,18 +12,17 @@ from tqdm import tqdm
 
 
 class LinkPredictionEvaluator(object):
-
     """Evaluate performance of given embedding using link prediction method.
 
     Parameters
     ----------
     model: torchkge model
-    knowledge_graph: torchkge.data.KnowledgeGraph
+    knowledge_graph: torchkge.data.KnowledgeGraph.KnowledgeGraph
         Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
 
     Attributes
     ----------
-    model: torchkge model
+    model: torchkge.models.Model
     kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
         Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
     rank_true_heads: torch tensor, shape = (n_facts), dtype = int
@@ -57,10 +56,10 @@ class LinkPredictionEvaluator(object):
         self.model = model
         self.kg = knowledge_graph
 
-        self.rank_true_heads = empty(size=(self.kg.n_sample,)).long()
-        self.rank_true_tails = empty(size=(self.kg.n_sample,)).long()
-        self.filt_rank_true_heads = empty(size=(self.kg.n_sample,)).long()
-        self.filt_rank_true_tails = empty(size=(self.kg.n_sample,)).long()
+        self.rank_true_heads = empty(size=(knowledge_graph.n_sample,)).long()
+        self.rank_true_tails = empty(size=(knowledge_graph.n_sample,)).long()
+        self.filt_rank_true_heads = empty(size=(knowledge_graph.n_sample,)).long()
+        self.filt_rank_true_tails = empty(size=(knowledge_graph.n_sample,)).long()
 
         self.evaluated = False
         self.k_max = 10
@@ -125,7 +124,8 @@ class LinkPredictionEvaluator(object):
 
         """
         if not self.evaluated:
-            raise NotYetEvaluatedError('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
+            raise NotYetEvaluatedError('Evaluator not evaluated call '
+                                       'LinkPredictionEvaluator.evaluate')
         sum_ = (self.rank_true_heads.float().mean() +
                 self.rank_true_tails.float().mean()).item()
         filt_sum = (self.filt_rank_true_heads.float().mean() +
@@ -152,8 +152,8 @@ class LinkPredictionEvaluator(object):
 
         """
         if not self.evaluated:
-            raise NotYetEvaluatedError('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
-
+            raise NotYetEvaluatedError('Evaluator not evaluated call '
+                                       'LinkPredictionEvaluator.evaluate')
         head_hit = (self.rank_true_heads < k).float().mean()
         tail_hit = (self.rank_true_tails < k).float().mean()
         filt_head_hit = (self.filt_rank_true_heads < k).float().mean()
@@ -175,8 +175,8 @@ class LinkPredictionEvaluator(object):
 
         """
         if not self.evaluated:
-            raise NotYetEvaluatedError('Evaluator not evaluated call LinkPredictionEvaluator.evaluate')
-
+            raise NotYetEvaluatedError('Evaluator not evaluated call '
+                                       'LinkPredictionEvaluator.evaluate')
         head_mrr = (self.rank_true_heads.float()**(-1)).mean()
         tail_mrr = (self.rank_true_tails.float()**(-1)).mean()
         filt_head_mrr = (self.filt_rank_true_heads.float()**(-1)).mean()
