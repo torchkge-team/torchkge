@@ -1,6 +1,6 @@
-=====
+===============
 TransE Tutorial
-=====
+===============
 
 To run TransE on FB15k::
 
@@ -14,7 +14,8 @@ To run TransE on FB15k::
 
     from torchkge.data import KnowledgeGraph
     from torchkge.models import TransEModel
-    from torchkge.evaluation import LinkPredictionEvaluator
+    from torchkge.sampling import BernoulliNegativeSampler
+    from torchkge.evaluation import LinkPredictionEvaluator, TripletClassificationEvaluator
     from torchkge.utils import l2_dissimilarity, MarginLoss
 
     #############################################################################################
@@ -22,25 +23,24 @@ To run TransE on FB15k::
     #############################################################################################
     df1 = pd.read_csv('datasets/FB15K/freebase_mtr100_mte100-train.txt',
                       sep='\t', header=None, names=['from', 'rel', 'to'])
-    df2 = pd.read_csv('datasets/FB15K/freebase_mtr100_mte100-test.txt',
+    df2 = pd.read_csv('datasets/FB15K/freebase_mtr100_mte100-valid.txt',
                       sep='\t', header=None, names=['from', 'rel', 'to'])
-    df = pd.concat([df1, df2])
+    df3 = pd.read_csv('datasets/FB15K/freebase_mtr100_mte100-test.txt',
+                      sep='\t', header=None, names=['from', 'rel', 'to'])
+    df = pd.concat([df1, df2, df3])
 
     kg = KnowledgeGraph(df)
-    kg_train, kg_test = kg.split_kg(sizes=(len(df1), len(df2)))
+    kg_train, kg_test = kg.split_kg(sizes=(len(df1), len(df2), len(df3))
 
     #############################################################################################
     # Model definition
     #############################################################################################
     lr, nb_epochs, batch_size, margin = 0.01, 50, 500, 1
-    neg_sampling = 'bernoulli'
     ent_emb_dim = 50
     n_ent = kg_train.n_ent
     n_rel = kg_train.n_rel
-    norm_type = 2
 
-    model = TransEModel(ent_emb_dim, n_entities, n_relations, norm_type,
-                        dissimilarity=l2_dissimilarity)
+    model = TransEModel(ent_emb_dim, n_entities, n_relations, dissimilarity=l2_dissimilarity)
     criterion = MarginLoss(margin)
     optimizer = SGD(model.parameters(), lr=lr)
 
@@ -58,6 +58,7 @@ To run TransE on FB15k::
     #############################################################################################
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False,
                             pin_memory=cuda.is_available())
+    sampler = BernoulliNegativeSampler(kg_train, kg_test=kg_test)
 
     for epoch in range(nb_epochs):
 
@@ -70,8 +71,7 @@ To run TransE on FB15k::
                 heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
 
             # Create Negative Samples
-            neg_heads, neg_tails = kg_train.corrupt_batch(heads, tails, rels, n_ent=kg.n_ent
-                                                          sampling=neg_sampling)
+            neg_heads, neg_tails = sampler..corrupt_batch(heads, tails, rels)
 
             # zero model gradient
             model.zero_grad()
@@ -95,13 +95,12 @@ To run TransE on FB15k::
     # Evaluate model
     #############################################################################################
     b_size_eval = 10
-    train_evaluator = LinkPredictionEvaluator(model, kg_train)
-    test_evaluator = LinkPredictionEvaluator(model, kg_test)
+    link_evaluator = LinkPredictionEvaluator(model, kg_test)
+    triplet_evaluator = TripletClassificationEvaluator(model, kg_val, kg_test)
 
-    train_evaluator.evaluate(batch_size=b_size_eval, k_max=30)
-    print('Hit@{}: {}'.format(10, train_evaluator.hit_at_k(k=10)))
-    print('Mean Rank: {}'.format(train_evaluator.mean_rank()))
+    link_evaluator.evaluate(batch_size=b_size_eval, k_max=10)
+    print('Hit@{}: {}'.format(10, link_evaluator.hit_at_k(k=10)))
+    print('Mean Rank: {}'.format(link_evaluator.mean_rank()))
 
-    test_evaluator.evaluate(batch_size=b_size_eval, k_max=30)
-    print('Hit@{}: {}'.format(10, test_evaluator.hit_at_k(k=10)))
-    print('Mean Rank: {}'.format(test_evaluator.mean_rank()))
+    triplet_evaluator.evaluate(b_size_eval)
+    print('Accuracy: {}'.format(triplet_evaluator.accuracy(b_size_eval)))

@@ -18,3 +18,8 @@ class SizeMismatchError(Exception):
 class WrongDimensionError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class NotYetImplementedError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
