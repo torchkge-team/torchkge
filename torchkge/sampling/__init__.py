@@ -1,2 +1,3 @@
 from .NegativeSampling import PositionalNegativeSampler
 from .NegativeSampling import BernoulliNegativeSampler
+from .NegativeSampling import UniformNegativeSampler
