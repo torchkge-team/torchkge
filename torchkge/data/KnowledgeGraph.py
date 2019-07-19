@@ -14,6 +14,24 @@ from tqdm import tqdm
 from collections import defaultdict
 
 
+class SmallKG(Dataset):
+    """Minimalist version of a knowledge graph. Built with tensors of heads, tails and relations.
+
+    """
+    def __init__(self, heads, tails, relations):
+        assert heads.shape == tails.shape == relations.shape
+        self.heads = heads
+        self.tails = tails
+        self.relations = relations
+        self.length = heads.shape[0]
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, item):
+        return self.heads[item].item(), self.tails[item].item(), self.relations[item].item()
+
+
 class KnowledgeGraph(Dataset):
     """Knowledge graph representation.
 
