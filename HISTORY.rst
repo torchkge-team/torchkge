@@ -2,6 +2,13 @@
 History
 =======
 
+0.10.0 (2019-07-19)
+------------------
+
+* Implemented Triplet Classification evaluation method
+* Added Negative Sampler objects to standardize negative sampling methods.
+
+
 0.9.0 (2019-07-17)
 ------------------
 
