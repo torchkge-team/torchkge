@@ -12,18 +12,17 @@ from tqdm import tqdm
 
 
 class LinkPredictionEvaluator(object):
-
     """Evaluate performance of given embedding using link prediction method.
 
     Parameters
     ----------
     model: torchkge model
-    knowledge_graph: torchkge.data.KnowledgeGraph
+    knowledge_graph: torchkge.data.KnowledgeGraph.KnowledgeGraph
         Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
 
     Attributes
     ----------
-    model: torchkge model
+    model: torchkge.models.Model
     kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
         Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
     rank_true_heads: torch tensor, shape = (n_facts), dtype = int

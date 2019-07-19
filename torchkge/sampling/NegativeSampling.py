@@ -13,6 +13,33 @@ from torchkge.exceptions import NotYetImplementedError
 class NegativeSampler:
     """This is an interface for negative samplers in general.
 
+    Parameters
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+
+    Attributes
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+    n_ent: int
+        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
+         and `kg_test`.
+    n_sample: int
+        Number of triplets in `kg`.
+    n_sample_val: in
+        Number of triplets in `kg_val`.
+    n_sample_test: int
+        Number of triples in `kg_test`.
+
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         self.kg = kg
@@ -93,7 +120,10 @@ class NegativeSampler:
             corr_heads.append(neg_heads)
             corr_tails.append(neg_tails)
 
-        return cat(corr_heads).long(), cat(corr_tails).long()
+        if use_cuda:
+            return cat(corr_heads).long().cpu(), cat(corr_tails).long().cpu()
+        else:
+            return cat(corr_heads).long(), cat(corr_tails).long()
 
 
 class UniformNegativeSampler(NegativeSampler):
@@ -108,13 +138,40 @@ class UniformNegativeSampler(NegativeSampler):
       In Advances in Neural Information Processing Systems 26, pages 2787–2795, 2013.
       https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
 
+    Parameters
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+
+    Attributes
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+    n_ent: int
+        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
+         and `kg_test`.
+    n_sample: int
+        Number of triplets in `kg`.
+    n_sample_val: in
+        Number of triplets in `kg_val`.
+    n_sample_test: int
+        Number of triples in `kg_test`.
+
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
 
     def corrupt_batch(self, heads, tails, relations=None):
         """For each golden triplet, produce a corrupted one not different from any other golden\
-        triplet.
+        triplet. If `heads` and `tails` are cuda objects , then the returned tensors are on the GPU.
 
         Parameters
         ----------
@@ -168,6 +225,35 @@ class BernoulliNegativeSampler(NegativeSampler):
       In Twenty-Eighth AAAI Conference on Artificial Intelligence, June 2014.
       https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531
 
+    Parameters
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+
+    Attributes
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+    n_ent: int
+        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
+         and `kg_test`.
+    n_sample: int
+        Number of triplets in `kg`.
+    n_sample_val: in
+        Number of triplets in `kg_val`.
+    n_sample_test: int
+        Number of triples in `kg_test`.
+    bern_probs: torch.Tensor, dtype = float, shape = (kg.n_rel)
+        Bernoulli sampling probabilities. See paper for more details.
+
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
@@ -177,7 +263,7 @@ class BernoulliNegativeSampler(NegativeSampler):
         """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original\
         paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.\
         Currently it is done using a pandas DataFrame. This should change as soon as the authors\
-        find an efficient way to grouby in torch. TODO
+        find an efficient way to group-by in torch. TODO
 
         """
         bern_probs = get_bern_probs(self.kg.df)
@@ -187,7 +273,7 @@ class BernoulliNegativeSampler(NegativeSampler):
 
     def corrupt_batch(self, heads, tails, relations):
         """For each golden triplet, produce a corrupted one different from any other golden\
-        triplet.
+        triplet. If `heads` and `tails` are cuda objects , then the returned tensors are on the GPU.
 
         Parameters
         ----------
@@ -245,6 +331,43 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
       In Twenty-Eighth AAAI Conference on Artificial Intelligence, June 2014.
       https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531
 
+    Parameters
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+
+    Attributes
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Main knowledge graph (usually training one).
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Validation knowledge graph.
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+        Test knowledge graph.
+    n_ent: int
+        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
+         and `kg_test`.
+    n_sample: int
+        Number of triplets in `kg`.
+    n_sample_val: in
+        Number of triplets in `kg_val`.
+    n_sample_test: int
+        Number of triples in `kg_test`.
+    bern_probs: torch.Tensor, dtype = float, shape = (kg.n_rel)
+        Bernoulli sampling probabilities. See paper for more details.
+    possible_heads: dict
+        keys : relations, values : list of possible heads for each relation.
+    possible_tails: dict
+        keys : relations, values : list of possible tails for each relation.
+    n_poss_heads: list
+        List of number of possible heads for each relation.
+    n_poss_tails: list
+        List of number of possible tails for each relation.
+
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
@@ -292,7 +415,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
     def corrupt_batch(self, heads, tails, relations):
         """For each golden triplet, produce a corrupted one not different from any other golden\
-        triplet.
+        triplet. If `heads` and `tails` are cuda objects , then the returned tensors are on the GPU.
 
         Parameters
         ----------
