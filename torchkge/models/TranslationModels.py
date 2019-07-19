@@ -9,12 +9,14 @@ from torch.nn import Module, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
+
+from torchkge.models import Model
 from torchkge.utils import get_rank, init_embedding, l2_dissimilarity
 
 from tqdm import tqdm
 
 
-class TransEModel(Module):
+class TransEModel(Module, Model):
     """Implementation of TransE model detailed in 2013 paper by Bordes et al..
 
     References
@@ -32,8 +34,6 @@ class TransEModel(Module):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    norm_type: int
-        1 or 2 indicates the type of the norm to be used when normalizing.
     dissimilarity: function
         Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
 
@@ -45,8 +45,6 @@ class TransEModel(Module):
         Number of entities in the current data set.
     number_relations: int
         Number of relations in the current data set.
-    norm_type: int
-        1 or 2 indicates the type of the norm to be used when normalizing.
     dissimilarity: function
         Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
     entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
@@ -58,14 +56,12 @@ class TransEModel(Module):
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
-                 rel_emb_dim=None):
+    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity, rel_emb_dim=None):
         super().__init__()
 
         self.ent_emb_dim = ent_emb_dim
         self.number_entities = n_entities
         self.number_relations = n_relations
-        self.norm_type = norm_type
         self.dissimilarity = dissimilarity
 
         if rel_emb_dim is None:
@@ -79,9 +75,9 @@ class TransEModel(Module):
 
         # normalize parameters
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=self.norm_type, dim=1)
+                                                       p=2, dim=1)
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=self.norm_type, dim=1)
+                                                         p=2, dim=1)
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
@@ -108,22 +104,39 @@ class TransEModel(Module):
             sampled triplets.
 
         """
-        # recover, project and normalize entity embeddings
-        h_emb = self.recover_project_normalize(heads, normalize_=True)
-        t_emb = self.recover_project_normalize(tails, normalize_=True)
-        n_h_emb = self.recover_project_normalize(negative_heads, normalize_=True)
-        n_t_emb = self.recover_project_normalize(negative_tails, normalize_=True)
+        golden_triplets = self.scoring_function(heads, tails, relations)
+        negative_triplets = self.scoring_function(negative_heads, negative_tails, relations)
 
+        return golden_triplets, negative_triplets
+
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+        """Compute the scoring function for the triplets given as argument.
+
+        Parameters
+        ----------
+        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        score: torch.Tensor, dtype = float, shape = (batch_size)
+            Score function: opposite of dissimilarities between h+r and t.
+
+        """
         # recover relations embeddings
-        r_emb = self.relation_embeddings(relations)
+        rels_emb = self.relation_embeddings(rels_idx)
 
-        # compute dissimilarity
-        golden_triplets = self.dissimilarity(h_emb + r_emb, t_emb)
-        negative_triplets = self.dissimilarity(n_h_emb + r_emb, n_t_emb)
+        # recover, project and normalize entity embeddings
+        h_emb = self.recover_project_normalize(heads_idx, normalize_=True)
+        t_emb = self.recover_project_normalize(tails_idx, normalize_=True)
 
-        return -golden_triplets, -negative_triplets
+        return - self.dissimilarity(h_emb + rels_emb, t_emb)
 
-    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
+    def recover_project_normalize(self, ent_idx, normalize_=True):
         """
 
         Parameters
@@ -144,15 +157,15 @@ class TransEModel(Module):
 
         # normalize entity embeddings
         if normalize_:
-            ent_emb = normalize(ent_emb, p=self.norm_type, dim=1)
+            ent_emb = normalize(ent_emb, p=2, dim=1)
 
         return ent_emb
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using the model-specified norm.
+        """Normalize the parameters of the model using the L2 norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=self.norm_type, dim=1)
+                                                       p=2, dim=1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -280,8 +293,7 @@ class TransEModel(Module):
 
 
 class TransHModel(TransEModel):
-    """Implementation of TransH model detailed in 2014 paper by Wang et al.. According to this\
-    paper, both normalization and dissimilarity measure are by default L2.
+    """Implementation of TransH model detailed in 2014 paper by Wang et al..
 
     References
     ----------
@@ -298,11 +310,6 @@ class TransHModel(TransEModel):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    norm_type: int (default=2)
-        1 or 2 indicates the type of the norm to be used when normalizing. Default is 2.
-    dissimilarity: function (default=torchkge.utils.dissimilarities.l2_dissimilarity)
-        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities). \
-        Default is l2_dissimilarity.
 
     Attributes
     ----------
@@ -318,67 +325,50 @@ class TransHModel(TransEModel):
     relation_embeddings: torch.nn.Embedding, shape = (number_relations, ent_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
+    dissimilarity: function
+        `torchkge.utils.dissimilarities.l2_dissimilarity`
     normal_vectors: torch.Tensor, shape = (number_relations, ent_emb_dim)
         Normal vectors associated to each relation and used to compute the relation-specific\
         hyperplanes entities are projected on. See paper for more details.
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, norm_type=2,
-                 dissimilarity=l2_dissimilarity):
+    def __init__(self, ent_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity)
+        super().__init__(ent_emb_dim, n_entities, n_relations, l2_dissimilarity)
 
         self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))))
         self.normalize_parameters()
 
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+        """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for negatively
-            sampled triplets.
+        score: torch.Tensor, dtype = float, shape = (batch_size)
+            Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
         # recover relations embeddings and normal projection vectors
-        relations_embeddings = self.relation_embeddings(relations)
-        normal_vectors = normalize(self.normal_vectors[relations], p=2, dim=1)
+        relations_embeddings = self.relation_embeddings(rels_idx)
+        normal_vectors = normalize(self.normal_vectors[rels_idx], p=2, dim=1)
 
         # project entities in relation specific hyperplane
-
-        projected_heads = self.recover_project_normalize(heads, normalize_=True,
+        projected_heads = self.recover_project_normalize(heads_idx, normalize_=True,
                                                          normal_vectors=normal_vectors)
-        projected_tails = self.recover_project_normalize(tails, normalize_=True,
+        projected_tails = self.recover_project_normalize(tails_idx, normalize_=True,
                                                          normal_vectors=normal_vectors)
-        projected_neg_heads = self.recover_project_normalize(negative_heads, normalize_=True,
-                                                             normal_vectors=normal_vectors)
-        projected_neg_tails = self.recover_project_normalize(negative_tails, normalize_=True,
-                                                             normal_vectors=normal_vectors)
 
-        # compute dissimilarities
-        golden_triplets = self.dissimilarity(projected_heads + relations_embeddings,
-                                             projected_tails)
-        negative_triplets = self.dissimilarity(projected_neg_heads + relations_embeddings,
-                                               projected_neg_tails)
-
-        return -golden_triplets, -negative_triplets
+        return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
@@ -405,7 +395,7 @@ class TransHModel(TransEModel):
 
         # normalize entity embeddings
         if normalize_:
-            ent_emb = normalize(ent_emb, p=self.norm_type, dim=1)
+            ent_emb = normalize(ent_emb, p=2, dim=1)
 
         # project entities into relation space
         normal_vectors = kwargs['normal_vectors']
@@ -414,12 +404,11 @@ class TransHModel(TransEModel):
         return ent_emb - normal_component * normal_vectors
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using norm defined in self.norm_type. Default\
-        is L2.
+        """Normalize the parameters of the model using the L2 norm.
         """
-        self.normal_vectors.data = normalize(self.normal_vectors, p=self.norm_type, dim=1)
+        self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=self.norm_type, dim=1)
+                                                       p=2, dim=1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -481,8 +470,7 @@ class TransHModel(TransEModel):
 
 
 class TransRModel(TransEModel):
-    """Implementation of TransR model detailed in 2015 paper by Lin et al.. According to this\
-    paper, both normalization and dissimilarity measure are by default L2.
+    """Implementation of TransR model detailed in 2015 paper by Lin et al..
 
     References
     ----------
@@ -501,11 +489,6 @@ class TransRModel(TransEModel):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    norm_type: int (default=2)
-        1 or 2 indicates the type of the norm to be used when normalizing. Default is 2.
-    dissimilarity: function (default=torchkge.utils.dissimilarities.l2_dissimilarity)
-        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities). \
-        Default is l2_dissimilarity.
 
     Attributes
     ----------
@@ -523,67 +506,53 @@ class TransRModel(TransEModel):
     relation_embeddings: torch.nn.Embedding, shape = (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
+    dissimilarity: function
+        `torchkge.utils.dissimilarities.l2_dissimilarity`
     projection_matrices: torch.Tensor, shape = (number_relations, rel_emb_dim, ent_emb_dim)
         Relation-specific projection matrices. See paper for more details.
 
     """
 
-    def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations, norm_type=2,
-                 dissimilarity=l2_dissimilarity):
+    def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
+        super().__init__(ent_emb_dim, n_entities, n_relations, l2_dissimilarity,
                          rel_emb_dim=rel_emb_dim)
+
         self.projection_matrices = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim,
                                                                          ent_emb_dim))))
         self.normalize_parameters()
 
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+        """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for negatively
-            sampled triplets.
+        score: torch.Tensor, dtype = float, shape = (batch_size)
+            Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
         # recover relations embeddings and normal projection matrices
-        relations_embeddings = normalize(self.relation_embeddings(relations), p=2, dim=1)
-        projection_matrices = normalize(self.projection_matrices[relations], p=2, dim=2)
+        relations_embeddings = normalize(self.relation_embeddings(rels_idx), p=2, dim=1)
+
+        # projection_matrices = normalize(self.projection_matrices[rels_idx], p=2, dim=2)
+        projection_matrices = self.projection_matrices[rels_idx]
 
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(heads, normalize_=True,
+        projected_heads = self.recover_project_normalize(heads_idx, normalize_=True,
                                                          projection_matrices=projection_matrices)
-        projected_tails = self.recover_project_normalize(tails, normalize_=True,
+        projected_tails = self.recover_project_normalize(tails_idx, normalize_=True,
                                                          projection_matrices=projection_matrices)
-        projected_neg_heads = self.recover_project_normalize(negative_heads, normalize_=True,
-                                                             projection_matrices=projection_matrices
-                                                             )
-        projected_neg_tails = self.recover_project_normalize(negative_tails, normalize_=True,
-                                                             projection_matrices=projection_matrices
-                                                             )
 
-        # compute dissimilarities
-        golden_triplets = self.dissimilarity(projected_heads + relations_embeddings,
-                                             projected_tails)
-        negative_triplets = self.dissimilarity(projected_neg_heads + relations_embeddings,
-                                               projected_neg_tails)
-        return -golden_triplets, -negative_triplets
+        return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
@@ -614,18 +583,16 @@ class TransRModel(TransEModel):
         projection_matrices = kwargs['projection_matrices']
         projection = matmul(projection_matrices, ent_emb.view(new_shape))
 
-        return projection.view(b_size, self.rel_emb_dim)
+        return normalize(projection.view(b_size, self.rel_emb_dim), p=2, dim=1)
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using norm defined in self.norm_type. Default\
-        is L2.
+        """Normalize the parameters of the model using the L2 norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=self.norm_type, dim=1)
+                                                       p=2, dim=1)
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=self.norm_type, dim=1)
-        self.projection_matrices.data = normalize(self.projection_matrices.data, p=self.norm_type,
-                                                  dim=2)
+                                                         p=2, dim=1)
+        self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -681,8 +648,7 @@ class TransRModel(TransEModel):
 
 
 class TransDModel(TransEModel):
-    """Implementation of TransD model detailed in 2015 paper by Ji et al.. According to this\
-    paper, both normalization and dissimilarity measure are by default L2.
+    """Implementation of TransD model detailed in 2015 paper by Ji et al..
 
     References
     ----------
@@ -703,11 +669,6 @@ class TransDModel(TransEModel):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    norm_type: int (default=2)
-        1 or 2 indicates the type of the norm to be used when normalizing. Default is 2.
-    dissimilarity: function (default=torchkge.utils.dissimilarities.l2_dissimilarity)
-        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities). \
-        Default is l2_dissimilarity.
 
     Attributes
     ----------
@@ -725,6 +686,8 @@ class TransDModel(TransEModel):
     relation_embeddings: torch.nn.Embedding, shape = (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
+    dissimilarity: function
+        `torchkge.utils.dissimilarities.l2_dissimilarity`
     ent_proj_vects: torch.Tensor, shape = (number_entities, ent_emb_dim)
         Entity-specific vector used to build projection matrices. See paper for more details.
     rel_proj_vects: torch.Tensor, shape = (number_relations, rel_emb_dim)
@@ -732,10 +695,9 @@ class TransDModel(TransEModel):
 
     """
 
-    def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations, norm_type=2,
-                 dissimilarity=l2_dissimilarity):
+    def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, norm_type, dissimilarity,
+        super().__init__(ent_emb_dim, n_entities, n_relations, l2_dissimilarity,
                          rel_emb_dim=rel_emb_dim)
 
         self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))))
@@ -747,52 +709,37 @@ class TransDModel(TransEModel):
                                                         self.rel_emb_dim,
                                                         self.number_entities)), requires_grad=False)
 
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+        """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's heads
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for negatively
-            sampled triplets.
+        score: torch.Tensor, dtype = float, shape = (batch_size)
+            Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
         self.evaluated_projections = False
 
         # recover relations projection vectors and relations embeddings
-        rel_proj = normalize(self.rel_proj_vects[relations], p=2, dim=1)
-        relations_embeddings = normalize(self.relation_embeddings(relations), p=2, dim=1)
+        rel_proj = normalize(self.rel_proj_vects[rels_idx], p=2, dim=1)
+        relations_embeddings = normalize(self.relation_embeddings(rels_idx), p=2, dim=1)
 
         # project
-        projected_heads = self.recover_project_normalize(heads, normalize_=True, rel_proj=rel_proj)
-        projected_tails = self.recover_project_normalize(tails, normalize_=True, rel_proj=rel_proj)
-        projected_neg_heads = self.recover_project_normalize(negative_heads,
-                                                             normalize_=True, rel_proj=rel_proj)
-        projected_neg_tails = self.recover_project_normalize(negative_tails,
-                                                             normalize_=True, rel_proj=rel_proj)
+        projected_heads = self.recover_project_normalize(heads_idx, normalize_=True,
+                                                         rel_proj=rel_proj)
+        projected_tails = self.recover_project_normalize(tails_idx, normalize_=True,
+                                                         rel_proj=rel_proj)
 
-        # compute dissimilarities
-        golden_triplets = self.dissimilarity(projected_heads + relations_embeddings,
-                                             projected_tails)
-        negative_triplets = self.dissimilarity(projected_neg_heads + relations_embeddings,
-                                               projected_neg_tails)
-
-        return - golden_triplets, - negative_triplets
+        return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
     def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
@@ -838,15 +785,14 @@ class TransDModel(TransEModel):
         return projection.view((b_size, self.rel_emb_dim))
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using norm defined in self.norm_type. Default\
-        is L2.
+        """Normalize the parameters of the model using the L2 norm.
         """
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=self.norm_type, dim=1)
+                                                       p=2, dim=1)
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=self.norm_type, dim=1)
-        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=self.norm_type, dim=1)
-        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=self.norm_type, dim=1)
+                                                         p=2, dim=1)
+        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
+        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
 
     def evaluate_projections(self):
         """Project all entities according to each relation.
@@ -884,7 +830,7 @@ class TransDModel(TransEModel):
                 empty_cache()
                 mask = mask.cuda()
 
-            entity = self.entity_embeddings(mask.cuda())
+            entity = self.entity_embeddings(mask)
             projected_entity = matmul(projection_matrices, entity.view(-1)).detach()
             projected_entity = projected_entity.view(self.number_relations, self.rel_emb_dim, 1)
             self.projected_entities[:, :, i] = projected_entity.view(self.number_relations,

@@ -8,11 +8,13 @@ from torch import empty, matmul, tensor, diag_embed
 from torch.nn import Module, Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
+
+from torchkge.models import Model
 from torchkge.utils import get_rank, get_mask, get_rolling_matrix
 from torchkge.exceptions import WrongDimensionError
 
 
-class RESCALModel(Module):
+class RESCALModel(Module, Model):
     """Implementation of RESCAL model detailed in 2011 paper by Nickel et al..\
     In the original paper, optimization is done using Alternating Least Squares (ALS). Here we use\
     iterative gradient descent optimization.
@@ -90,17 +92,19 @@ class RESCALModel(Module):
             Estimation of the true value that should be 0 (by matrix factorization).
 
         """
+        return self.scoring_function(heads, tails, relations), \
+            self.scoring_function(negative_heads, negative_tails, relations)
+
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
         # recover entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails), p=2, dim=1)
-        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads), p=2, dim=1)
-        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
+        heads_embeddings = normalize(self.entity_embeddings(heads_idx), p=2, dim=1)
+        tails_embeddings = normalize(self.entity_embeddings(tails_idx), p=2, dim=1)
 
         # recover relation matrices
-        relation_matrices = self.relation_matrices[relations]
+        relation_matrices = self.relation_matrices[rels_idx]
 
-        return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+        product = self.compute_product(heads_embeddings, tails_embeddings, relation_matrices)
+        return product.view(heads_idx.shape[0])
 
     def normalize_parameters(self):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
@@ -297,41 +301,17 @@ class DistMultModel(RESCALModel):
         self.relation_vectors = Parameter(
             xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))))
 
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
-
-        Parameters
-        ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's relations.
-
-        Returns
-        -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
-            Estimation of the true value that should be 1 (by matrix factorization).
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
-            Estimation of the true value that should be 0 (by matrix factorization).
-
-        """
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
         # recover entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails), p=2, dim=1)
-        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads), p=2, dim=1)
-        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
+        heads_embeddings = normalize(self.entity_embeddings(heads_idx), p=2, dim=1)
+        tails_embeddings = normalize(self.entity_embeddings(tails_idx), p=2, dim=1)
 
         # recover relation matrices
-        relation_matrices = diag_embed(self.relation_vectors[relations])
+        relation_matrices = diag_embed(self.relation_vectors[rels_idx])
 
-        return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+        product = self.compute_product(heads_embeddings, tails_embeddings, relation_matrices)
+
+        return product.view(heads_idx.shape[0])
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -410,41 +390,17 @@ class HolEModel(RESCALModel):
         self.relation_vectors = Parameter(
             xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))))
 
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
-
-        Parameters
-        ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's relations.
-
-        Returns
-        -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
-            Estimation of the true value that should be 1 (by matrix factorization).
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
-            Estimation of the true value that should be 0 (by matrix factorization).
-
-        """
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
         # recover entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads), p=2, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails), p=2, dim=1)
-        neg_heads_embeddings = normalize(self.entity_embeddings(negative_heads), p=2, dim=1)
-        neg_tails_embeddings = normalize(self.entity_embeddings(negative_tails), p=2, dim=1)
+        heads_embeddings = normalize(self.entity_embeddings(heads_idx), p=2, dim=1)
+        tails_embeddings = normalize(self.entity_embeddings(tails_idx), p=2, dim=1)
 
         # recover relation matrices
-        relation_matrices = get_rolling_matrix(self.relation_vectors[relations])
+        relation_matrices = get_rolling_matrix(self.relation_vectors[rels_idx])
 
-        return self.compute_product(heads_embeddings, tails_embeddings, relation_matrices), \
-            self.compute_product(neg_heads_embeddings, neg_tails_embeddings, relation_matrices)
+        product = self.compute_product(heads_embeddings, tails_embeddings, relation_matrices)
+
+        return product.view(heads_idx.shape[0])
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
