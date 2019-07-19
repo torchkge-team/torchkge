@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-armand.boschin@telecom-paristech.fr
+aboschin@enst.fr
 """
 
 from torch import empty, matmul, eye, arange, tensor

@@ -6,9 +6,16 @@ Evaluation
 
 .. currentmodule:: torchkge.evaluation
 
-LinkPrediction
---------------
+Link Prediction
+---------------
 .. automodule:: torchkge.evaluation.LinkPrediction
 
 .. autoclass:: torchkge.evaluation.LinkPrediction.LinkPredictionEvaluator
+    :members:
+
+Triplet Classification
+----------------------
+.. automodule:: torchkge.evaluation.TripletClassification
+
+.. autoclass:: torchkge.evaluation.TripletClassification.TripletClassificationEvaluator
     :members:

@@ -86,9 +86,6 @@ def compute_weight(mask, k):
     mask
     k
 
-    Returns
-    -------
-
     """
     weight = bincount(mask)[mask]
     weight[weight > k] = k
