@@ -6,11 +6,6 @@ Utils
 
 .. currentmodule:: torchkge.utils
 
-Configuration
--------------
-.. automodule:: torchkge.utils.config
-    :members:
-
 Dissimilarities
 ---------------
 .. automodule:: torchkge.utils.dissimilarities
