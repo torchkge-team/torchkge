@@ -611,7 +611,6 @@ class AnalogyModel(DistMultModel):
                                 self.ent_emb_dim)
 
         assert (self.real_mask.sum() == self.im_mask.sum() == self.smaller_dim)
-        assert (self.scalar_mask.sum() == self.real_mask.sum() * 2)
 
     def compute_product(self, heads, tails, rel_mat):
         """Compute the matrix product h^tRt with proper reshapes. It can do the batch matrix
