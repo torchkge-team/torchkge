@@ -132,6 +132,24 @@ class LinkPredictionEvaluator(object):
                     self.filt_rank_true_tails.float().mean()).item()
         return sum_ / 2, filt_sum / 2
 
+    def hit_at_k_heads(self, k=10):
+        if not self.evaluated:
+            raise NotYetEvaluatedError('Evaluator not evaluated call '
+                                       'LinkPredictionEvaluator.evaluate')
+        head_hit = (self.rank_true_heads < k).float().mean()
+        filt_head_hit = (self.filt_rank_true_heads < k).float().mean()
+
+        return head_hit.item(), filt_head_hit.item()
+
+    def hit_at_k_tails(self, k=10):
+        if not self.evaluated:
+            raise NotYetEvaluatedError('Evaluator not evaluated call '
+                                       'LinkPredictionEvaluator.evaluate')
+        tail_hit = (self.rank_true_tails < k).float().mean()
+        filt_tail_hit = (self.filt_rank_true_tails < k).float().mean()
+
+        return tail_hit.item(), filt_tail_hit.item()
+
     def hit_at_k(self, k=10):
         """
 
@@ -154,12 +172,11 @@ class LinkPredictionEvaluator(object):
         if not self.evaluated:
             raise NotYetEvaluatedError('Evaluator not evaluated call '
                                        'LinkPredictionEvaluator.evaluate')
-        head_hit = (self.rank_true_heads < k).float().mean()
-        tail_hit = (self.rank_true_tails < k).float().mean()
-        filt_head_hit = (self.filt_rank_true_heads < k).float().mean()
-        filt_tail_hit = (self.filt_rank_true_tails < k).float().mean()
 
-        return (head_hit + tail_hit).item() / 2, (filt_head_hit + filt_tail_hit).item() / 2
+        head_hit, filt_head_hit = self.hit_at_k_heads(k=k)
+        tail_hit, filt_tail_hit = self.hit_at_k_tails(k=k)
+
+        return (head_hit + tail_hit) / 2, (filt_head_hit + filt_tail_hit) / 2
 
     def mrr(self):
         """
