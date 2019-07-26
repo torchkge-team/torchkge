@@ -94,6 +94,11 @@ todo_include_todos = False
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
+html_logo = '../images/logo_torchkge.png'
+html_favicon = "../images/logo_torchkge.png"
+html_theme_options = {
+    'logo_only': True
+}
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the
