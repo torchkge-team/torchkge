@@ -5,6 +5,7 @@ TorchKGE
 .. image:: https://graphs.telecom-paristech.fr/images/logo_torchKGE.png
     :align: right
     :width: 100px
+    :scale: 40 %
     :alt: logo torchkge
 
 
