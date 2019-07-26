@@ -2,15 +2,9 @@
 TorchKGE
 ========
 
-.. image::
-    :align: right
-    :height: 100px
-    :width: 100px
-    :alt: logo torchkge
-
 .. raw:: html
 
-    <img src="https://graphs.telecom-paristech.fr/images/logo_torchKGE.png" height="100px">
+    <img src="images/logo_torchKGE.png" height="100px">
 
 
 .. image:: https://img.shields.io/pypi/v/torchkge.svg
