@@ -10,6 +10,6 @@ sphinx_rtd_theme==0.4.3
 twine==1.13.0
 
 numpydoc==0.9.1
-tqdm==4.33.0
+tqdm==4.34.0
 torch==1.1.0.post2
 torchvision==0.4.0
