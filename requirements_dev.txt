@@ -1,15 +1,15 @@
-pip==19.2.1
+pip==19.2.3
 bumpversion==0.5.3
-wheel==0.33.4
+wheel==0.33.6
 watchdog==0.9.0
 flake8==3.7.8
-tox==3.13.2
-coverage==4.5.3
-Sphinx==2.1.2
+tox==3.14.0
+coverage==4.5.4
+Sphinx==2.2.0
 sphinx_rtd_theme==0.4.3
-twine==1.13.0
+twine==1.14.0
 
 numpydoc==0.9.1
-tqdm==4.32.2
+tqdm==4.35.0
 torch==1.2.0
-torchvision==0.3.0
+torchvision==0.4.0
