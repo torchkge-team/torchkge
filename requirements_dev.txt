@@ -7,7 +7,7 @@ tox==3.14.0
 coverage==4.5.4
 Sphinx==2.2.0
 sphinx_rtd_theme==0.4.3
-twine==1.14.0
+twine==2.0.0
 
 numpydoc==0.9.1
 tqdm==4.35.0
