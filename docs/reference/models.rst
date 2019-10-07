@@ -31,32 +31,32 @@ TransD
 .. autoclass:: torchkge.models.TranslationModels.TransDModel
    :members:
 
-Semantic Matching Models
-========================
+Bilinear Models
+===============
 
-.. automodule:: torchkge.models.SemanticMatchingModels
+.. automodule:: torchkge.models.BilinearModels
 
 RESCAL
 ------
-.. autoclass:: torchkge.models.SemanticMatchingModels.RESCALModel
+.. autoclass:: torchkge.models.BilinearModels.RESCALModel
    :members:
 
 DistMult
 --------
-.. autoclass:: torchkge.models.SemanticMatchingModels.DistMultModel
+.. autoclass:: torchkge.models.BilinearModels.DistMultModel
    :members:
 
 HolE
 ----
-.. autoclass:: torchkge.models.SemanticMatchingModels.HolEModel
+.. autoclass:: torchkge.models.BilinearModels.HolEModel
    :members:
 
 ComplEx
 -------
-.. autoclass:: torchkge.models.SemanticMatchingModels.ComplExModel
+.. autoclass:: torchkge.models.BilinearModels.ComplExModel
    :members:
 
 ANALOGY
 -------
-.. autoclass:: torchkge.models.SemanticMatchingModels.AnalogyModel
+.. autoclass:: torchkge.models.BilinearModels.AnalogyModel
    :members:
