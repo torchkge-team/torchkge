@@ -335,7 +335,7 @@ class DistMultModel(RESCALModel):
             Tensor containing matrices of current relations.
         candidates: torch.Tensor, shape = (b_size, number_entities, ent_emb_dim), dtype = float
             Tensor containing all entities as candidates for each sample of the batch.
-        
+
         """
         b_size = h_idx.shape[0]
 
@@ -536,7 +536,7 @@ class ComplExModel(DistMultModel):
             t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
             t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
 
-        re = matmul(h_re, matmul(r_re, t_re) - matmul(r_im, t_im)).view(b_size, -1)
+        re = matmul(h_re, matmul(r_re, t_re) + matmul(r_im, t_im)).view(b_size, -1)
         im = matmul(h_im, matmul(r_re, t_im) - matmul(r_im, t_re)).view(b_size, -1)
 
         return re + im
@@ -667,7 +667,7 @@ class AnalogyModel(DistMultModel):
             t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
 
         scalar = matmul(matmul(h_scalar, r_scalar), t_scalar).view(b_size, -1)
-        re = matmul(h_re, matmul(r_re, t_re) - matmul(r_im, t_im)).view(b_size, -1)
+        re = matmul(h_re, matmul(r_re, t_re) + matmul(r_im, t_im)).view(b_size, -1)
         im = matmul(h_im, matmul(r_re, t_im) - matmul(r_im, t_re)).view(b_size, -1)
 
         return scalar + re + im
