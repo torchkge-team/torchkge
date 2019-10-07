@@ -2,7 +2,7 @@
 TorchKGE
 ========
 
-.. image:: https://graphs.telecom-paristech.fr/images/logo_torchKGE.png
+.. image:: https://graphs.telecom-paristech.fr/images/logo_torchKGE_small.png
     :align: right
     :width: 100px
     :alt: logo torchkge
