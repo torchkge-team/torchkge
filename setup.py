@@ -11,7 +11,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['torch==1.1.0', 'torchvision', 'tqdm==4.32.2']
+requirements = ['torch==1.2.0', 'torchvision', 'tqdm==4.32.2']
 
 setup_requirements = []
 
@@ -39,6 +39,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/torchkge-team/torchkge',
-    version='0.10.3',
+    version='0.10.6',
     zip_safe=False,
 )
