@@ -5,18 +5,20 @@ aboschin@enst.fr
 """
 
 from torch import empty, matmul, eye, arange, tensor
-from torch.nn import Module, Parameter
+from torch.nn import Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
 
-from torchkge.models import Model
-from torchkge.utils import get_rank, init_embedding, l2_dissimilarity
+from torchkge.models import TranslationalModel
+from torchkge.utils import init_embedding
+from torchkge.utils import l2_dissimilarity
+from torchkge.utils import l1_torus_dissimilarity, l2_torus_dissimilarity
 
 from tqdm import tqdm
 
 
-class TransEModel(Module, Model):
+class TransEModel(TranslationalModel):
     """Implementation of TransE model detailed in 2013 paper by Bordes et al..
 
     References
@@ -34,8 +36,8 @@ class TransEModel(Module, Model):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    dissimilarity: function
-        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
+    dissimilarity: String
+        Either 'L1' or 'L2'.
 
     Attributes
     ----------
@@ -56,58 +58,22 @@ class TransEModel(Module, Model):
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity, rel_emb_dim=None):
-        super().__init__()
+    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity):
+        try:
+            assert dissimilarity in ['L1', 'L2']
+        except AssertionError as e:
+            print("Dissimilarity variable can either be 'L1' or 'L2'.")
+            raise e
 
-        self.ent_emb_dim = ent_emb_dim
-        self.number_entities = n_entities
-        self.number_relations = n_relations
-        self.dissimilarity = dissimilarity
-
-        if rel_emb_dim is None:
-            rel_emb_dim = ent_emb_dim
-        else:
-            self.rel_emb_dim = rel_emb_dim
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity)
 
         # initialize embeddings
-        self.entity_embeddings = init_embedding(self.number_entities, self.ent_emb_dim)
-        self.relation_embeddings = init_embedding(self.number_relations, rel_emb_dim)
+        self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
 
         # normalize parameters
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+        self.normalize_parameters()
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
                                                          p=2, dim=1)
-
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
-
-        Parameters
-        ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's heads
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's tails.
-        negative_heads: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's relations.
-
-        Returns
-        -------
-        golden_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for golden triplets.
-        negative_triplets: torch.Tensor, dtype = float, shape = (batch_size)
-            Score function: opposite of dissimilarities between h+r and t for negatively
-            sampled triplets.
-
-        """
-        golden_triplets = self.scoring_function(heads, tails, relations)
-        negative_triplets = self.scoring_function(negative_heads, negative_tails, relations)
-
-        return golden_triplets, negative_triplets
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -210,87 +176,6 @@ class TransEModel(Module, Model):
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
-    def compute_ranks(self, proj_e_emb, proj_candidates,
-                      r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """
-
-        Parameters
-        ----------
-        proj_e_emb: torch.Tensor, shape = (batch_size, rel_emb_dim), dtype = float
-            Tensor containing current projected embeddings of entities.
-        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
-            Tensor containing projected embeddings of all entities.
-        r_emb: torch.Tensor, shape = (batch_size, ent_emb_dim), dtype = float
-            Tensor containing current embeddings of relations.
-        e_idx: torch.Tensor, shape = (batch_size), dtype = long
-            Tensor containing the indices of entities.
-        r_idx: torch.Tensor, shape = (batch_size), dtype = long
-            Tensor containing the indices of relations.
-        true_idx: torch.Tensor, shape = (batch_size), dtype = long
-            Tensor containing the true entity for each sample.
-        dictionary: default dict
-            Dictionary of keys (int, int) and values list of ints giving all possible entities for
-            the (entity, relation) pair.
-        heads: integer
-            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
-            We test dissimilarity between heads * entities + relations and heads * targets.
-
-
-        Returns
-        -------
-        rank_true_entities: torch.Tensor, shape = (b_size), dtype = int
-            Tensor containing the rank of the true entities when ranking any entity based on \
-            computation of d(hear+relation, tail).
-        filtered_rank_true_entities: torch.Tensor, shape = (b_size), dtype = int
-            Tensor containing the rank of the true entities when ranking only true false entities \
-            based on computation of d(hear+relation, tail).
-
-        """
-        current_batch_size, embedding_dimension = proj_e_emb.shape
-
-        # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
-        tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
-        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.number_entities))
-
-        # compute either dissimilarity(heads + relation, proj_candidates) or
-        # dissimilarity(-proj_candidates, relation - tails)
-        dissimilarities = self.dissimilarity(tmp_sum, heads * proj_candidates)
-
-        # filter out the true negative samples by assigning infinite dissimilarity
-        filt_dissimilarities = dissimilarities.clone()
-        for i in range(current_batch_size):
-            true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
-            if len(true_targets) == 1:
-                continue
-            true_targets.remove(true_idx[i].item())
-            true_targets = tensor(list(true_targets)).long()
-            filt_dissimilarities[i][true_targets] = float('Inf')
-
-        # from dissimilarities, extract the rank of the true entity.
-        rank_true_entities = get_rank(-dissimilarities, true_idx)
-        filtered_rank_true_entities = get_rank(-filt_dissimilarities, true_idx)
-
-        return rank_true_entities, filtered_rank_true_entities
-
-    def evaluate_candidates(self, h_idx, t_idx, r_idx, kg):
-        proj_h_emb, proj_t_emb, proj_candidates, r_emb = self.evaluation_helper(h_idx, t_idx, r_idx)
-
-        # evaluation_helper both ways (head, rel) -> tail and (rel, tail) -> head
-        rank_true_tails, filt_rank_true_tails = self.compute_ranks(proj_h_emb,
-                                                                   proj_candidates,
-                                                                   r_emb, h_idx, r_idx,
-                                                                   t_idx,
-                                                                   kg.dict_of_tails,
-                                                                   heads=1)
-        rank_true_heads, filt_rank_true_heads = self.compute_ranks(proj_t_emb,
-                                                                   proj_candidates,
-                                                                   r_emb, t_idx, r_idx,
-                                                                   h_idx,
-                                                                   kg.dict_of_heads,
-                                                                   heads=-1)
-
-        return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
-
 
 class TransHModel(TransEModel):
     """Implementation of TransH model detailed in 2014 paper by Wang et al..
@@ -335,9 +220,10 @@ class TransHModel(TransEModel):
 
     def __init__(self, ent_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, l2_dissimilarity)
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
 
-        self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))))
+        self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))),
+                                        requires_grad=True)
         self.normalize_parameters()
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
@@ -441,15 +327,7 @@ class TransHModel(TransEModel):
         b_size, _ = normal_vectors.shape
 
         # recover candidates
-        all_idx = arange(0, self.number_entities).long()
-        if h_idx.is_cuda:
-            all_idx = all_idx.cuda()
-        candidates = self.entity_embeddings(all_idx).transpose(0, 1)
-        candidates = candidates.view((1,
-                                      self.ent_emb_dim,
-                                      self.number_entities)).expand((b_size,
-                                                                     self.ent_emb_dim,
-                                                                     self.number_entities))
+        candidates = self.recover_candidates(h_idx, b_size)
 
         # project each candidates with each normal vector
         normal_components = candidates * normal_vectors.view((b_size, self.ent_emb_dim, 1))
@@ -460,16 +338,13 @@ class TransHModel(TransEModel):
         assert proj_candidates.shape == (b_size, self.ent_emb_dim, self.number_entities)
 
         # recover, project and normalize entity embeddings
-        mask = h_idx.view(b_size, 1, 1).expand(b_size, self.ent_emb_dim, 1)
-        proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.ent_emb_dim)
-
-        mask = t_idx.view(b_size, 1, 1).expand(b_size, self.ent_emb_dim, 1)
-        proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.ent_emb_dim)
+        proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, proj_candidates,
+                                                        self.ent_emb_dim)
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
-class TransRModel(TransEModel):
+class TransRModel(TranslationalModel):
     """Implementation of TransR model detailed in 2015 paper by Lin et al..
 
     References
@@ -515,11 +390,14 @@ class TransRModel(TransEModel):
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, l2_dissimilarity,
-                         rel_emb_dim=rel_emb_dim)
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
+
+        self.rel_emb_dim = rel_emb_dim
+        self.relation_embeddings = init_embedding(self.number_relations, self.rel_emb_dim)
 
         self.projection_matrices = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim,
-                                                                         ent_emb_dim))))
+                                                                         ent_emb_dim))),
+                                             requires_grad=True)
         self.normalize_parameters()
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
@@ -625,29 +503,18 @@ class TransRModel(TransEModel):
         b_size, _, _ = projection_matrices.shape
 
         # recover candidates
-        all_idx = arange(0, self.number_entities).long()
-        if h_idx.is_cuda:
-            all_idx = all_idx.cuda()
-        candidates = self.entity_embeddings(all_idx).transpose(0, 1)
-        candidates = candidates.view((1,
-                                      self.ent_emb_dim,
-                                      self.number_entities)).expand((b_size,
-                                                                     self.ent_emb_dim,
-                                                                     self.number_entities))
+        candidates = self.recover_candidates(h_idx, b_size)
 
         # project each candidates with each projection matrix
         proj_candidates = matmul(projection_matrices, candidates)
 
-        mask = h_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
-        proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
-
-        mask = t_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
-        proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
+        proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, candidates,
+                                                        self.rel_emb_dim)
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
-class TransDModel(TransEModel):
+class TransDModel(TranslationalModel):
     """Implementation of TransD model detailed in 2015 paper by Ji et al..
 
     References
@@ -697,11 +564,14 @@ class TransDModel(TransEModel):
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, l2_dissimilarity,
-                         rel_emb_dim=rel_emb_dim)
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
 
-        self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))))
-        self.rel_proj_vects = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim))))
+        self.rel_emb_dim = rel_emb_dim
+
+        self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))),
+                                        requires_grad=True)
+        self.rel_proj_vects = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim))),
+                                        requires_grad=True)
         self.normalize_parameters()
 
         self.evaluated_projections = False
@@ -872,10 +742,130 @@ class TransDModel(TransEModel):
         r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
         proj_candidates = self.projected_entities[r_idx]
 
-        mask = h_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
-        proj_h_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
-
-        mask = t_idx.view(b_size, 1, 1).expand(b_size, self.rel_emb_dim, 1)
-        proj_t_emb = proj_candidates.gather(dim=2, index=mask).view(b_size, self.rel_emb_dim)
+        proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, proj_candidates,
+                                                        self.rel_emb_dim)
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
+
+
+class TorusEModel(TranslationalModel):
+    """Implementation of TorusE model detailed in 2018 paper by Ebisu and Ichise.
+
+        References
+        ----------
+        * Takuma Ebisu and Ryutaro Ichise
+        TorusE: Knowledge Graph Embedding on a Lie Group.
+        In Proceedings of the 32nd AAAI Conference on Artificial Intelligence
+        (New Orleans, LA, USA, Feb. 2018), AAAI Press, pp. 1819–1826.
+        https://arxiv.org/abs/1711.05435
+
+        Parameters
+        ----------
+        ent_emb_dim: int
+            Dimension of the embedding of entities.
+        n_entities: int
+            Number of entities in the current data set.
+        n_relations: int
+            Number of relations in the current data set.
+        dissimilarity: function
+            Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
+
+        Attributes
+        ----------
+        ent_emb_dim: int
+            Dimension of the embedding of entities.
+        number_entities: int
+            Number of entities in the current data set.
+        number_relations: int
+            Number of relations in the current data set.
+        dissimilarity: function
+            Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
+        entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
+            Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
+             normalized.
+        relation_embeddings: torch Embedding, shape = (number_relations, ent_emb_dim)
+            Contains the embeddings of the relations. It is initialized with Xavier uniform and\
+            then normalized.
+
+        """
+
+    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity):
+
+        assert dissimilarity in ['L1', 'L2', 'eL2']
+        self.dissimilarity_type = dissimilarity
+
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity=None)
+
+        if self.dissimilarity_type == 'L1':
+            self.dissimilarity = l1_torus_dissimilarity
+        if self.dissimilarity_type == 'L2':
+            self.dissimilarity = l2_torus_dissimilarity
+        if self.dissimilarity_type == 'eL2':
+            self.dissimilarity = l2_dissimilarity
+
+        self.normalize_parameters()
+
+    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+        """Compute the scoring function for the triplets given as argument.
+
+        Parameters
+        ----------
+        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's heads
+        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's tails.
+        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of the current batch's relations.
+
+        Returns
+        -------
+        score: torch.Tensor, dtype = float, shape = (batch_size)
+            Score function: opposite of dissimilarities between h+r and t.
+
+        """
+
+        # recover relations embeddings
+        rels_emb = self.relation_embeddings(rels_idx)
+
+        # recover, project and normalize entity embeddings
+        h_emb = self.recover_project_normalize(heads_idx, normalize_=False)
+        t_emb = self.recover_project_normalize(tails_idx, normalize_=False)
+
+        if self.dissimilarity_type == 'L1':
+            return 2 * self.dissimilarity(h_emb + rels_emb, t_emb)
+        if self.dissimilarity_type == 'L2':
+            return 4 * self.dissimilarity(h_emb + rels_emb, t_emb)**2
+        else:
+            assert self.dissimilarity_type == 'eL2'
+            return self.dissimilarity(self.g(h_emb) + self.g(rels_emb), self.g(t_emb))
+
+    def recover_project_normalize(self, ent_idx, normalize_=True):
+        """
+
+        Parameters
+        ----------
+        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of entities
+        normalize_: bool
+            Whether entities embeddings should be normalized or not.
+
+        Returns
+        -------
+        projections: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+            Embedded entities normalized.
+
+        """
+        # recover entity embeddings
+        ent_emb = self.entity_embeddings(ent_idx)
+
+        # normalize entity embeddings
+        if normalize_:
+            ent_emb = normalize(ent_emb, p=2, dim=1)
+
+        return ent_emb
+
+    def normalize_parameters(self):
+        """Project embeddings on torus.
+        """
+        self.entity_embeddings.weight.data.frac_()
+        self.relation_embeddings.weight.data.frac_()

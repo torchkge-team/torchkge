@@ -1,4 +1,4 @@
-from .Models import Model
+from .Models import Model, TranslationalModel
 
 from .TranslationModels import TransEModel
 from .TranslationModels import TransHModel

@@ -4,17 +4,17 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, matmul, tensor, diag_embed
-from torch.nn import Module, Embedding, Parameter
+from torch import empty, matmul, diag_embed
+from torch.nn import Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 
 from torchkge.models import Model
-from torchkge.utils import get_rank, get_mask, get_rolling_matrix
+from torchkge.utils import get_rank, get_mask, get_rolling_matrix, get_true_targets
 from torchkge.exceptions import WrongDimensionError
 
 
-class RESCALModel(Module, Model):
+class RESCALModel(Model):
     """Implementation of RESCAL model detailed in 2011 paper by Nickel et al..\
     In the original paper, optimization is done using Alternating Least Squares (ALS). Here we use\
     iterative gradient descent optimization.
@@ -50,50 +50,22 @@ class RESCALModel(Module, Model):
     """
 
     def __init__(self, ent_emb_dim, n_entities, n_relations):
-        super().__init__()
-        self.ent_emb_dim = ent_emb_dim
-        self.number_entities = n_entities
-        self.number_relations = n_relations
+        super().__init__(ent_emb_dim, n_entities, n_relations)
 
         # initialize embedding objects
         self.entity_embeddings = Embedding(self.number_entities, self.ent_emb_dim)
         self.relation_matrices = Parameter(xavier_uniform_(empty(size=(self.number_relations,
                                                                        self.ent_emb_dim,
-                                                                       self.ent_emb_dim))))
+                                                                       self.ent_emb_dim))),
+                                           requires_grad=True)
 
         # fill the embedding weights with Xavier initialized values
         self.entity_embeddings.weight = Parameter(xavier_uniform_(
-            empty(size=(self.number_entities, self.ent_emb_dim))))
+            empty(size=(self.number_entities, self.ent_emb_dim))),
+            requires_grad=True)
 
         # normalize the embeddings
         self.normalize_parameters()
-
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
-        """Forward pass on the current batch.
-
-        Parameters
-        ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
-            Integer keys of the current batch's relations.
-
-        Returns
-        -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
-            Estimation of the true value that should be 1 (by matrix factorization).
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
-            Estimation of the true value that should be 0 (by matrix factorization).
-
-        """
-        return self.scoring_function(heads, tails, relations), \
-            self.scoring_function(negative_heads, negative_tails, relations)
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
         # recover entities embeddings
@@ -147,6 +119,18 @@ class RESCALModel(Module, Model):
 
         return matmul(matmul(heads, rel_mat), tails).view(b_size, -1)
 
+    def get_head_tail_candidates(self, h_idx, t_idx):
+        b_size = h_idx.shape[0]
+
+        candidates = self.entity_embeddings.weight.data
+        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
+        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
+
+        h_emb = self.entity_embeddings(h_idx)
+        t_emb = self.entity_embeddings(t_idx)
+
+        return h_emb, t_emb, candidates
+
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
 
@@ -171,17 +155,10 @@ class RESCALModel(Module, Model):
             Tensor containing all entities as candidates for each sample of the batch.
 
         """
-        b_size = h_idx.shape[0]
-
-        candidates = self.entity_embeddings.weight.data
-        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
-        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
-
-        h_emb = self.entity_embeddings(h_idx)
-        t_emb = self.entity_embeddings(t_idx)
+        h_emb, t_emb, candidates = self.get_head_tail_candidates(h_idx, t_idx)
         r_mat = self.relation_matrices[r_idx]
 
-        return h_emb, t_emb, r_mat, candidates
+        return h_emb, t_emb, candidates, r_mat
 
     def compute_ranks(self, e_emb, candidates, r_mat, e_idx, r_idx, true_idx, dictionary, heads=1):
         """
@@ -228,11 +205,9 @@ class RESCALModel(Module, Model):
         # filter out the true negative samples by assigning negative score
         filt_scores = scores.clone()
         for i in range(current_batch_size):
-            true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
-            if len(true_targets) == 1:
+            true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)
+            if true_targets is None:
                 continue
-            true_targets.remove(true_idx[i].item())
-            true_targets = tensor(list(true_targets)).long()
             filt_scores[i][true_targets] = float(-1)
 
         # from dissimilarities, extract the rank of the true entity.
@@ -240,24 +215,6 @@ class RESCALModel(Module, Model):
         filtered_rank_true_entities = get_rank(filt_scores, true_idx)
 
         return rank_true_entities, filtered_rank_true_entities
-
-    def evaluate_candidates(self, h_idx, t_idx, r_idx, kg):
-        h_emb, t_emb, r_mat, candidates = self.evaluation_helper(h_idx, t_idx, r_idx)
-
-        rank_true_tails, filt_rank_true_tails = self.compute_ranks(h_emb,
-                                                                   candidates,
-                                                                   r_mat, h_idx, r_idx,
-                                                                   t_idx,
-                                                                   kg.dict_of_tails,
-                                                                   heads=1)
-        rank_true_heads, filt_rank_true_heads = self.compute_ranks(t_emb,
-                                                                   candidates,
-                                                                   r_mat, t_idx, r_idx,
-                                                                   h_idx,
-                                                                   kg.dict_of_heads,
-                                                                   heads=-1)
-
-        return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
 
 
 class DistMultModel(RESCALModel):
@@ -299,7 +256,8 @@ class DistMultModel(RESCALModel):
 
         del self.relation_matrices
         self.relation_vectors = Parameter(
-            xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))))
+            xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))),
+            requires_grad=True)
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
         # recover entities embeddings
@@ -337,17 +295,10 @@ class DistMultModel(RESCALModel):
             Tensor containing all entities as candidates for each sample of the batch.
 
         """
-        b_size = h_idx.shape[0]
-
-        candidates = self.entity_embeddings.weight.data
-        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
-        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
-
-        h_emb = self.entity_embeddings(h_idx)
-        t_emb = self.entity_embeddings(t_idx)
+        h_emb, t_emb, candidates = self.get_head_tail_candidates(h_idx, t_idx)
         r_mat = diag_embed(self.relation_vectors[r_idx])
 
-        return h_emb, t_emb, r_mat, candidates
+        return h_emb, t_emb, candidates, r_mat
 
 
 class HolEModel(RESCALModel):
@@ -383,6 +334,7 @@ class HolEModel(RESCALModel):
             with Xavier uniform.
 
         """
+
     def __init__(self, ent_emb_dim, n_entities, n_relations):
         super().__init__(ent_emb_dim, n_entities, n_relations)
 
@@ -426,17 +378,10 @@ class HolEModel(RESCALModel):
             Tensor containing all entities as candidates for each sample of the batch.
 
         """
-        b_size = h_idx.shape[0]
-
-        candidates = self.entity_embeddings.weight.data
-        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
-        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
-
-        h_emb = self.entity_embeddings(h_idx)
-        t_emb = self.entity_embeddings(t_idx)
+        h_emb, t_emb, candidates = self.get_head_tail_candidates(h_idx, t_idx)
         r_mat = get_rolling_matrix(self.relation_vectors[r_idx])
 
-        return h_emb, t_emb, r_mat, candidates
+        return h_emb, t_emb, candidates, r_mat
 
     def normalize_parameters(self):
         pass
@@ -476,6 +421,7 @@ class ComplExModel(DistMultModel):
     smaller_dim: int
         Number of 2x2 matrices on the diagonals of relation-specific matrices.
     """
+
     def __init__(self, ent_emb_dim, n_entities, n_relations):
         try:
             assert ent_emb_dim % 2 == 0

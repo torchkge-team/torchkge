@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, bincount, cat, topk, zeros
+from torch import empty, bincount, cat, topk, zeros, tensor
 from torch.nn import Embedding, Parameter
 from torch.nn.init import xavier_uniform_
 
@@ -13,7 +13,8 @@ def init_embedding(n_vectors, dim):
     """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
     """
     entity_embeddings = Embedding(n_vectors, dim)
-    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))))
+    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))),
+                                         requires_grad=True)
     return entity_embeddings
 
 
@@ -158,3 +159,11 @@ def process_dissimilarities(dissimilarities, true, k_max):
     _, sorted_candidates = topk(dissimilarities, k_max, dim=1, largest=False, sorted=True)
     rank_true_entities = get_rank(dissimilarities, true)
     return rank_true_entities, sorted_candidates
+
+
+def get_true_targets(dictionary, e_idx, r_idx, true_idx, i):
+    true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
+    if len(true_targets) == 1:
+        return None
+    true_targets.remove(true_idx[i].item())
+    return tensor(list(true_targets)).long()
