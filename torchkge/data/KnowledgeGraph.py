@@ -54,14 +54,14 @@ class KnowledgeGraph(Dataset):
             Number of distinct entities in the data set.
         n_rel: int
             Number of distinct entities in the data set.
-        n_sample: int
+        n_facts: int
             Number of samples in the data set. A sample is a fact: a triplet (h, r, l).
-        head_idx: torch.Tensor, dtype = long, shape = (n_sample)
-            List of the int key of heads for each sample (fact).
-        tail_idx: torch.Tensor, dtype = long, shape = (n_sample)
-            List of the int key of tails for each sample (facts).
-        relations: torch.Tensor, dtype = long, shape = (n_sample)
-            List of the int key of relations for each sample (facts).
+        head_idx: torch.Tensor, dtype = long, shape = (n_facts)
+            List of the int key of heads for each fact.
+        tail_idx: torch.Tensor, dtype = long, shape = (n_facts)
+            List of the int key of tails for each fact.
+        relations: torch.Tensor, dtype = long, shape = (n_facts)
+            List of the int key of relations for each fact.
 
     """
 
@@ -84,14 +84,14 @@ class KnowledgeGraph(Dataset):
         if df is not None:
             assert kg is None
             self.df = df
-            self.n_sample = len(df)
+            self.n_facts = len(df)
             self.head_idx = tensor(df['from'].map(self.ent2ix).values).long()
             self.tail_idx = tensor(df['to'].map(self.ent2ix).values).long()
             self.relations = tensor(df['rel'].map(self.rel2ix).values).long()
         else:
             assert kg is not None
             self.df = kg['df']
-            self.n_sample = kg['heads'].shape[0]
+            self.n_facts = kg['heads'].shape[0]
             self.head_idx = kg['heads']
             self.tail_idx = kg['tails']
             self.relations = kg['relations']
@@ -107,7 +107,7 @@ class KnowledgeGraph(Dataset):
             self.dict_of_tails = dict_of_tails
 
     def __len__(self):
-        return self.n_sample
+        return self.n_facts
 
     def __getitem__(self, item):
         return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
@@ -139,9 +139,9 @@ class KnowledgeGraph(Dataset):
         if sizes is not None:
             try:
                 if len(sizes) == 3:
-                    assert (sizes[0] + sizes[1] + sizes[2] == self.n_sample)
+                    assert (sizes[0] + sizes[1] + sizes[2] == self.n_facts)
                 elif len(sizes) == 2:
-                    assert (sizes[0] + sizes[1] == self.n_sample)
+                    assert (sizes[0] + sizes[1] == self.n_facts)
                 else:
                     raise SizeMismatchError('Tuple `sizes` should be of length 2 or 3.')
             except AssertionError:
@@ -156,10 +156,10 @@ class KnowledgeGraph(Dataset):
                 mask_te = ~(mask_tr | mask_val)
             else:
                 mask_tr = cat([tensor([1 for _ in range(sizes[0])]),
-                               tensor([0 for _ in range(sizes[1] + sizes[2])])]).byte()
+                               tensor([0 for _ in range(sizes[1] + sizes[2])])]).bool()
                 mask_val = cat([tensor([0 for _ in range(sizes[0])]),
                                 tensor([1 for _ in range(sizes[1])]),
-                                tensor([0 for _ in range(sizes[2])])]).byte()
+                                tensor([0 for _ in range(sizes[2])])]).bool()
                 mask_te = ~(mask_tr | mask_val)
 
             return KnowledgeGraph(
@@ -182,7 +182,7 @@ class KnowledgeGraph(Dataset):
                 mask_tr = (empty(self.head_idx.shape).uniform_() < share)
             else:
                 mask_tr = cat([tensor([1 for _ in range(sizes[0])]),
-                               tensor([0 for _ in range(sizes[1])])]).byte()
+                               tensor([0 for _ in range(sizes[1])])]).bool()
             return KnowledgeGraph(
                 kg={'heads': self.head_idx[mask_tr], 'tails': self.tail_idx[mask_tr],
                     'relations': self.relations[mask_tr], 'df': self.df},
@@ -198,7 +198,7 @@ class KnowledgeGraph(Dataset):
         fact in the entire knowledge graph.
 
         """
-        for i in tqdm(range(self.n_sample)):
+        for i in tqdm(range(self.n_facts)):
             self.dict_of_heads[(self.tail_idx[i].item(),
                                 self.relations[i].item())].add(self.head_idx[i].item())
             self.dict_of_tails[(self.head_idx[i].item(),

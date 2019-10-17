@@ -56,10 +56,10 @@ class LinkPredictionEvaluator(object):
         self.model = model
         self.kg = knowledge_graph
 
-        self.rank_true_heads = empty(size=(knowledge_graph.n_sample,)).long()
-        self.rank_true_tails = empty(size=(knowledge_graph.n_sample,)).long()
-        self.filt_rank_true_heads = empty(size=(knowledge_graph.n_sample,)).long()
-        self.filt_rank_true_tails = empty(size=(knowledge_graph.n_sample,)).long()
+        self.rank_true_heads = empty(size=(knowledge_graph.n_facts,)).long()
+        self.rank_true_tails = empty(size=(knowledge_graph.n_facts,)).long()
+        self.filt_rank_true_heads = empty(size=(knowledge_graph.n_facts,)).long()
+        self.filt_rank_true_tails = empty(size=(knowledge_graph.n_facts,)).long()
 
         self.evaluated = False
         self.k_max = 10

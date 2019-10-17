@@ -33,31 +33,31 @@ class NegativeSampler:
     n_ent: int
         Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
          and `kg_test`.
-    n_sample: int
+    n_facts: int
         Number of triplets in `kg`.
-    n_sample_val: in
+    n_facts_val: in
         Number of triplets in `kg_val`.
-    n_sample_test: int
+    n_facts_test: int
         Number of triples in `kg_test`.
 
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         self.kg = kg
         self.n_ent = kg.n_ent
-        self.n_sample = kg.n_sample
+        self.n_facts = kg.n_facts
 
         self.kg_val = kg_val
         self.kg_test = kg_test
 
         if kg_val is None:
-            self.n_sample_val = 0
+            self.n_facts_val = 0
         else:
-            self.n_sample_val = kg_val.n_sample
+            self.n_facts_val = kg_val.n_facts
 
         if kg_test is None:
-            self.n_sample_test = 0
+            self.n_facts_test = 0
         else:
-            self.n_sample_test = kg_test.n_sample
+            self.n_facts_test = kg_test.n_facts
 
     def corrupt_batch(self, heads, tails, relations):
         raise NotYetImplementedError('NegativeSampler is just an interface, please consider using '
@@ -84,18 +84,18 @@ class NegativeSampler:
 
         Returns
         -------
-        neg_heads: torch.Tensor, dtype = long, shape = (n_samples)
+        neg_heads: torch.Tensor, dtype = long, shape = (n_facts)
             Tensor containing the integer key of negatively sampled heads of the relations\
             in the graph designated by `which`.
-        neg_tails: torch.Tensor, dtype = long, shape = (n_samples)
+        neg_tails: torch.Tensor, dtype = long, shape = (n_facts)
             Tensor containing the integer key of negatively sampled tails of the relations\
             in the graph designated by `which`.
         """
         assert which in ['main', 'train', 'test', 'val']
         if which == 'val':
-            assert self.n_sample_val > 0
+            assert self.n_facts_val > 0
         if which == 'test':
-            assert self.n_sample_test > 0
+            assert self.n_facts_test > 0
 
         if which == 'val':
             dataloader = DataLoader(self.kg_val, batch_size=batch_size, shuffle=False,
@@ -158,11 +158,11 @@ class UniformNegativeSampler(NegativeSampler):
     n_ent: int
         Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
          and `kg_test`.
-    n_sample: int
+    n_facts: int
         Number of triplets in `kg`.
-    n_sample_val: in
+    n_facts_val: in
         Number of triplets in `kg_val`.
-    n_sample_test: int
+    n_facts_test: int
         Number of triples in `kg_test`.
 
     """
@@ -245,11 +245,11 @@ class BernoulliNegativeSampler(NegativeSampler):
     n_ent: int
         Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
          and `kg_test`.
-    n_sample: int
+    n_facts: int
         Number of triplets in `kg`.
-    n_sample_val: in
+    n_facts_val: in
         Number of triplets in `kg_val`.
-    n_sample_test: int
+    n_facts_test: int
         Number of triples in `kg_test`.
     bern_probs: torch.Tensor, dtype = float, shape = (kg.n_rel)
         Bernoulli sampling probabilities. See paper for more details.
@@ -351,11 +351,11 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
     n_ent: int
         Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
          and `kg_test`.
-    n_sample: int
+    n_facts: int
         Number of triplets in `kg`.
-    n_sample_val: in
+    n_facts_val: in
         Number of triplets in `kg_val`.
-    n_sample_test: int
+    n_facts_test: int
         Number of triples in `kg_test`.
     bern_probs: torch.Tensor, dtype = float, shape = (kg.n_rel)
         Bernoulli sampling probabilities. See paper for more details.
@@ -375,7 +375,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
     def find_possibilities(self):
         """For each relation of the knowledge graph (and possibly the validation graph but not the\
-        test graph) find all the possible heads and tails in the sens of Wang et al., e.g. all\
+        test graph) find all the possible heads and tails in the sense of Wang et al., e.g. all\
         entities that occupy once this position in another triplet.
 
         Returns
@@ -392,12 +392,9 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         """
         possible_heads, possible_tails = fill_in_dicts(self.kg)
 
-        if self.n_sample_val > 0:
+        if self.n_facts_val > 0:
             possible_heads, possible_tails = fill_in_dicts(self.kg_val,
                                                            possible_heads, possible_tails)
-
-        possible_heads = dict(possible_heads)
-        possible_tails = dict(possible_tails)
 
         n_poss_heads = []
         n_poss_tails = []
@@ -411,7 +408,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         n_poss_heads = tensor(n_poss_heads)
         n_poss_tails = tensor(n_poss_tails)
 
-        return possible_heads, possible_tails, n_poss_heads, n_poss_tails
+        return dict(possible_heads), dict(possible_tails), n_poss_heads, n_poss_tails
 
     def corrupt_batch(self, heads, tails, relations):
         """For each golden triplet, produce a corrupted one not different from any other golden\
@@ -466,6 +463,8 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         rels = relations[mask == 1]
         for i in range(n_heads_corrupted):
             r = rels[i].item()
+            choice_heads[i].item()
+            self.possible_heads[r]
             corr.append(self.possible_heads[r][choice_heads[i].item()])
         neg_heads[mask == 1] = tensor(corr, device=device)
 

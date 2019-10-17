@@ -65,17 +65,17 @@ class TripletClassificationEvaluator(object):
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = n_sample
+        heads: torch.Tensor, dtype = long, shape = n_facts
             List of heads indices.
-        tails: torch.Tensor, dtype = long, shape = n_sample
+        tails: torch.Tensor, dtype = long, shape = n_facts
             List of tails indices.
-        relations: torch.Tensor, dtype = long, shape = n_sample
+        relations: torch.Tensor, dtype = long, shape = n_facts
             List of relation indices.
         batch_size: int
 
         Returns
         -------
-        scores: torch.Tensor, dtype = float, shape = n_sample
+        scores: torch.Tensor, dtype = float, shape = n_facts
             List of scores of each triplet.
         """
         scores = []
@@ -112,8 +112,10 @@ class TripletClassificationEvaluator(object):
 
         for i in range(self.kg_val.n_rel):
             mask = (r_idx == i).byte()
-            assert mask.sum() > 0
-            self.thresholds[i] = neg_scores[mask == 1].max()
+            if mask.sum() > 0:
+                self.thresholds[i] = neg_scores[mask == 1].max()
+            else:
+                self.thresholds[i] = neg_scores.max()
 
         self.evaluated = True
         self.thresholds.detach_()
@@ -147,4 +149,4 @@ class TripletClassificationEvaluator(object):
         scores = (scores > self.thresholds[r_idx]).byte()
         neg_scores = (neg_scores < self.thresholds[r_idx]).byte()
 
-        return (scores.sum().item() + neg_scores.sum().item()) / (2 * self.kg_test.n_sample)
+        return (scores.sum().item() + neg_scores.sum().item()) / (2 * self.kg_test.n_facts)

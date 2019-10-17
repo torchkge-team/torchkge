@@ -4,18 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, bincount, cat, topk, zeros, tensor
-from torch.nn import Embedding, Parameter
-from torch.nn.init import xavier_uniform_
-
-
-def init_embedding(n_vectors, dim):
-    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
-    """
-    entity_embeddings = Embedding(n_vectors, dim)
-    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))),
-                                         requires_grad=True)
-    return entity_embeddings
+from torch import bincount, cat, topk, zeros
 
 
 def get_mask(length, start, end):
@@ -61,14 +50,14 @@ def get_rank(data, true, low_values=False):
 
     Parameters
     ----------
-    data: torch.Tensor, dtype = float, shape = (n_sample, dimensions)
-    true: torch.Tensor, dtype = int, shape = (n_sample)
+    data: torch.Tensor, dtype = float, shape = (n_facts, dimensions)
+    true: torch.Tensor, dtype = int, shape = (n_facts)
     low_values: bool
         if True, best rank is the lowest score else it is the highest
 
     Returns
     -------
-    ranks: torch.Tensor, dtype = int, shape = (n_sample)
+    ranks: torch.Tensor, dtype = int, shape = (n_facts)
         data[ranks[i]] = true[i]
     """
     true_data = data.gather(1, true.long().view(-1, 1))
@@ -159,11 +148,3 @@ def process_dissimilarities(dissimilarities, true, k_max):
     _, sorted_candidates = topk(dissimilarities, k_max, dim=1, largest=False, sorted=True)
     rank_true_entities = get_rank(dissimilarities, true)
     return rank_true_entities, sorted_candidates
-
-
-def get_true_targets(dictionary, e_idx, r_idx, true_idx, i):
-    true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()
-    if len(true_targets) == 1:
-        return None
-    true_targets.remove(true_idx[i].item())
-    return tensor(list(true_targets)).long()
