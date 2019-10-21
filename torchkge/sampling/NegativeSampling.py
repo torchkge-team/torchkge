@@ -463,16 +463,26 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         rels = relations[mask == 1]
         for i in range(n_heads_corrupted):
             r = rels[i].item()
-            choice_heads[i].item()
-            self.possible_heads[r]
-            corr.append(self.possible_heads[r][choice_heads[i].item()])
-        neg_heads[mask == 1] = tensor(corr, device=device)
+            choices = self.possible_heads[r]
+            if len(choices) == 0:
+                # in this case the relation r has never been used with any head
+                # choose one entity at random
+                corr.append(randint(low=0, high=self.n_ent, size=(1,)).item())
+            else:
+                corr.append(choices[choice_heads[i].item()])
+        neg_heads[mask == 1] = tensor(corr, device=device).long()
 
         corr = []
         rels = relations[mask == 0]
         for i in range(batch_size - n_heads_corrupted):
             r = rels[i].item()
-            corr.append(self.possible_tails[r][choice_tails[i].item()])
-        neg_tails[mask == 0] = tensor(corr, device=device)
+            choices = self.possible_tails[r]
+            if len(choices) == 0:
+                # in this case the relation r has never been used with any tail
+                # choose one entity at random
+                corr.append(randint(low=0, high=self.n_ent, size=(1,)).item())
+            else:
+                corr.append(choices[choice_tails[i].item()])
+        neg_tails[mask == 0] = tensor(corr, device=device).long()
 
         return neg_heads.long(), neg_tails.long()

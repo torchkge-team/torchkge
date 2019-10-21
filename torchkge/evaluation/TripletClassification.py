@@ -111,9 +111,9 @@ class TripletClassificationEvaluator(object):
         self.thresholds = zeros(self.kg_val.n_rel)
 
         for i in range(self.kg_val.n_rel):
-            mask = (r_idx == i).byte()
+            mask = (r_idx == i).bool()
             if mask.sum() > 0:
-                self.thresholds[i] = neg_scores[mask == 1].max()
+                self.thresholds[i] = neg_scores[mask].max()
             else:
                 self.thresholds[i] = neg_scores.max()
 
@@ -146,7 +146,7 @@ class TripletClassificationEvaluator(object):
         if self.use_cuda:
             self.thresholds = self.thresholds.cuda()
 
-        scores = (scores > self.thresholds[r_idx]).byte()
-        neg_scores = (neg_scores < self.thresholds[r_idx]).byte()
+        scores = (scores > self.thresholds[r_idx])
+        neg_scores = (neg_scores < self.thresholds[r_idx])
 
         return (scores.sum().item() + neg_scores.sum().item()) / (2 * self.kg_test.n_facts)
