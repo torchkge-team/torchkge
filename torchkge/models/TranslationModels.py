@@ -12,8 +12,7 @@ from torch.cuda import empty_cache
 
 from torchkge.models import TranslationalModel
 from torchkge.utils import init_embedding
-from torchkge.utils import l2_dissimilarity
-from torchkge.utils import l1_torus_dissimilarity, l2_torus_dissimilarity
+from torchkge.utils import l1_torus_dissimilarity, l2_torus_dissimilarity, el2_torus_dissimilarity
 
 from tqdm import tqdm
 
@@ -60,10 +59,9 @@ class TransEModel(TranslationalModel):
 
     def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity):
         try:
-            assert dissimilarity in ['L1', 'L2']
-        except AssertionError as e:
-            print("Dissimilarity variable can either be 'L1' or 'L2'.")
-            raise e
+            assert dissimilarity in ['L1', 'L2', None]
+        except AssertionError:
+            raise AssertionError("Dissimilarity variable can either be 'L1' or 'L2'.")
 
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity)
 
@@ -71,9 +69,10 @@ class TransEModel(TranslationalModel):
         self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
 
         # normalize parameters
-        self.normalize_parameters()
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
                                                          p=2, dim=1)
+        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
+                                                       p=2, dim=1)
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -219,12 +218,9 @@ class TransHModel(TransEModel):
     """
 
     def __init__(self, ent_emb_dim, n_entities, n_relations):
-
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
-
         self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))),
                                         requires_grad=True)
-        self.normalize_parameters()
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -567,6 +563,7 @@ class TransDModel(TranslationalModel):
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
 
         self.rel_emb_dim = rel_emb_dim
+        self.relation_embeddings = init_embedding(self.number_relations, self.rel_emb_dim)
 
         self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))),
                                         requires_grad=True)
@@ -748,7 +745,7 @@ class TransDModel(TranslationalModel):
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
-class TorusEModel(TranslationalModel):
+class TorusEModel(TransEModel):
     """Implementation of TorusE model detailed in 2018 paper by Ebisu and Ichise.
 
         References
@@ -796,12 +793,14 @@ class TorusEModel(TranslationalModel):
 
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity=None)
 
+        self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
+
         if self.dissimilarity_type == 'L1':
             self.dissimilarity = l1_torus_dissimilarity
         if self.dissimilarity_type == 'L2':
             self.dissimilarity = l2_torus_dissimilarity
         if self.dissimilarity_type == 'eL2':
-            self.dissimilarity = l2_dissimilarity
+            self.dissimilarity = el2_torus_dissimilarity
 
         self.normalize_parameters()
 
@@ -837,9 +836,9 @@ class TorusEModel(TranslationalModel):
             return 4 * self.dissimilarity(h_emb + rels_emb, t_emb)**2
         else:
             assert self.dissimilarity_type == 'eL2'
-            return self.dissimilarity(self.g(h_emb) + self.g(rels_emb), self.g(t_emb))
+            return self.dissimilarity(h_emb + rels_emb, t_emb)**2 / 4
 
-    def recover_project_normalize(self, ent_idx, normalize_=True):
+    def recover_project_normalize(self, ent_idx, normalize_=False):
         """
 
         Parameters
@@ -857,10 +856,7 @@ class TorusEModel(TranslationalModel):
         """
         # recover entity embeddings
         ent_emb = self.entity_embeddings(ent_idx)
-
-        # normalize entity embeddings
-        if normalize_:
-            ent_emb = normalize(ent_emb, p=2, dim=1)
+        ent_emb.data.frac_()
 
         return ent_emb
 

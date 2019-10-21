@@ -19,13 +19,13 @@ def get_mask(length, start, end):
 
     Returns
     -------
-    mask: torch.Tensor, shape=(length), dtype=byte
+    mask: torch.Tensor, shape=(length), dtype=bool
         Mask of length `length` filled with 0s except between indices `start` (included)\
         and `end` (excluded).
     """
     mask = zeros(length)
     mask[[i for i in range(start, end)]] = 1
-    return mask.byte()
+    return mask.bool()
 
 
 def get_rolling_matrix(x):
