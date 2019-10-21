@@ -6,14 +6,15 @@ This module's code is freely adapted from Scikit-Learn's sklearn.datasets.base.p
 """
 
 from .KnowledgeGraph import KnowledgeGraph
+
 from os import environ, makedirs, remove
 from os.path import exists, expanduser, join
-from urllib.request import urlretrieve
 from pandas import read_csv, concat, merge, DataFrame
+from urllib.request import urlretrieve
 
-import zipfile
-import tarfile
 import shutil
+import tarfile
+import zipfile
 
 
 def get_data_home(data_home=None):
