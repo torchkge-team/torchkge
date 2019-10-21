@@ -4,17 +4,7 @@ Copyright TorchKGE developers
 aboschin@enst.fr
 """
 
-from torch import empty, bincount, cat, topk, zeros
-from torch.nn import Embedding, Parameter
-from torch.nn.init import xavier_uniform_
-
-
-def init_embedding(n_vectors, dim):
-    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
-    """
-    entity_embeddings = Embedding(n_vectors, dim)
-    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))))
-    return entity_embeddings
+from torch import bincount, cat, topk, zeros
 
 
 def get_mask(length, start, end):
@@ -29,13 +19,13 @@ def get_mask(length, start, end):
 
     Returns
     -------
-    mask: torch.Tensor, shape=(length), dtype=byte
+    mask: torch.Tensor, shape=(length), dtype=bool
         Mask of length `length` filled with 0s except between indices `start` (included)\
         and `end` (excluded).
     """
     mask = zeros(length)
     mask[[i for i in range(start, end)]] = 1
-    return mask.byte()
+    return mask.bool()
 
 
 def get_rolling_matrix(x):
@@ -60,14 +50,14 @@ def get_rank(data, true, low_values=False):
 
     Parameters
     ----------
-    data: torch.Tensor, dtype = float, shape = (n_sample, dimensions)
-    true: torch.Tensor, dtype = int, shape = (n_sample)
+    data: torch.Tensor, dtype = float, shape = (n_facts, dimensions)
+    true: torch.Tensor, dtype = int, shape = (n_facts)
     low_values: bool
         if True, best rank is the lowest score else it is the highest
 
     Returns
     -------
-    ranks: torch.Tensor, dtype = int, shape = (n_sample)
+    ranks: torch.Tensor, dtype = int, shape = (n_facts)
         data[ranks[i]] = true[i]
     """
     true_data = data.gather(1, true.long().view(-1, 1))
