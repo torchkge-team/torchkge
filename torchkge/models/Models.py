@@ -88,7 +88,7 @@ class TranslationalModel(Model):
         else:
             self.dissimilarity = None
 
-    def recover_project_normalize(self, ent_idx, normalize_):
+    def recover_project_normalize(self, ent_idx, rel_idx, normalize_):
         pass
 
     def compute_ranks(self, proj_e_emb, proj_candidates,
