@@ -11,7 +11,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['torch==1.3.0', 'torchvision', 'tqdm==4.36.1', 'pandas']
+requirements = ['torch>=1.2.0', 'torchvision', 'tqdm', 'pandas']
 
 setup_requirements = []
 
