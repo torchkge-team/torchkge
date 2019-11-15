@@ -5,7 +5,7 @@ numpydoc==0.9.1
 
 # Tests
 flake8==3.7.9
-tox==3.14.0
+tox==3.14.1
 
 # Deployement
 pip
