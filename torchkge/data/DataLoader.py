@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
+
 This module's code is freely adapted from Scikit-Learn's sklearn.datasets.base.py code.
 """
 

@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
 """
+
 from torch import zeros, cat
 from torch.utils.data import DataLoader
 from torchkge.data import SmallKG

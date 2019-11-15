@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
 """
+
 from collections import defaultdict
 from tqdm import tqdm
 

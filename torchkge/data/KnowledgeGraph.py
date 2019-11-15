@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
 """
 
 from torch import empty, tensor, cat
