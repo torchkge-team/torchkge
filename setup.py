@@ -8,10 +8,10 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with open('docs/history.rst') as history_file:
     history = history_file.read()
 
-requirements = ['torch>=1.2.0', 'torchvision', 'tqdm', 'pandas']
+requirements = ['torch>=1.2.0', 'tqdm', 'pandas']
 
 setup_requirements = []
 
@@ -27,7 +27,7 @@ setup(
         'Natural Language :: English',
         'Programming Language :: Python :: 3.7',
     ],
-    description="Knowledge Graph embedding in Python and Pytorch.",
+    description="Knowledge Graph embedding in Python and PyTorch.",
     install_requires=requirements,
     license="BSD license",
     long_description=readme + '\n\n' + history,
