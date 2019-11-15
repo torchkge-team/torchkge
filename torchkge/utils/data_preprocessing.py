@@ -40,18 +40,18 @@ def lists_from_dicts(dictionary, entities, relations, targets, cuda):
     ----------
     dictionary: dict
         keys: (ent, rel), values: list of entities
-    entities: torch.Tensor, dtype = long, shape = (batch_size)
+    entities: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
         Heads (resp. tails) of facts.
-    relations: torch.Tensor, dtype = long, shape = (batch_size)
+    relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
         Relations of facts
-    targets: torch.Tensor, dtype = long, shape = (batch_size)
+    targets: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
         Tails (resp. heads) of facts.
     cuda: bool
         If True, result is returned as CUDA tensor.
 
     Returns
     -------
-    result: torch.Tensor, dtype = long, shape = (k)
+    result: `torch.Tensor`, dtype: `torch.long`, shape: (k)
         k is the largest number of possible alternative to the target in a fact. This tensor\
         contains for each line (fact) the list of possible alternatives to the target. If there\
         are no alternatives, then the line is full of -1.

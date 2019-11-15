@@ -3,13 +3,21 @@
 Models
 ******
 
-.. currentmodule:: torchkge.models
+Interfaces
+==========
 
+Model
+-----
+.. autoclass:: torchkge.models.interfaces.Model
+   :members:
+
+TranslationalModels
+-------------------
+.. autoclass:: torchkge.models.interfaces.TranslationalModel
+   :members:
 
 Translational Models
 ====================
-
-.. automodule:: torchkge.models.TranslationModels
 
 TransE
 ------
@@ -33,8 +41,6 @@ TransD
 
 Bilinear Models
 ===============
-
-.. automodule:: torchkge.models.BilinearModels
 
 RESCAL
 ------

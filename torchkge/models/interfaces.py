@@ -12,6 +12,27 @@ from torchkge.utils import get_rank, get_true_targets
 
 
 class Model(Module):
+    """Model interface to be used by any other class implementing a knowledge graph embedding model.
+
+    Parameters
+    ----------
+    ent_emb_dim: int
+        Embedding dimension of the entities.
+    n_entities: int
+        Number of entities to be embedded.
+    n_relations: int
+        Number of relations to be embedded.
+
+    Attributes
+    ----------
+    ent_emb_dim: int
+        Embedding dimension of the entities.
+    number_entities: int
+        Number of entities to be embedded.
+    number_relations: int
+        Number of relations to be embedded.
+
+    """
     def __init__(self, ent_emb_dim, n_entities, n_relations):
         super().__init__()
         self.ent_emb_dim = ent_emb_dim
@@ -23,22 +44,22 @@ class Model(Module):
 
         Parameters
         ----------
-        heads: torch tensor, dtype = long, shape = (batch_size)
+        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails: torch tensor, dtype = long, shape = (batch_size)
+        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        negative_heads: torch tensor, dtype = long, shape = (batch_size)
+        negative_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's negatively sampled heads.
-        negative_tails: torch tensor, dtype = long, shape = (batch_size)
+        negative_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's negatively sampled tails.
-        relations: torch tensor, dtype = long, shape = (batch_size)
+        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        golden_triplets: torch tensor, dtype = float, shape = (batch_size)
+        golden_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Scoring function evaluated on true triples.
-        negative_triplets: torch tensor, dtype = float, shape = (batch_size)
+        negative_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Scoring function evaluated on negatively sampled triples.
 
         """
@@ -75,15 +96,37 @@ class Model(Module):
 
 
 class TranslationalModel(Model):
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity):
+    """Model interface to be used by any other class implementing a translational knowledge graph embedding model.
+    This interface inherits from the interface :class:`torchkge.models.interfaces.Model`.
+
+    Parameters
+    ----------
+    ent_emb_dim: int
+        Embedding dimension of the entities.
+    n_entities: int
+        Number of entities to be embedded.
+    n_relations: int
+        Number of relations to be embedded.
+    dissimilarity_type: string
+        Name of the dissimilarity function to be used.
+
+    Attributes
+    ----------
+    entity_embeddings: `torch.nn.Embedding`
+        Embedding object containing the embeddings of the entities.
+    dissimilarity: function
+        Dissimilarity function defined in `torchkge.utils.dissimilarities`.
+
+    """
+    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
         super().__init__(ent_emb_dim, n_entities, n_relations)
 
         self.entity_embeddings = init_embedding(self.number_entities, self.ent_emb_dim)
 
-        assert dissimilarity in ['L1', 'L2', None]
-        if dissimilarity == 'L1':
+        assert dissimilarity_type in ['L1', 'L2', None]
+        if dissimilarity_type == 'L1':
             self.dissimilarity = l1_dissimilarity
-        elif dissimilarity == 'L2':
+        elif dissimilarity_type == 'L2':
             self.dissimilarity = l2_dissimilarity
         else:
             self.dissimilarity = None
@@ -97,32 +140,32 @@ class TranslationalModel(Model):
 
         Parameters
         ----------
-        proj_e_emb: torch.Tensor, shape = (batch_size, rel_emb_dim), dtype = float
+        proj_e_emb: `torch.Tensor`, shape: (batch_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing current projected embeddings of entities.
-        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing projected embeddings of all entities.
-        r_emb: torch.Tensor, shape = (batch_size, ent_emb_dim), dtype = float
+        r_emb: `torch.Tensor`, shape: (batch_size, ent_emb_dim), dtype: `torch.float`
             Tensor containing current embeddings of relations.
-        e_idx: torch.Tensor, shape = (batch_size), dtype = long
+        e_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
             Tensor containing the indices of entities.
-        r_idx: torch.Tensor, shape = (batch_size), dtype = long
+        r_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
             Tensor containing the indices of relations.
-        true_idx: torch.Tensor, shape = (batch_size), dtype = long
+        true_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
             Tensor containing the true entity for each sample.
         dictionary: default dict
             Dictionary of keys (int, int) and values list of ints giving all possible entities for
             the (entity, relation) pair.
         heads: integer
             1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
-            We test dissimilarity between heads * entities + relations and heads * targets.
+            We test dissimilarity_type between heads * entities + relations and heads * targets.
 
 
         Returns
         -------
-        rank_true_entities: torch.Tensor, shape = (b_size), dtype = int
+        rank_true_entities: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
             Tensor containing the rank of the true entities when ranking any entity based on \
             computation of d(hear+relation, tail).
-        filtered_rank_true_entities: torch.Tensor, shape = (b_size), dtype = int
+        filtered_rank_true_entities: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
             Tensor containing the rank of the true entities when ranking only true false entities \
             based on computation of d(hear+relation, tail).
 
@@ -133,11 +176,11 @@ class TranslationalModel(Model):
         tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
         tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.number_entities))
 
-        # compute either dissimilarity(heads + relation, proj_candidates) or
-        # dissimilarity(-proj_candidates, relation - tails)
+        # compute either dissimilarity_type(heads + relation, proj_candidates) or
+        # dissimilarity_type(-proj_candidates, relation - tails)
         dissimilarities = self.dissimilarity(tmp_sum, heads * proj_candidates)
 
-        # filter out the true negative samples by assigning infinite dissimilarity
+        # filter out the true negative samples by assigning infinite dissimilarity_type
         filt_dissimilarities = dissimilarities.clone()
         for i in range(current_batch_size):
             true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)

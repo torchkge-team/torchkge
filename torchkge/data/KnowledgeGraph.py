@@ -57,11 +57,11 @@ class KnowledgeGraph(Dataset):
             Number of distinct entities in the data set.
         n_facts: int
             Number of samples in the data set. A sample is a fact: a triplet (h, r, l).
-        head_idx: torch.Tensor, dtype = long, shape = (n_facts)
+        head_idx: `torch.Tensor`, dtype = `torch.long`, shape: (n_facts)
             List of the int key of heads for each fact.
-        tail_idx: torch.Tensor, dtype = long, shape = (n_facts)
+        tail_idx: `torch.Tensor`, dtype = `torch.long`, shape: (n_facts)
             List of the int key of tails for each fact.
-        relations: torch.Tensor, dtype = long, shape = (n_facts)
+        relations: `torch.Tensor`, dtype = `torch.long`, shape: (n_facts)
             List of the int key of relations for each fact.
 
     """
@@ -131,9 +131,9 @@ class KnowledgeGraph(Dataset):
 
         Returns
         -------
-        train_kg: torchkge.data.KnowledgeGraph
-        val_kg: torchkge.data.KnowledgeGraph (optional)
-        test_kg: torchkge.data.KnowledgeGraph
+        train_kg: `torchkge.data.KnowledgeGraph`
+        val_kg: `torchkge.data.KnowledgeGraph`, optional
+        test_kg: `torchkge.data.KnowledgeGraph`
 
         """
 

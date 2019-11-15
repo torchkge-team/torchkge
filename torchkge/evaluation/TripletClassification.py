@@ -66,17 +66,17 @@ class TripletClassificationEvaluator(object):
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = n_facts
+        heads: `torch.Tensor`, dtype: `torch.long`, shape: n_facts
             List of heads indices.
-        tails: torch.Tensor, dtype = long, shape = n_facts
+        tails: `torch.Tensor`, dtype: `torch.long`, shape: n_facts
             List of tails indices.
-        relations: torch.Tensor, dtype = long, shape = n_facts
+        relations: `torch.Tensor`, dtype: `torch.long`, shape: n_facts
             List of relation indices.
         batch_size: int
 
         Returns
         -------
-        scores: torch.Tensor, dtype = float, shape = n_facts
+        scores: `torch.Tensor`, dtype: `torch.float`, shape: n_facts
             List of scores of each triplet.
         """
         scores = []

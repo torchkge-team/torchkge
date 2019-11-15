@@ -18,14 +18,16 @@ from tqdm import tqdm
 
 
 class TransEModel(TranslationalModel):
-    """Implementation of TransE model detailed in 2013 paper by Bordes et al..
+    """Implementation of TransE model detailed in 2013 paper by Bordes et al.. This class inherits from the
+    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then has its attributes as well.
+
 
     References
     ----------
     * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston, and Oksana Yakhnenko.
-      Translating Embeddings for Modeling Multi-relational Data.
+      `Translating Embeddings for Modeling Multi-relational Data.
+      <https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data>`_
       In Advances in Neural Information Processing Systems 26, pages 2787–2795, 2013.
-      https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
 
     Parameters
     ----------
@@ -35,60 +37,47 @@ class TransEModel(TranslationalModel):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    dissimilarity: String
+    dissimilarity_type: String
         Either 'L1' or 'L2'.
 
     Attributes
     ----------
-    ent_emb_dim: int
-        Dimension of the embedding of entities.
-    number_entities: int
-        Number of entities in the current data set.
-    number_relations: int
-        Number of relations in the current data set.
-    dissimilarity: function
-        Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
-    entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
-        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
-         normalized.
-    relation_embeddings: torch Embedding, shape = (number_relations, ent_emb_dim)
+    relation_embeddings: torch Embedding, shape: (number_relations, ent_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity):
+    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
         try:
-            assert dissimilarity in ['L1', 'L2', None]
+            assert dissimilarity_type in ['L1', 'L2', None]
         except AssertionError:
             raise AssertionError("Dissimilarity variable can either be 'L1' or 'L2'.")
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity)
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type)
 
         # initialize embeddings
         self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
 
         # normalize parameters
-        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=2, dim=1)
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data, p=2, dim=1)
+        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data, p=2, dim=1)
 
     def scoring_function(self, heads_idx, tails_idx, rels_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        score: torch.Tensor, dtype = float, shape = (batch_size)
+        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Score function: opposite of dissimilarities between h+r and t.
 
         """
@@ -106,16 +95,16 @@ class TransEModel(TranslationalModel):
 
         Parameters
         ----------
-        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of entities
-        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
         Returns
         -------
-        projections: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, ent_emb_dim)
             Embedded entities normalized.
 
         """
@@ -139,23 +128,23 @@ class TransEModel(TranslationalModel):
 
         Parameters
         ----------
-        h_idx: torch.Tensor, shape = (b_size), dtype = long
+        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current head entities.
-        t_idx: torch.Tensor, shape = (b_size), dtype = long
+        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current tail entities.
-        r_idx: torch.Tensor, shape = (b_size), dtype = long
+        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current relations.
 
         Returns
         -------
-        proj_h_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing all entities projected in each relation spaces (relations
             corresponding to current batch's relations).
-        r_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing current relations embeddings.
 
         """
@@ -179,14 +168,16 @@ class TransEModel(TranslationalModel):
 
 
 class TransHModel(TransEModel):
-    """Implementation of TransH model detailed in 2014 paper by Wang et al..
+    """Implementation of TransH model detailed in 2014 paper by Wang et al.. This class inherits from the
+    :class:`torchkge.models.TranslationalModels.TransEModel` class interpreted as an interface.
+    It then has its attributes as well.
 
     References
     ----------
     * Zhen Wang, Jianwen Zhang, Jianlin Feng, and Zheng Chen.
-      Knowledge Graph Embedding by Translating on Hyperplanes.
+      `Knowledge Graph Embedding by Translating on Hyperplanes.
+      <https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531>`_
       In Twenty-Eighth AAAI Conference on Artificial Intelligence, June 2014.
-      https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531
 
     Parameters
     ----------
@@ -199,28 +190,14 @@ class TransHModel(TransEModel):
 
     Attributes
     ----------
-    ent_emb_dim: int
-        Dimension of the embedding of entities.
-    number_entities: int
-        Number of entities in the current data set.
-    number_relations: int
-        Number of relations in the current data set.
-    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
-        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
-         normalized.
-    relation_embeddings: torch.nn.Embedding, shape = (number_relations, ent_emb_dim)
-        Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
-        normalized.
-    dissimilarity: function
-        `torchkge.utils.dissimilarities.l2_dissimilarity`
-    normal_vectors: torch.Tensor, shape = (number_relations, ent_emb_dim)
+    normal_vectors: `torch.Tensor`, shape: (number_relations, ent_emb_dim)
         Normal vectors associated to each relation and used to compute the relation-specific\
         hyperplanes entities are projected on. See paper for more details.
 
     """
 
     def __init__(self, ent_emb_dim, n_entities, n_relations):
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
         self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))),
                                         requires_grad=True)
 
@@ -229,16 +206,16 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
-        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        score: torch.Tensor, dtype = float, shape = (batch_size)
+        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
@@ -258,16 +235,16 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
-        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of entities
-        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
         Returns
         -------
-        projections: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, ent_emb_dim)
             Projection of the embedded entities on the hyperplanes defined by the provided normal\
             vectors.
 
@@ -297,23 +274,23 @@ class TransHModel(TransEModel):
 
         Parameters
         ----------
-        h_idx: torch.Tensor, shape = (b_size), dtype = long
+        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current head entities.
-        t_idx: torch.Tensor, shape = (b_size), dtype = long
+        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current tail entities.
-        r_idx: torch.Tensor, shape = (b_size), dtype = long
+        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current relations.
 
         Returns
         -------
-        proj_h_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing all entities projected in each relation spaces (relations
             corresponding to current batch's relations).
-        r_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing current relations embeddings.
 
         """
@@ -341,14 +318,15 @@ class TransHModel(TransEModel):
 
 
 class TransRModel(TranslationalModel):
-    """Implementation of TransR model detailed in 2015 paper by Lin et al..
+    """Implementation of TransR model detailed in 2015 paper by Lin et al.. This class inherits from the
+    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then has its attributes as well.
 
     References
     ----------
     * Yankai Lin, Zhiyuan Liu, Maosong Sun, Yang Liu, and Xuan Zhu.
-      Learning Entity and Relation Embeddings for Knowledge Graph Completion.
+      `Learning Entity and Relation Embeddings for Knowledge Graph Completion.
+      <https://www.aaai.org/ocs/index.php/AAAI/AAAI15/paper/view/9571/9523>`_
       In Twenty-Ninth AAAI Conference on Artificial Intelligence, February 2015
-      https://www.aaai.org/ocs/index.php/AAAI/AAAI15/paper/view/9571/9523
 
     Parameters
     ----------
@@ -363,30 +341,19 @@ class TransRModel(TranslationalModel):
 
     Attributes
     ----------
-    ent_emb_dim: int
-        Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
-    number_entities: int
-        Number of entities in the current data set.
-    number_relations: int
-        Number of relations in the current data set.
-    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
-        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
-         normalized.
-    relation_embeddings: torch.nn.Embedding, shape = (number_relations, rel_emb_dim)
+    relation_embeddings: torch.nn.Embedding, shape: (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
-    dissimilarity: function
-        `torchkge.utils.dissimilarities.l2_dissimilarity`
-    projection_matrices: torch.Tensor, shape = (number_relations, rel_emb_dim, ent_emb_dim)
+    projection_matrices: `torch.Tensor`, shape: (number_relations, rel_emb_dim, ent_emb_dim)
         Relation-specific projection matrices. See paper for more details.
 
     """
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
 
         self.rel_emb_dim = rel_emb_dim
         self.relation_embeddings = init_embedding(self.number_relations, self.rel_emb_dim)
@@ -401,16 +368,16 @@ class TransRModel(TranslationalModel):
 
         Parameters
         ----------
-        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        score: torch.Tensor, dtype = float, shape = (batch_size)
+        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
@@ -429,16 +396,16 @@ class TransRModel(TranslationalModel):
 
         Parameters
         ----------
-        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of entities
-        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
         Returns
         -------
-        projections: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
         """
         b_size = ent_idx.shape[0]
@@ -468,23 +435,23 @@ class TransRModel(TranslationalModel):
 
         Parameters
         ----------
-        h_idx: torch.Tensor, shape = (b_size), dtype = long
+        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current head entities.
-        t_idx: torch.Tensor, shape = (b_size), dtype = long
+        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current tail entities.
-        r_idx: torch.Tensor, shape = (b_size), dtype = long
+        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current relations.
 
         Returns
         -------
-        proj_h_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch.Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing all entities projected in each relation spaces (relations
             corresponding to current batch's relations).
-        r_emb: torch.Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing current relations embeddings.
 
         """
@@ -506,16 +473,17 @@ class TransRModel(TranslationalModel):
 
 
 class TransDModel(TranslationalModel):
-    """Implementation of TransD model detailed in 2015 paper by Ji et al..
+    """Implementation of TransD model detailed in 2015 paper by Ji et al.. This class inherits from the
+    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then has its attributes as well.
 
     References
     ----------
     * Guoliang Ji, Shizhu He, Liheng Xu, Kang Liu, and Jun Zhao.
-      Knowledge Graph Embedding via Dynamic Mapping Matrix.
+      `Knowledge Graph Embedding via Dynamic Mapping Matrix.
+      <https://aclweb.org/anthology/papers/P/P15/P15-1067/>`_
       In Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and
       the 7th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)
       pages 687–696, Beijing, China, July 2015. Association for Computational Linguistics.
-      https://aclweb.org/anthology/papers/P/P15/P15-1067/
 
     Parameters
     ----------
@@ -530,32 +498,21 @@ class TransDModel(TranslationalModel):
 
     Attributes
     ----------
-    ent_emb_dim: int
-        Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
-    number_entities: int
-        Number of entities in the current data set.
-    number_relations: int
-        Number of relations in the current data set.
-    entity_embeddings: torch.nn.Embedding, shape = (number_entities, ent_emb_dim)
-        Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
-         normalized.
-    relation_embeddings: torch.nn.Embedding, shape = (number_relations, rel_emb_dim)
+    relation_embeddings: torch.nn.Embedding, shape: (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
-    dissimilarity: function
-        `torchkge.utils.dissimilarities.l2_dissimilarity`
-    ent_proj_vects: torch.Tensor, shape = (number_entities, ent_emb_dim)
+    ent_proj_vects: `torch.Tensor`, shape: (number_entities, ent_emb_dim)
         Entity-specific vector used to build projection matrices. See paper for more details.
-    rel_proj_vects: torch.Tensor, shape = (number_relations, rel_emb_dim)
+    rel_proj_vects: `torch.Tensor`, shape: (number_relations, rel_emb_dim)
         Relation-specific vector used to build projection matrices. See paper for more details.
 
     """
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity='L2')
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
 
         self.rel_emb_dim = rel_emb_dim
         self.relation_embeddings = init_embedding(self.number_relations, self.rel_emb_dim)
@@ -576,16 +533,16 @@ class TransDModel(TranslationalModel):
 
         Parameters
         ----------
-        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        score: torch.Tensor, dtype = float, shape = (batch_size)
+        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
@@ -607,16 +564,16 @@ class TransDModel(TranslationalModel):
 
         Parameters
         ----------
-        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of entities
-        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
         Returns
         -------
-        projections: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, rel_emb_dim)
             Projection of the entities into relation-specific subspaces.
 
         """
@@ -657,8 +614,6 @@ class TransDModel(TranslationalModel):
     def evaluate_projections(self):
         """Project all entities according to each relation.
         """
-        # TODO turn this to batch computation
-
         if self.evaluated_projections:
             return
 
@@ -705,22 +660,22 @@ class TransDModel(TranslationalModel):
 
         Parameters
         ----------
-        h_idx: torch.Tensor, shape = (b_size), dtype = long
+        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current head entities.
-        t_idx: torch.Tensor, shape = (b_size), dtype = long
+        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current tail entities.
-        r_idx: torch Tensor, shape = (b_size), dtype = long
+        r_idx: torch Tensor, shape: (b_size), dtype: `torch.long`
             Tensor containing indices of current relations.
         Returns
         -------
-        proj_h_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_h_emb: torch Tensor, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities projected in relation space.
-        proj_t_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        proj_t_emb: torch Tensor, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities projected in relation space.
-        proj_candidates: torch Tensor, shape = (b_size, rel_emb_dim, n_entities), dtype = float
+        proj_candidates: torch Tensor, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing all entities projected in each relation spaces (relations\
             corresponding to current batch's relations).
-        r_emb: torch Tensor, shape = (b_size, rel_emb_dim), dtype = float
+        r_emb: torch Tensor, shape: (b_size, rel_emb_dim), dtype: `torch.float`
             Tensor containing current relations embeddings.
 
         """
@@ -739,15 +694,17 @@ class TransDModel(TranslationalModel):
 
 
 class TorusEModel(TransEModel):
-    """Implementation of TorusE model detailed in 2018 paper by Ebisu and Ichise.
+    """Implementation of TorusE model detailed in 2018 paper by Ebisu and Ichise. This class inherits from the
+    :class:`torchkge.models.TranslationalModels.TransEModel` class interpreted as an interface.
+    It then has its attributes as well.
 
         References
         ----------
         * Takuma Ebisu and Ryutaro Ichise
-        TorusE: Knowledge Graph Embedding on a Lie Group.
+        `TorusE: Knowledge Graph Embedding on a Lie Group.
+        <https://arxiv.org/abs/1711.05435>`_
         In Proceedings of the 32nd AAAI Conference on Artificial Intelligence
         (New Orleans, LA, USA, Feb. 2018), AAAI Press, pp. 1819–1826.
-        https://arxiv.org/abs/1711.05435
 
         Parameters
         ----------
@@ -757,34 +714,25 @@ class TorusEModel(TransEModel):
             Number of entities in the current data set.
         n_relations: int
             Number of relations in the current data set.
-        dissimilarity: function
+        dissimilarity_type: function
             Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
 
         Attributes
         ----------
-        ent_emb_dim: int
-            Dimension of the embedding of entities.
-        number_entities: int
-            Number of entities in the current data set.
-        number_relations: int
-            Number of relations in the current data set.
-        dissimilarity: function
+        dissimilarity_type: function
             Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
-        entity_embeddings: torch Embedding, shape = (number_entities, ent_emb_dim)
-            Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
-             normalized.
-        relation_embeddings: torch Embedding, shape = (number_relations, ent_emb_dim)
+        relation_embeddings: torch Embedding, shape: (number_relations, ent_emb_dim)
             Contains the embeddings of the relations. It is initialized with Xavier uniform and\
             then normalized.
 
         """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity):
+    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
 
-        assert dissimilarity in ['L1', 'L2', 'eL2']
-        self.dissimilarity_type = dissimilarity
+        assert dissimilarity_type in ['L1', 'L2', 'eL2']
+        self.dissimilarity_type = dissimilarity_type
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity=None)
+        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type=None)
 
         self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
 
@@ -802,16 +750,16 @@ class TorusEModel(TransEModel):
 
         Parameters
         ----------
-        heads_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
         -------
-        score: torch.Tensor, dtype = float, shape = (batch_size)
+        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Score function: opposite of dissimilarities between h+r and t.
 
         """
@@ -836,16 +784,16 @@ class TorusEModel(TransEModel):
 
         Parameters
         ----------
-        ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of entities
-        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
         Returns
         -------
-        projections: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, ent_emb_dim)
             Embedded entities normalized.
 
         """

@@ -1,12 +1,10 @@
 .. _data:
 
 
-Data Representation
+Data Structure
 *******************
 
 .. currentmodule:: torchkge.data
-
-.. automodule:: torchkge.data.KnowledgeGraph
 
 Knowledge Graph
 ---------------
@@ -15,6 +13,5 @@ Knowledge Graph
 
 Small KG
 --------
-
 .. autoclass:: torchkge.data.KnowledgeGraph.SmallKG
     :members:

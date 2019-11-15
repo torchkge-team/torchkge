@@ -12,12 +12,12 @@ def l1_dissimilarity(a, b):
     """
     Parameters
     ----------
-    a: torch.Tensor, dtype = float, shape = (n_facts, dim)
-    b: torch.Tensor, dtype = float, shape = (n_facts, dim)
+    a: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
+    b: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
 
     Returns
     -------
-    dissimilarity: torch.Tensor, dtype = float, shape = (n_facts)
+    dissimilarity_type: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts)
         Tensor of the row_wise L1 distance.
 
     """
@@ -28,28 +28,28 @@ def l2_dissimilarity(a, b):
     """
     Parameters
     ----------
-    a: torch.Tensor, dtype = float, shape = (n_facts, dim)
-    b: torch.Tensor, dtype = float, shape = (n_facts, dim)
+    a: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
+    b: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
 
     Returns
     -------
-    dissimilarity: torch.Tensor, dtype = float, shape = (n_facts)
+    dissimilarity_type: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts)
         Tensor of the row_wise squared L2 distance.
     """
     return (a-b).norm(p=2, dim=1)**2
 
 
 def l1_torus_dissimilarity(a, b):
-    """See paper by Ebisu et al. for details about the definition of this dissimilarity function.
+    """See paper by Ebisu et al. for details about the definition of this dissimilarity_type function.
 
     Parameters
     ----------
-    a: torch.Tensor, dtype = float, shape = (n_facts, dim)
-    b: torch.Tensor, dtype = float, shape = (n_facts, dim)
+    a: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
+    b: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
 
     Returns
     -------
-    dissimilarity: torch.Tensor, dtype = float, shape = (n_facts)
+    dissimilarity_type: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts)
         Tensor of the row_wise squared L1 distance on the Torus.
     """
     a, b = a.frac(), b.frac()
@@ -57,16 +57,16 @@ def l1_torus_dissimilarity(a, b):
 
 
 def l2_torus_dissimilarity(a, b):
-    """See paper by Ebisu et al. for details about the definition of this dissimilarity function.
+    """See paper by Ebisu et al. for details about the definition of this dissimilarity_type function.
 
     Parameters
     ----------
-    a: torch.Tensor, dtype = float, shape = (n_facts, dim)
-    b: torch.Tensor, dtype = float, shape = (n_facts, dim)
+    a: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
+    b: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
 
     Returns
     -------
-    dissimilarity: torch.Tensor, dtype = float, shape = (n_facts)
+    dissimilarity_type: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts)
         Tensor of the row_wise squared L2 distance on the Torus.
     """
     a, b = a.frac(), b.frac()
@@ -74,16 +74,16 @@ def l2_torus_dissimilarity(a, b):
 
 
 def el2_torus_dissimilarity(a, b):
-    """See paper by Ebisu et al. for details about the definition of this dissimilarity function.
+    """See paper by Ebisu et al. for details about the definition of this dissimilarity_type function.
 
     Parameters
     ----------
-    a: torch.Tensor, dtype = float, shape = (n_facts, dim)
-    b: torch.Tensor, dtype = float, shape = (n_facts, dim)
+    a: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
+    b: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dim)
 
     Returns
     -------
-    dissimilarity: torch.Tensor, dtype = float, shape = (n_facts)
+    dissimilarity_type: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts)
         Tensor of the row_wise squared L2 distance on the Torus derived from the distance in :math:`\\mathbb{C}^n`.
 
     """

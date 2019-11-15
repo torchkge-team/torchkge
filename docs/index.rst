@@ -17,6 +17,7 @@ Welcome to TorchKGE's documentation!
    reference/sampling
    reference/evaluation
    reference/data
+   reference/dataloader
    reference/utils
 
 

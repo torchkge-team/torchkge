@@ -5,8 +5,6 @@
 Negative Sampling
 *****************
 
-.. automodule:: torchkge.sampling.NegativeSampling
-
 Uniform negative sampler
 ------------------------
 .. autoclass:: torchkge.sampling.NegativeSampling.UniformNegativeSampler

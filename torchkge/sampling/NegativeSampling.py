@@ -85,10 +85,10 @@ class NegativeSampler:
 
         Returns
         -------
-        neg_heads: torch.Tensor, dtype = long, shape = (n_facts)
+        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (n_facts)
             Tensor containing the integer key of negatively sampled heads of the relations\
             in the graph designated by `which`.
-        neg_tails: torch.Tensor, dtype = long, shape = (n_facts)
+        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (n_facts)
             Tensor containing the integer key of negatively sampled tails of the relations\
             in the graph designated by `which`.
         """
@@ -130,7 +130,8 @@ class NegativeSampler:
 class UniformNegativeSampler(NegativeSampler):
     """Uniform negative sampler as presented in 2013 paper by Bordes et al.. Either the head or\
     the tail of a triplet is replaced by another entity at random. The choice of head/tail is\
-    uniform.
+    uniform. This class inherits from the
+    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface. It then has its attributes as well.
 
     References
     ----------
@@ -148,24 +149,6 @@ class UniformNegativeSampler(NegativeSampler):
     kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
         Test knowledge graph.
 
-    Attributes
-    ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
-        Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
-        Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
-        Test knowledge graph.
-    n_ent: int
-        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
-         and `kg_test`.
-    n_facts: int
-        Number of triplets in `kg`.
-    n_facts_val: in
-        Number of triplets in `kg_val`.
-    n_facts_test: int
-        Number of triples in `kg_test`.
-
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
@@ -176,20 +159,20 @@ class UniformNegativeSampler(NegativeSampler):
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
+        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of heads of the relations in the current batch.
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
+        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of tails of the relations in the current batch.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
+        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of relations in the current batch. This is optional\
             here and mainly present because of the interface with other NegativeSampler objects.
 
         Returns
         -------
-        neg_heads: torch.Tensor, dtype = long, shape = (batch_size)
+        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of negatively sampled heads of the relations\
             in the current batch.
-        neg_tails: torch.Tensor, dtype = long, shape = (batch_size)
+        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of negatively sampled tails of the relations\
             in the current batch.
         """
@@ -217,7 +200,8 @@ class BernoulliNegativeSampler(NegativeSampler):
     """Bernoulli negative sampler as presented in 2014 paper by Wang et al.. Either the head or\
     the tail of a triplet is replaced by another entity at random. The choice of head/tail is done\
     using probabilities taking into account profiles of the relations. See the paper for more\
-    details.
+    details. This class inherits from the
+    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface. It then has its attributes as well.
 
     References
     ----------
@@ -237,22 +221,7 @@ class BernoulliNegativeSampler(NegativeSampler):
 
     Attributes
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
-        Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
-        Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
-        Test knowledge graph.
-    n_ent: int
-        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
-         and `kg_test`.
-    n_facts: int
-        Number of triplets in `kg`.
-    n_facts_val: in
-        Number of triplets in `kg_val`.
-    n_facts_test: int
-        Number of triples in `kg_test`.
-    bern_probs: torch.Tensor, dtype = float, shape = (kg.n_rel)
+    bern_probs: `torch.Tensor`, dtype: `torch.float`, shape: (kg.n_rel)
         Bernoulli sampling probabilities. See paper for more details.
 
     """
@@ -278,19 +247,19 @@ class BernoulliNegativeSampler(NegativeSampler):
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
+        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of heads of the relations in the current batch.
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
+        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of tails of the relations in the current batch.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
+        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of relations in the current batch.
 
         Returns
         -------
-        neg_heads: torch.Tensor, dtype = long, shape = (batch_size)
+        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of negatively sampled heads of the relations\
             in the current batch.
-        neg_tails: torch.Tensor, dtype = long, shape = (batch_size)
+        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of negatively sampled tails of the relations\
             in the current batch.
         """
@@ -319,7 +288,9 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
     the tail of a triplet is replaced by another entity chosen among entities that have already\
     appeared at the same place in a triplet (involving the same relation). It is not clear in the\
     paper how the choice of head/tail is done. We chose to use Bernoulli sampling as in 2014 paper\
-    by Wang et al. as we believe it serves the same purpose as the original paper.
+    by Wang et al. as we believe it serves the same purpose as the original paper. This class inherits from the
+    :class:`torchkge.sampling.NegativeSampling.BernouilliNegativeSampler` class seen as an interface.
+    It then has its attributes as well.
 
     References
     ----------
@@ -343,23 +314,6 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
     Attributes
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
-        Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
-        Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
-        Test knowledge graph.
-    n_ent: int
-        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
-         and `kg_test`.
-    n_facts: int
-        Number of triplets in `kg`.
-    n_facts_val: in
-        Number of triplets in `kg_val`.
-    n_facts_test: int
-        Number of triples in `kg_test`.
-    bern_probs: torch.Tensor, dtype = float, shape = (kg.n_rel)
-        Bernoulli sampling probabilities. See paper for more details.
     possible_heads: dict
         keys : relations, values : list of possible heads for each relation.
     possible_tails: dict
@@ -385,9 +339,9 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
             keys : relation index, values : list of possible heads
         possible tails: dict
             keys : relation index, values : list of possible tails
-        n_poss_heads: torch.Tensor, dtype = long, shape = (n_relations)
+        n_poss_heads: `torch.Tensor`, dtype: `torch.long`, shape: (n_relations)
             Number of possible heads for each relation.
-        n_poss_tails: torch.Tensor, dtype = long, shape = (n_relations)
+        n_poss_tails: `torch.Tensor`, dtype: `torch.long`, shape: (n_relations)
             Number of possible tails for each relation.
 
         """
@@ -417,20 +371,20 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
         Parameters
         ----------
-        heads: torch.Tensor, dtype = long, shape = (batch_size)
+        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of heads of the relations in the current batch.
-        tails: torch.Tensor, dtype = long, shape = (batch_size)
+        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of tails of the relations in the current batch.
-        relations: torch.Tensor, dtype = long, shape = (batch_size)
+        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of relations in the current batch. This is optional\
             here and mainly present because of the interface with other NegativeSampler objects.
 
         Returns
         -------
-        neg_heads: torch.Tensor, dtype = long, shape = (batch_size)
+        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of negatively sampled heads of the relations\
             in the current batch.
-        neg_tails: torch.Tensor, dtype = long, shape = (batch_size)
+        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Tensor containing the integer key of negatively sampled tails of the relations\
             in the current batch.
         """
