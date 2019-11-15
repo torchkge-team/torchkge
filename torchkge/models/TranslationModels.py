@@ -96,18 +96,20 @@ class TransEModel(TranslationalModel):
         rels_emb = self.relation_embeddings(rels_idx)
 
         # recover, project and normalize entity embeddings
-        h_emb = self.recover_project_normalize(heads_idx, normalize_=True)
-        t_emb = self.recover_project_normalize(tails_idx, normalize_=True)
+        h_emb = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
+        t_emb = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
 
         return - self.dissimilarity(h_emb + rels_emb, t_emb)
 
-    def recover_project_normalize(self, ent_idx, normalize_=True):
+    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
         """
 
         Parameters
         ----------
         ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 
@@ -162,7 +164,7 @@ class TransEModel(TranslationalModel):
 
         if h_idx.is_cuda:
             all_idx = all_idx.cuda()
-        proj_candidates = self.recover_project_normalize(all_idx, normalize_=False)
+        proj_candidates = self.recover_project_normalize(all_idx, None, normalize_=False)
 
         proj_h_emb = proj_candidates[h_idx]
         proj_t_emb = proj_candidates[t_idx]
@@ -242,17 +244,15 @@ class TransHModel(TransEModel):
         """
         # recover relations embeddings and normal projection vectors
         relations_embeddings = self.relation_embeddings(rels_idx)
-        normal_vectors = normalize(self.normal_vectors[rels_idx], p=2, dim=1)
+        self.normal_vectors[rels_idx] = normalize(self.normal_vectors[rels_idx], p=2, dim=1)
 
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(heads_idx, normalize_=True,
-                                                         normal_vectors=normal_vectors)
-        projected_tails = self.recover_project_normalize(tails_idx, normalize_=True,
-                                                         normal_vectors=normal_vectors)
+        projected_heads = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
+        projected_tails = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
 
         return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
-    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
+    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
         provided normal vectors.
 
@@ -260,10 +260,10 @@ class TransHModel(TransEModel):
         ----------
         ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
-        normal_vectors: torch.Tensor, dtype = float, shape = (batch_size, ent_emb_dim)
-            Normal vectors relative to the current relations.
 
         Returns
         -------
@@ -280,7 +280,7 @@ class TransHModel(TransEModel):
             ent_emb = normalize(ent_emb, p=2, dim=1)
 
         # project entities into relation space
-        normal_vectors = kwargs['normal_vectors']
+        normal_vectors = self.normal_vectors[rel_idx]
         normal_component = (ent_emb * normal_vectors).sum(dim=1).view((-1, 1))
 
         return ent_emb - normal_component * normal_vectors
@@ -417,18 +417,13 @@ class TransRModel(TranslationalModel):
         # recover relations embeddings and normal projection matrices
         relations_embeddings = normalize(self.relation_embeddings(rels_idx), p=2, dim=1)
 
-        # projection_matrices = normalize(self.projection_matrices[rels_idx], p=2, dim=2)
-        projection_matrices = self.projection_matrices[rels_idx]
-
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(heads_idx, normalize_=True,
-                                                         projection_matrices=projection_matrices)
-        projected_tails = self.recover_project_normalize(tails_idx, normalize_=True,
-                                                         projection_matrices=projection_matrices)
+        projected_heads = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
+        projected_tails = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
 
         return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
-    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
+    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
         provided projection matrices.
 
@@ -436,10 +431,10 @@ class TransRModel(TranslationalModel):
         ----------
         ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
-        projection_matrices: torch.Tensor, dtype = float, shape = (b_size, r_emb_dim, e_emb_dim)
-            Projection matrices for the current relations.
 
         Returns
         -------
@@ -454,7 +449,7 @@ class TransRModel(TranslationalModel):
 
         # project entities into relation space
         new_shape = (b_size, self.ent_emb_dim, 1)
-        projection_matrices = kwargs['projection_matrices']
+        projection_matrices = self.projection_matrices[rel_idx]
         projection = matmul(projection_matrices, ent_emb.view(new_shape))
 
         return normalize(projection.view(b_size, self.rel_emb_dim), p=2, dim=1)
@@ -597,18 +592,16 @@ class TransDModel(TranslationalModel):
         self.evaluated_projections = False
 
         # recover relations projection vectors and relations embeddings
-        rel_proj = normalize(self.rel_proj_vects[rels_idx], p=2, dim=1)
+        self.rel_proj_vects[rels_idx] = normalize(self.rel_proj_vects[rels_idx], p=2, dim=1)
         relations_embeddings = normalize(self.relation_embeddings(rels_idx), p=2, dim=1)
 
         # project
-        projected_heads = self.recover_project_normalize(heads_idx, normalize_=True,
-                                                         rel_proj=rel_proj)
-        projected_tails = self.recover_project_normalize(tails_idx, normalize_=True,
-                                                         rel_proj=rel_proj)
+        projected_heads = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
+        projected_tails = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
 
         return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
-    def recover_project_normalize(self, ent_idx, normalize_=True, **kwargs):
+    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
         """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
         provided normal vectors.
 
@@ -616,10 +609,10 @@ class TransDModel(TranslationalModel):
         ----------
         ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
-        rel_proj: torch.Tensor, dtype = float, shape = (batch_size, rel_emb_dim)
-            Projection vectors for the current relations.
 
         Returns
         -------
@@ -638,7 +631,7 @@ class TransDModel(TranslationalModel):
             ent_proj = normalize(ent_proj, p=2, dim=1)
 
         # project entities into relation space
-        rel_proj = kwargs['rel_proj']
+        rel_proj = self.rel_proj_vects[rel_idx]
         proj_mat = matmul(rel_proj.view((b_size, self.rel_emb_dim, 1)),
                           ent_proj.view((b_size, 1, self.ent_emb_dim)))
 
@@ -838,13 +831,15 @@ class TorusEModel(TransEModel):
             assert self.dissimilarity_type == 'eL2'
             return self.dissimilarity(h_emb + rels_emb, t_emb)**2 / 4
 
-    def recover_project_normalize(self, ent_idx, normalize_=False):
+    def recover_project_normalize(self, ent_idx, rel_idx=None, normalize_=False):
         """
 
         Parameters
         ----------
         ent_idx: torch.Tensor, dtype = long, shape = (batch_size)
             Integer keys of entities
+        rel_idx: torch.Tensor, dtype = long, shape = (batch_size)
+            Integer keys of relations
         normalize_: bool
             Whether entities embeddings should be normalized or not.
 

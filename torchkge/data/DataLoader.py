@@ -32,8 +32,9 @@ def clear_data_home(data_home=None):
     shutil.rmtree(data_home)
 
 
-def load_fb13():
-    data_home = get_data_home()
+def load_fb13(data_home=None):
+    if data_home is None:
+        data_home = get_data_home()
     data_path = data_home + '/FB13'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
@@ -56,8 +57,9 @@ def load_fb13():
     return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
 
 
-def load_fb15k():
-    data_home = get_data_home()
+def load_fb15k(data_home=None):
+    if data_home is None:
+        data_home = get_data_home()
     data_path = data_home + '/FB15k'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
@@ -80,8 +82,9 @@ def load_fb15k():
     return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
 
 
-def load_fb15k237():
-    data_home = get_data_home()
+def load_fb15k237(data_home=None):
+    if data_home is None:
+        data_home = get_data_home()
     data_path = data_home + '/FB15k237'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
@@ -104,8 +107,9 @@ def load_fb15k237():
     return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
 
 
-def load_wn18():
-    data_home = get_data_home()
+def load_wn18(data_home=None):
+    if data_home is None:
+        data_home = get_data_home()
     data_path = data_home + '/WN18'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
@@ -128,13 +132,16 @@ def load_wn18():
     return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
 
 
-def load_wikidatasets(which, limit_=None):
+def load_wikidatasets(which, limit_=None, data_home=None):
     assert which in ['humans', 'companies', 'animals', 'countries', 'films']
 
     if limit_ is None:
         limit_ = 0
 
-    data_home = get_data_home() + '/WikiDataSets'
+    if data_home is None:
+        data_home = get_data_home()
+
+    data_home = data_home + '/WikiDataSets'
     data_path = data_home + '/' + which
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
