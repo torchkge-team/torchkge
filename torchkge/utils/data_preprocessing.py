@@ -27,10 +27,10 @@ def get_dictionaries(df, ent=True):
     """
     if ent:
         tmp = list(set(df['from'].unique()).union(set(df['to'].unique())))
-        return {ent: i for i, ent in enumerate(tmp)}
+        return {ent: i for i, ent in enumerate(sorted(tmp))}
     else:
         tmp = list(df['rel'].unique())
-        return {rel: i for i, rel in enumerate(tmp)}
+        return {rel: i for i, rel in enumerate(sorted(tmp))}
 
 
 def get_tph(t):
@@ -59,7 +59,7 @@ def get_bernoulli_probs(kg):
         keys: relations , values: sampling probabilities as described by Wang et al. in their paper.
 
     """
-    t = cat((kg.head_idx.view(-1, 1), kg.tail_idx.view(-1, 1), kg.relations.view(-1, 1)))
+    t = cat((kg.head_idx.view(-1, 1), kg.tail_idx.view(-1, 1), kg.relations.view(-1, 1)), dim=1)
 
     hpt = get_hpt(t)
     tph = get_tph(t)

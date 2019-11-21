@@ -101,7 +101,7 @@ def get_col(t, by):
     int
 
     """
-    assert len(t.shape) == 3
+    assert len(t.shape) == 2
     assert (type(by) == int or type(by) == list)
     n_cols = t.shape[1]
 
@@ -163,7 +163,6 @@ def groupby_mean(t, by):
     res = dict()
     for i in range(len(uniques)):
         tmp = values[mask[:, i].byte(), i].numpy()
-        print(tmp)
         k = uniques[i]
         if type(by) == int:
             k = k.item()
