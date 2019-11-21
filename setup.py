@@ -10,9 +10,9 @@ with open('README.rst') as readme_file:
 
 requirements = ['torch>=1.2.0', 'tqdm', 'pandas']
 
-setup_requirements = []
+setup_requirements = ['pytest-runner']
 
-test_requirements = []
+test_requirements = ['pytest']
 
 setup(
     author="TorchKGE Developers",
