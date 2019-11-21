@@ -8,6 +8,7 @@ Welcome to TorchKGE's documentation!
    :caption: Tutorials:
 
    tutorials/transe
+   tutorials/hole
 
 .. toctree::
    :maxdepth: 1
