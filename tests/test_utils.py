@@ -71,13 +71,11 @@ class TestUtils(unittest.TestCase):
     def test_get_tph(self):
         kg = KnowledgeGraph(df=self.df)
         t = cat((kg.head_idx.view(-1, 1), kg.tail_idx.view(-1, 1), kg.relations.view(-1, 1)), dim=1)
-        print(get_tph(t))
         assert get_tph(t) == {0: 2., 1: 1., 2: 1., 3: 1.}
 
     def test_get_hpt(self):
         kg = KnowledgeGraph(df=self.df)
         t = cat((kg.head_idx.view(-1, 1), kg.tail_idx.view(-1, 1), kg.relations.view(-1, 1)), dim=1)
-        print(get_hpt(t))
         assert get_hpt(t) == {0: 1.5, 1: 1., 2: 1., 3: 1.}
 
     def test_get_bernoulli_probs(self):

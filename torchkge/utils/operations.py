@@ -162,7 +162,7 @@ def groupby_mean(t, by):
 
     res = dict()
     for i in range(len(uniques)):
-        tmp = values[mask[:, i].byte(), i].numpy()
+        tmp = values[mask[:, i].bool(), i].numpy()
         k = uniques[i]
         if type(by) == int:
             k = k.item()

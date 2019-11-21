@@ -11,7 +11,6 @@ from torch.utils.data import Dataset
 from torchkge.utils import get_dictionaries
 from torchkge.exceptions import SizeMismatchError
 
-from tqdm import tqdm
 from collections import defaultdict
 
 
@@ -197,7 +196,7 @@ class KnowledgeGraph(Dataset):
         fact in the entire knowledge graph.
 
         """
-        for i in tqdm(range(self.n_facts)):
+        for i in range(self.n_facts):
             self.dict_of_heads[(self.tail_idx[i].item(),
                                 self.relations[i].item())].add(self.head_idx[i].item())
             self.dict_of_tails[(self.head_idx[i].item(),
