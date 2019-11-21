@@ -5,16 +5,36 @@ Copyright TorchKGE developers
 """
 
 from collections import defaultdict
-from tqdm import tqdm
 
 
-def fill_in_dicts(kg, possible_heads=None, possible_tails=None):
+def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
+    """Gets for each relation of the knowledge graph the possible heads and possible tails.
+
+    Parameters
+    ----------
+    kg: `torchkge.data.KnowledgeGraph.KnowledgeGraph`
+    possible_heads: defaultdict, optional (default=None)
+    possible_tails: defaultdict, optional (default=None)
+
+    Returns
+    -------
+    possible_heads: defaultdict, optional (default=None)
+        keys: relation indices, values: set of possible heads for each relations
+    possible_tails: defaultdict, optional (default=None)
+        keys: relation indices, values: set of possible tails for each relations
+
+    """
+
     if possible_heads is None:
         possible_heads = defaultdict(set)
+    else:
+        assert type(possible_heads) == defaultdict
     if possible_tails is None:
         possible_tails = defaultdict(set)
+    else:
+        assert type(possible_tails) == defaultdict
 
-    for i in tqdm(range(kg.n_facts)):
+    for i in range(kg.n_facts):
         possible_heads[kg.relations[i].item()].add(kg.head_idx[i].item())
         possible_tails[kg.relations[i].item()].add(kg.tail_idx[i].item())
 

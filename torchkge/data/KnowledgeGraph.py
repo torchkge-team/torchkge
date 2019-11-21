@@ -97,7 +97,6 @@ class KnowledgeGraph(Dataset):
         if dict_of_heads is None or dict_of_tails is None:
             self.dict_of_heads = defaultdict(set)
             self.dict_of_tails = defaultdict(set)
-            print('Evaluating dictionaries of possible heads and tails for relations.')
             self.evaluate_dicts()
 
         else:

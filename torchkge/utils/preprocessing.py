@@ -4,9 +4,9 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torchkge.utils.operations import groupby_mean, groupby_count
-
 from torch import cat, tensor
+
+from torchkge.utils.operations import groupby_mean, groupby_count
 
 
 def get_dictionaries(df, ent=True):
@@ -34,12 +34,34 @@ def get_dictionaries(df, ent=True):
 
 
 def get_tph(t):
+    """Get the average number of tail per heads for each relation.
+
+    Parameters
+    ----------
+    t: `torch.Tensor`, dtype: `torch.long`, shape: (b_size, 3)
+        First column contains head indices, second tails and third relations.
+    Returns
+    -------
+    d: dict
+        keys: relation indices, values: average number of tail per heads.
+    """
     tmp = groupby_count(t, by=[0, 2])  # group by ['from', 'rel']
     tmp = tensor([[i[1].item(), tmp[i]] for i in tmp.keys()])
     return groupby_mean(tmp, by=0)
 
 
 def get_hpt(t):
+    """Get the average number of head per tails for each relation.
+
+    Parameters
+    ----------
+    t: `torch.Tensor`, dtype: `torch.long`, shape: (b_size, 3)
+        First column contains head indices, second tails and third relations.
+    Returns
+    -------
+    d: dict
+        keys: relation indices, values: average number of head per tails.
+    """
     tmp = groupby_count(t, by=[1, 2])  # group by ['to', 'rel']
     tmp = tensor([[i[1].item(), tmp[i]] for i in tmp.keys()])
     return groupby_mean(tmp, by=0)

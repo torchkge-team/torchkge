@@ -1,16 +1,18 @@
 import pandas as pd
+import unittest
 
-from torch import tensor, Tensor, cat, eq
+from collections import defaultdict
+from torch import tensor, Tensor, cat, eq, bool
 from torch.nn import Embedding
 
 from torchkge.data import KnowledgeGraph
-
-from torchkge.utils.data_preprocessing import get_dictionaries, get_tph, get_hpt, get_bernoulli_probs
 from torchkge.utils.dissimilarities import l1_dissimilarity, l2_dissimilarity, l1_torus_dissimilarity, \
     l2_torus_dissimilarity, el2_torus_dissimilarity
-from torchkge.utils.operations import one_hot, get_col, groupby_count, groupby_mean
 from torchkge.utils.models_utils import init_embedding, get_true_targets
-import unittest
+from torchkge.utils.negative_sampling import get_possible_heads_tails
+from torchkge.utils.operations import get_mask, get_rank, get_rolling_matrix, \
+    one_hot, get_col, groupby_count, groupby_mean
+from torchkge.utils.preprocessing import get_dictionaries, get_tph, get_hpt, get_bernoulli_probs
 
 
 class TestUtils(unittest.TestCase):
@@ -47,9 +49,6 @@ class TestUtils(unittest.TestCase):
         self.r_idx = tensor([0, 0, 1]).long()
         self.true_idx = tensor([1, 2, 1]).long()
         self.dictionary = {(0, 0): [0, 1, 2], (0, 1): [1]}
-
-    def tearDown(self):
-        """Tear down test fixtures, if any."""
 
     @staticmethod
     def compare_dicts_tensorkeys(d1, d2):
@@ -93,6 +92,65 @@ class TestUtils(unittest.TestCase):
         assert ((l2_torus_dissimilarity(self.a, self.b) - tensor([0.1000, 0.5000])).sum() < 1e-03)
         assert ((el2_torus_dissimilarity(self.a, self.b) - tensor([0.6180, 2.0000])).sum() < 1e-03)
 
+    def test_init_embedding(self):
+        n = 10
+        dim = 100
+
+        p = init_embedding(n, dim)
+
+        assert type(p) == Embedding
+        assert p.weight.requires_grad
+        assert p.weight.shape == (10, 100)
+
+    def test_get_true_targets(self):
+        assert eq(get_true_targets(self.dictionary, self.e_idx, self.r_idx, self.true_idx, 0),
+                  tensor([0, 2]).long()).all().item()
+        assert eq(get_true_targets(self.dictionary, self.e_idx, self.r_idx, self.true_idx, 1),
+                  tensor([0, 1]).long()).all().item()
+        assert get_true_targets(self.dictionary, self.e_idx, self.r_idx, self.true_idx, 2) is None
+
+    def test_get_possible_heads_tails(self):
+        kg = KnowledgeGraph(self.df)
+        h, t = get_possible_heads_tails(kg)
+
+        assert (type(h) == defaultdict) & (type(t) == defaultdict)
+
+        assert dict(h) == {0: {0, 2, 5}, 1: {1}, 2: {1}, 3: {3}}
+        assert dict(t) == {0: {1, 2, 3, 4}, 1: {2}, 2: {3}, 3: {4}}
+
+        p_h, p_t = defaultdict(set), defaultdict(set)
+        p_h[0].add(40)
+        p_h[10].add(50)
+        p_t[0].add(41)
+        p_t[10].add(51)
+
+        h, t = get_possible_heads_tails(kg, possible_heads=p_h, possible_tails=p_t)
+        assert dict(h) == {0: {0, 2, 5, 40}, 1: {1}, 2: {1}, 3: {3}, 10: {50}}
+        assert dict(t) == {0: {1, 2, 3, 4, 41}, 1: {2}, 2: {3}, 3: {4}, 10: {51}}
+
+    def test_get_mask(self):
+        m = get_mask(10, 1, 2)
+        assert m.dtype == bool
+        assert len(m.shape) == 1
+        assert m.shape[0] == 10
+
+    def test_get_rank(self):
+        data = tensor([[1, 2, 3, 4, 0], [1, 2, 1, 3, 0]]).float()
+        true = tensor([4, 2])
+        r1 = get_rank(data, true)
+        r2 = get_rank(data, true, low_values=True)
+
+        assert eq(r1, tensor([5, 4])).all()
+        assert eq(r2, tensor([1, 3])).all()
+
+    def test_get_rolling_matrix(self):
+        x = tensor([[1, 2, 3], [4, 5, 6]])
+        m = get_rolling_matrix(x)
+        assert m.dtype == x.dtype
+        assert len(m.shape) == 3
+        print(m.shape[0])
+        assert (m.shape[0] == 2) & (m.shape[1] == 3) & (m.shape[2] == 3)
+
     def test_one_hot(self):
         m = tensor([1, 3, 0, 4, 1])
         res = one_hot(m)
@@ -125,20 +183,3 @@ class TestUtils(unittest.TestCase):
     def test_groupby_mean(self):
         self.compare_dicts_tensorkeys(groupby_mean(self.t1, by=[1, 2]), self.r1_mean)
         assert groupby_mean(self.t2, by=1) == self.r2_mean
-
-    def test_init_embedding(self):
-        n = 10
-        dim = 100
-
-        p = init_embedding(n, dim)
-
-        assert type(p) == Embedding
-        assert p.weight.requires_grad
-        assert p.weight.shape == (10, 100)
-
-    def test_get_true_targets(self):
-        assert eq(get_true_targets(self.dictionary, self.e_idx, self.r_idx, self.true_idx, 0),
-                  tensor([0, 2]).long()).all().item()
-        assert eq(get_true_targets(self.dictionary, self.e_idx, self.r_idx, self.true_idx, 1),
-                  tensor([0, 1]).long()).all().item()
-        assert get_true_targets(self.dictionary, self.e_idx, self.r_idx, self.true_idx, 2) is None

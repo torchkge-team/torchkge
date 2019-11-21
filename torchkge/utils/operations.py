@@ -32,19 +32,21 @@ def get_mask(length, start, end):
 
 
 def get_rank(data, true, low_values=False):
-    """
+    """Computes how many entities have higher (or lower) value in data than the one at index true[i]
 
     Parameters
     ----------
     data: `torch.Tensor`, dtype: `torch.float`, shape: (n_facts, dimensions)
+        Scores for each entity.
     true: `torch.Tensor`, dtype: `torch.int`, shape: (n_facts)
-    low_values: bool
-        if True, best rank is the lowest score else it is the highest
+        true[i] is the index of the true entity for test i of the batch.
+    low_values: bool, optional (default=False)
+        if True, best rank is the lowest score else it is the highest.
 
     Returns
     -------
     ranks: `torch.Tensor`, dtype: `torch.int`, shape: (n_facts)
-        data[ranks[i]] = true[i]
+        ranks[i] is the number of entities which have better scores in data than the one and index true[i]
     """
     true_data = data.gather(1, true.long().view(-1, 1))
 

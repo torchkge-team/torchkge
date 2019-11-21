@@ -7,7 +7,7 @@ Copyright TorchKGE developers
 from torch import tensor, bernoulli, randint, ones, rand, cat
 from torch.utils.data import DataLoader
 
-from torchkge.utils import get_bernoulli_probs, fill_in_dicts
+from torchkge.utils import get_bernoulli_probs, get_possible_heads_tails
 from torchkge.exceptions import NotYetImplementedError
 
 
@@ -343,11 +343,11 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
             Number of possible tails for each relation.
 
         """
-        possible_heads, possible_tails = fill_in_dicts(self.kg)
+        possible_heads, possible_tails = get_possible_heads_tails(self.kg)
 
         if self.n_facts_val > 0:
-            possible_heads, possible_tails = fill_in_dicts(self.kg_val,
-                                                           possible_heads, possible_tails)
+            possible_heads, possible_tails = get_possible_heads_tails(self.kg_val,
+                                                                      possible_heads, possible_tails)
 
         n_poss_heads = []
         n_poss_tails = []
