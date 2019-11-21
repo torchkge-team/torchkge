@@ -7,7 +7,7 @@ Copyright TorchKGE developers
 from torch import tensor, bernoulli, randint, ones, rand, cat
 from torch.utils.data import DataLoader
 
-from torchkge.utils import get_bern_probs, fill_in_dicts
+from torchkge.utils import get_bernoulli_probs, fill_in_dicts
 from torchkge.exceptions import NotYetImplementedError
 
 
@@ -232,11 +232,9 @@ class BernoulliNegativeSampler(NegativeSampler):
     def evaluate_probabilities(self):
         """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original\
         paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.\
-        Currently it is done using a pandas DataFrame. This should change as soon as the authors\
-        find an efficient way to group-by in torch. TODO
 
         """
-        bern_probs = get_bern_probs(self.kg.df)
+        bern_probs = get_bernoulli_probs(self.kg)
         assert len(bern_probs) == self.kg.n_rel
         bern_probs = {self.kg.rel2ix[rel]: bern_probs[rel] for rel in bern_probs.keys()}
         return tensor([bern_probs[k] for k in sorted(bern_probs.keys())]).float()

@@ -84,14 +84,12 @@ class KnowledgeGraph(Dataset):
 
         if df is not None:
             assert kg is None
-            self.df = df
             self.n_facts = len(df)
             self.head_idx = tensor(df['from'].map(self.ent2ix).values).long()
             self.tail_idx = tensor(df['to'].map(self.ent2ix).values).long()
             self.relations = tensor(df['rel'].map(self.rel2ix).values).long()
         else:
             assert kg is not None
-            self.df = kg['df']
             self.n_facts = kg['heads'].shape[0]
             self.head_idx = kg['heads']
             self.tail_idx = kg['tails']
@@ -165,15 +163,15 @@ class KnowledgeGraph(Dataset):
 
             return KnowledgeGraph(
                 kg={'heads': self.head_idx[mask_tr], 'tails': self.tail_idx[mask_tr],
-                    'relations': self.relations[mask_tr], 'df': self.df},
+                    'relations': self.relations[mask_tr]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails), KnowledgeGraph(
                 kg={'heads': self.head_idx[mask_val], 'tails': self.tail_idx[mask_val],
-                    'relations': self.relations[mask_val], 'df': self.df},
+                    'relations': self.relations[mask_val]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails), KnowledgeGraph(
                 kg={'heads': self.head_idx[mask_te], 'tails': self.tail_idx[mask_te],
-                    'relations': self.relations[mask_te], 'df': self.df},
+                    'relations': self.relations[mask_te]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails)
         else:
@@ -186,11 +184,11 @@ class KnowledgeGraph(Dataset):
                                tensor([0 for _ in range(sizes[1])])]).bool()
             return KnowledgeGraph(
                 kg={'heads': self.head_idx[mask_tr], 'tails': self.tail_idx[mask_tr],
-                    'relations': self.relations[mask_tr], 'df': self.df},
+                    'relations': self.relations[mask_tr]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails), KnowledgeGraph(
                 kg={'heads': self.head_idx[~mask_tr], 'tails': self.tail_idx[~mask_tr],
-                    'relations': self.relations[~mask_tr], 'df': self.df},
+                    'relations': self.relations[~mask_tr]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails)
 

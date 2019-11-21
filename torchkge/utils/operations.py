@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import bincount, cat, topk, zeros
+from torch import cat, zeros, max, Size, mm, diag, eye
 
 
 def get_mask(length, start, end):
@@ -31,23 +31,6 @@ def get_mask(length, start, end):
     return mask.bool()
 
 
-def get_rolling_matrix(x):
-    """Build a rolling matrix.
-
-    Parameters
-    ----------
-    x: `torch.Tensor`, shape: (b_size, dim)
-
-    Returns
-    -------
-    mat: `torch.Tensor`, shape: (b_size, dim, dim)
-        Rolling matrix such that mat[i,j] = x[i - j mod(dim)]
-    """
-    b_size, dim = x.shape
-    x = x.view(b_size, 1, dim)
-    return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
-
-
 def get_rank(data, true, low_values=False):
     """
 
@@ -71,70 +54,123 @@ def get_rank(data, true, low_values=False):
         return (data >= true_data).sum(dim=1)
 
 
-def pad_with_last_value(t, k):
-    """Pad a tensor with its last value.
+def get_rolling_matrix(x):
+    """Build a rolling matrix.
 
     Parameters
     ----------
-    t: `torch.Tensor`, shape: (n, m)
-    k: integer
+    x: `torch.Tensor`, shape: (b_size, dim)
 
     Returns
     -------
-    padded_tensor: `torch.Tensor`, shape: (n, m)
-        Torch tensor of shape (n, m + k) where the `k` added columns are replicates of the last one of `t`.
-
+    mat: `torch.Tensor`, shape: (b_size, dim, dim)
+        Rolling matrix such that mat[i,j] = x[i - j mod(dim)]
     """
-    n, m = t.shape
-    tmp = t[:, -1].reshape(n, 1).expand(n, k)
-    return cat((t, tmp), dim=1)
+    b_size, dim = x.shape
+    x = x.view(b_size, 1, dim)
+    return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
 
 
-def concatenate_diff_sizes(a, b):
-    """Concatenate 2D tensors of different shape by padding with last value the one with shortest second dimension.
+def one_hot(m):
+    """Get one-hot encoding of m.
 
     Parameters
     ----------
-    a: `torch.Tensor`, shape: (n, m)
-    b: `torch.Tensor`, shape: (k, l)
+    m: `torch.Tensor`, shape: (i)
 
     Returns
     -------
-    concat: `torch.Tensor`, shape: (n+k, max(m, l))
-        Concatenation of `a` and `b` and if sizes are different, the shortest one is padded with its last value.
+    one_hot: `torch.Tensor`, shape: (i, max(m) + 1)
     """
-    try:
-        _, i = a.shape
-        _, j = b.shape
-        if i < j:
-            return cat((pad_with_last_value(a, j - i), b), dim=0)
-        elif j < i:
-            return cat((a, pad_with_last_value(b, i - j)), dim=0)
+    y = zeros(Size((m.shape[0], max(m) + 1)))
+    return y.scatter(1, m.reshape(m.shape[0], 1), 1)
+
+
+def get_col(t, by):
+    """Return the column index not included in `by`. `t` can have shape (n, 2) (resp. (n, 3)) and
+    `by` is a integer (resp. list of integers of length 2).
+
+    Parameters
+    ----------
+    t: `torch.Tensor`, shape: (n, 2) or (n, 3)
+    by: int or list of ints
+
+
+    Returns
+    -------
+    int
+
+    """
+    assert len(t.shape) == 3
+    assert (type(by) == int or type(by) == list)
+    n_cols = t.shape[1]
+
+    if type(by) == int:
+        assert n_cols == 2
+        if by == 1:
+            return 0
         else:
-            return cat((a, b), dim=0)
-    except ValueError:
-        return cat((a, b), dim=0)
+            return 1
+    else:
+        n_keys = len(by)
+        assert (n_cols - n_keys == 1)
+        return (set(range(n_cols)) - set(by)).pop()
 
 
-def process_dissimilarities(dissimilarities, true, k_max):
-    """Compute the rank of the true entities and the best candidates for each fact.
+def groupby_count(t, by):
+    """Groupby operation with count reduction on a 2D tensor of either two or three columns. The by variable contains
+    respectively an integer or a list of integers of length 2.
 
     Parameters
     ----------
-    dissimilarities: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, n_ent)
-    true: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-        index of the the true entities for current relation
-    k_max: int
-        Maximum value of the Hit@K measure.
+    t: `torch.Tensor`, shape: (i, j) or (i, j, k)
+    by: int of list on ints
 
     Returns
     -------
-    rank_true_entities: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-        Rank of the true entity among all possible entities (ranked by decreasing dissimilarity_type)
-    sorted_candidates: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size, k_max)
-        Top k_max entity candidates in term of smaller dissimilarity_type(h+r, t).
+    dict
+
     """
-    # return the rank of the true value along with the sorted top k_max candidates
-    _, sorted_candidates = topk(dissimilarities, k_max, dim=1, largest=False, sorted=True)
-    rank_true_entities = get_rank(dissimilarities, true)
-    return rank_true_entities, sorted_candidates
+    uniques, inverse = t[:, by].unique(dim=0, return_inverse=True, sorted=False)
+    mask = one_hot(inverse)
+    tmp = mm(eye(t.shape[0]), mask).long()
+    values = tmp.sum(dim=0)
+
+    if type(by) == int:
+        return {uniques[i].item(): values[i].item() for i in range(len(uniques))}
+    else:
+        return {uniques[i]: values[i].item() for i in range(len(uniques))}
+
+
+def groupby_mean(t, by):
+    """Groupby operation with mean reduction on a 2D tensor of either two or three columns. The by variable contains
+    respectively an integer or a list of integers of length 2.
+
+    Parameters
+    ----------
+    t: `torch.Tensor`, shape: (i, j) or (i, j, k)
+    by: int of list on ints
+
+    Returns
+    -------
+    dict
+
+    """
+    uniques, inverse = t[:, by].unique(dim=0, return_inverse=True, sorted=False)
+    mask = one_hot(inverse)
+    values = mm(diag(t[:, get_col(t, by)]).float(), mask)
+
+    res = dict()
+    for i in range(len(uniques)):
+        tmp = values[mask[:, i].byte(), i].numpy()
+        print(tmp)
+        k = uniques[i]
+        if type(by) == int:
+            k = k.item()
+        if (tmp != 0).sum() == 0:
+            res[k] = 0
+        else:
+            res[k] = tmp[tmp != 0].mean()
+        res[k] = tmp.mean()
+
+    return res
