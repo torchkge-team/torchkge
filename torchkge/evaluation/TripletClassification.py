@@ -52,6 +52,7 @@ class TripletClassificationEvaluator(object):
     def __init__(self, model, kg_val, kg_test):
         self.model = model
         self.kg_val = kg_val
+        assert len(kg_val.relations.unique()) == kg_val.n_rel == kg_test.n_rel
         self.kg_test = kg_test
         self.use_cuda = self.model.entity_embeddings.weight.is_cuda
 
