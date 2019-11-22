@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>

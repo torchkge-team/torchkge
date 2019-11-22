@@ -13,14 +13,14 @@ def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     Parameters
     ----------
     kg: `torchkge.data.KnowledgeGraph.KnowledgeGraph`
-    possible_heads: defaultdict, optional (default=None)
-    possible_tails: defaultdict, optional (default=None)
+    possible_heads: dict, optional (default=None)
+    possible_tails: dict, optional (default=None)
 
     Returns
     -------
-    possible_heads: defaultdict, optional (default=None)
+    possible_heads: dict, optional (default=None)
         keys: relation indices, values: set of possible heads for each relations
-    possible_tails: defaultdict, optional (default=None)
+    possible_tails: dict, optional (default=None)
         keys: relation indices, values: set of possible tails for each relations
 
     """
@@ -28,14 +28,16 @@ def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     if possible_heads is None:
         possible_heads = defaultdict(set)
     else:
-        assert type(possible_heads) == defaultdict
+        assert type(possible_heads) == dict
+        possible_heads = defaultdict(set, possible_heads)
     if possible_tails is None:
         possible_tails = defaultdict(set)
     else:
-        assert type(possible_tails) == defaultdict
+        assert type(possible_tails) == dict
+        possible_tails = defaultdict(set, possible_tails)
 
     for i in range(kg.n_facts):
         possible_heads[kg.relations[i].item()].add(kg.head_idx[i].item())
         possible_tails[kg.relations[i].item()].add(kg.tail_idx[i].item())
 
-    return possible_heads, possible_tails
+    return dict(possible_heads), dict(possible_tails)

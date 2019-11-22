@@ -23,3 +23,18 @@ class WrongDimensionError(Exception):
 class NotYetImplementedError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class WrongArgumentsError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class SanityError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class SplitabilityError(Exception):
+    def __init__(self, message):
+        super().__init__(message)

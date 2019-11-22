@@ -236,7 +236,6 @@ class BernoulliNegativeSampler(NegativeSampler):
         """
         bern_probs = get_bernoulli_probs(self.kg)
         assert len(bern_probs) == self.kg.n_rel
-        bern_probs = {self.kg.rel2ix[rel]: bern_probs[rel] for rel in bern_probs.keys()}
         return tensor([bern_probs[k] for k in sorted(bern_probs.keys())]).float()
 
     def corrupt_batch(self, heads, tails, relations):
@@ -361,7 +360,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         n_poss_heads = tensor(n_poss_heads)
         n_poss_tails = tensor(n_poss_tails)
 
-        return dict(possible_heads), dict(possible_tails), n_poss_heads, n_poss_tails
+        return possible_heads, possible_tails, n_poss_heads, n_poss_tails
 
     def corrupt_batch(self, heads, tails, relations):
         """For each golden triplet, produce a corrupted one not different from any other golden\

@@ -113,10 +113,10 @@ class TestUtils(unittest.TestCase):
         kg = KnowledgeGraph(self.df)
         h, t = get_possible_heads_tails(kg)
 
-        assert (type(h) == defaultdict) & (type(t) == defaultdict)
+        assert (type(h) == dict) & (type(t) == dict)
 
-        assert dict(h) == {0: {0, 2, 5}, 1: {1}, 2: {1}, 3: {3}}
-        assert dict(t) == {0: {1, 2, 3, 4}, 1: {2}, 2: {3}, 3: {4}}
+        assert h == {0: {0, 2, 5}, 1: {1}, 2: {1}, 3: {3}}
+        assert t == {0: {1, 2, 3, 4}, 1: {2}, 2: {3}, 3: {4}}
 
         p_h, p_t = defaultdict(set), defaultdict(set)
         p_h[0].add(40)
@@ -124,9 +124,10 @@ class TestUtils(unittest.TestCase):
         p_t[0].add(41)
         p_t[10].add(51)
 
-        h, t = get_possible_heads_tails(kg, possible_heads=p_h, possible_tails=p_t)
-        assert dict(h) == {0: {0, 2, 5, 40}, 1: {1}, 2: {1}, 3: {3}, 10: {50}}
-        assert dict(t) == {0: {1, 2, 3, 4, 41}, 1: {2}, 2: {3}, 3: {4}, 10: {51}}
+        h, t = get_possible_heads_tails(kg, possible_heads=dict(p_h), possible_tails=dict(p_t))
+
+        assert h == {0: {0, 2, 5, 40}, 1: {1}, 2: {1}, 3: {3}, 10: {50}}
+        assert t == {0: {1, 2, 3, 4, 41}, 1: {2}, 2: {3}, 3: {4}, 10: {51}}
 
     def test_get_mask(self):
         m = get_mask(10, 1, 2)
