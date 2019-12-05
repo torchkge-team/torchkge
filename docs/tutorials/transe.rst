@@ -2,7 +2,7 @@
 TransE
 ======
 
-To run TransE on FB15k::
+To train TransE on FB15k::
 
     from torch.optim import SGD
     from torch import cuda
