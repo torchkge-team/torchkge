@@ -10,8 +10,7 @@ from torchkge.utils.dissimilarities import l1_dissimilarity, l2_dissimilarity, l
     l2_torus_dissimilarity, el2_torus_dissimilarity
 from torchkge.utils.models_utils import init_embedding, get_true_targets
 from torchkge.utils.negative_sampling import get_possible_heads_tails
-from torchkge.utils.operations import get_mask, get_rank, get_rolling_matrix, \
-    one_hot, get_col, groupby_count, groupby_mean
+from torchkge.utils.operations import get_mask, get_rank, get_rolling_matrix
 from torchkge.utils.preprocessing import get_dictionaries, get_tph, get_hpt, get_bernoulli_probs
 
 
@@ -149,38 +148,4 @@ class TestUtils(unittest.TestCase):
         m = get_rolling_matrix(x)
         assert m.dtype == x.dtype
         assert len(m.shape) == 3
-        print(m.shape[0])
         assert (m.shape[0] == 2) & (m.shape[1] == 3) & (m.shape[2] == 3)
-
-    def test_one_hot(self):
-        m = tensor([1, 3, 0, 4, 1])
-        res = one_hot(m)
-        true = tensor([[0., 1., 0., 0., 0.],
-                       [0., 0., 0., 1., 0.],
-                       [1., 0., 0., 0., 0.],
-                       [0., 0., 0., 0., 1.],
-                       [0., 1., 0., 0., 0.]])
-
-        assert ((res == true).all().item() == 1)
-
-    def test_get_col(self):
-        m1 = Tensor(10, 2)
-        m2 = Tensor(10, 3)
-
-        assert get_col(m1, 1) == 0
-        assert get_col(m1, 0) == 1
-        assert get_col(m2, [0, 1]) == 2
-        assert get_col(m2, [0, 2]) == 1
-        assert get_col(m2, [1, 2]) == 0
-        with self.assertRaises(AssertionError):
-            get_col(m1, [1, 0])
-        with self.assertRaises(AssertionError):
-            get_col(m2, 1)
-
-    def test_groupby_count(self):
-        self.compare_dicts_tensorkeys(groupby_count(self.t1, by=[1, 2]), self.r1_count)
-        assert groupby_count(self.t2, by=1) == self.r2_count
-
-    def test_groupby_mean(self):
-        self.compare_dicts_tensorkeys(groupby_mean(self.t1, by=[1, 2]), self.r1_mean)
-        assert groupby_mean(self.t2, by=1) == self.r2_mean

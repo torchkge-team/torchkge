@@ -20,8 +20,10 @@ class TestUtils(unittest.TestCase):
         assert self.kg.n_ent == 6
         assert self.kg.n_rel == 4
         assert (type(self.kg.rel2ix) == dict) & (type(self.kg.rel2ix) == dict)
-        assert (type(self.kg.head_idx) == Tensor) & (type(self.kg.tail_idx) == Tensor) & (type(self.kg.relations) == Tensor)
-        assert (self.kg.head_idx.dtype == int64) & (self.kg.tail_idx.dtype == int64) & (self.kg.relations.dtype == int64)
+        assert (type(self.kg.head_idx) == Tensor) & (type(self.kg.tail_idx) == Tensor) & \
+               (type(self.kg.relations) == Tensor)
+        assert (self.kg.head_idx.dtype == int64) & (self.kg.tail_idx.dtype == int64) & \
+               (self.kg.relations.dtype == int64)
         assert (len(self.kg.head_idx) == len(self.kg.tail_idx) == len(self.kg.relations))
 
         kg_dict = {'heads': self.kg.head_idx, 'tails': self.kg.tail_idx, 'relations': self.kg.relations}
@@ -32,12 +34,17 @@ class TestUtils(unittest.TestCase):
         with self.assertRaises(WrongArgumentsError):
             KnowledgeGraph(kg=kg_dict)
         with self.assertRaises(WrongArgumentsError):
-            KnowledgeGraph(kg={'heads': self.kg.head_idx, 'tails': self.kg.tail_idx}, ent2ix=self.kg.ent2ix, rel2ix=self.kg.rel2ix)
-        with self.assertRaises(SanityError):
-            KnowledgeGraph(kg={'heads': self.kg.head_idx[:-1], 'tails': self.kg.tail_idx, 'relations': self.kg.relations},
+            KnowledgeGraph(kg={'heads': self.kg.head_idx, 'tails': self.kg.tail_idx},
                            ent2ix=self.kg.ent2ix, rel2ix=self.kg.rel2ix)
         with self.assertRaises(SanityError):
-            KnowledgeGraph(kg={'heads': self.kg.head_idx.int(), 'tails': self.kg.tail_idx, 'relations': self.kg.relations},
+            KnowledgeGraph(kg={'heads': self.kg.head_idx[:-1],
+                               'tails': self.kg.tail_idx,
+                               'relations': self.kg.relations},
+                           ent2ix=self.kg.ent2ix, rel2ix=self.kg.rel2ix)
+        with self.assertRaises(SanityError):
+            KnowledgeGraph(kg={'heads': self.kg.head_idx.int(),
+                               'tails': self.kg.tail_idx,
+                               'relations': self.kg.relations},
                            ent2ix=self.kg.ent2ix, rel2ix=self.kg.rel2ix)
 
     def test_split_kg(self):
