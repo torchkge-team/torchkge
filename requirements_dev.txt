@@ -1,5 +1,5 @@
 # Documentation
-sphinx==1.8.5
+sphinx==2.2.1
 sphinx_rtd_theme==0.4.3
 numpydoc==0.9.1
 
@@ -10,6 +10,6 @@ pytest-runner==5.1
 pytest==5.1.1
 
 # Deployement
-pip
+pip==19.3.1
 bumpversion==0.5.3
 wheel==0.33.6
