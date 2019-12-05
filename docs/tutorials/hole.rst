@@ -2,7 +2,7 @@
 HolE
 ====
 
-To run HolE on FB15k::
+To train HolE on FB15k::
 
     from torch.optim import SGD
     from torch import cuda
