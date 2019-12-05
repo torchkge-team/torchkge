@@ -2,6 +2,11 @@
 History
 =======
 
+0.12.0 (2019-12-05)
+-------------------
+* Various bug fixes
+* New KG splitting method enforcing all entities and relations to appear at least once in the training set.
+
 0.11.3 (2019-11-15)
 -------------------
 * Minor bug fixes
