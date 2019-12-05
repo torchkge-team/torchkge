@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
+
 This module's code is freely adapted from Scikit-Learn's sklearn.datasets.base.py code.
 """
 
@@ -33,6 +34,21 @@ def clear_data_home(data_home=None):
 
 
 def load_fb13(data_home=None):
+    """Load fb13 dataset.
+
+    Parameters
+    ----------
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
+        directory, they are downloaded and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: `torchkge.data.KnowledgeGraph`
+    kg_val: `torchkge.data.KnowledgeGraph`
+    kg_test: `torchkge.data.KnowledgeGraph`
+
+    """
     if data_home is None:
         data_home = get_data_home()
     data_path = data_home + '/FB13'
@@ -58,6 +74,23 @@ def load_fb13(data_home=None):
 
 
 def load_fb15k(data_home=None):
+    """Load fb15k dataset. See `here
+    <https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data>`__
+    for paper by Bordes et al. originally presenting the dataset.
+
+    Parameters
+    ----------
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
+        directory, they are downloaded and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: `torchkge.data.KnowledgeGraph`
+    kg_val: `torchkge.data.KnowledgeGraph`
+    kg_test: `torchkge.data.KnowledgeGraph`
+
+    """
     if data_home is None:
         data_home = get_data_home()
     data_path = data_home + '/FB15k'
@@ -83,6 +116,22 @@ def load_fb15k(data_home=None):
 
 
 def load_fb15k237(data_home=None):
+    """Load fb15k237 dataset. See `here
+    <https://www.aclweb.org/anthology/D15-1174/>`__ for paper by Toutanova et al. originally presenting the dataset.
+
+    Parameters
+    ----------
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
+        directory, they are downloaded and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: `torchkge.data.KnowledgeGraph`
+    kg_val: `torchkge.data.KnowledgeGraph`
+    kg_test: `torchkge.data.KnowledgeGraph`
+
+    """
     if data_home is None:
         data_home = get_data_home()
     data_path = data_home + '/FB15k237'
@@ -108,6 +157,21 @@ def load_fb15k237(data_home=None):
 
 
 def load_wn18(data_home=None):
+    """Load wn18 dataset.
+
+    Parameters
+    ----------
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
+        directory, they are downloaded and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: `torchkge.data.KnowledgeGraph`
+    kg_val: `torchkge.data.KnowledgeGraph`
+    kg_test: `torchkge.data.KnowledgeGraph`
+
+    """
     if data_home is None:
         data_home = get_data_home()
     data_path = data_home + '/WN18'
@@ -133,10 +197,28 @@ def load_wn18(data_home=None):
 
 
 def load_wikidatasets(which, limit_=None, data_home=None):
-    assert which in ['humans', 'companies', 'animals', 'countries', 'films']
+    """Load WikiDataSets dataset. See `here
+    <https://arxiv.org/abs/1906.04536>`__ for paper by Boschin et al. originally presenting the dataset.
 
-    if limit_ is None:
-        limit_ = 0
+    Parameters
+    ----------
+    which: str
+        String indicating which subset of Wikidata should be loaded. Available ones are `humans`, `companies`,
+        `animals`, `countries` and `films`.
+    limit_: int, optional (default=0)
+        This indicates a lower limit on the number of neighbors an entity should have in the graph to be kept.
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
+        directory, they are downloaded and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: `torchkge.data.KnowledgeGraph`
+    kg_val: `torchkge.data.KnowledgeGraph`
+    kg_test: `torchkge.data.KnowledgeGraph`
+
+    """
+    assert which in ['humans', 'companies', 'animals', 'countries', 'films']
 
     if data_home is None:
         data_home = get_data_home()

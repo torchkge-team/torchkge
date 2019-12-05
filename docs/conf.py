@@ -94,8 +94,8 @@ todo_include_todos = False
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
-html_logo = '../images/logo_torchKGE.png'
-html_favicon = "../images/logo_torchKGE.png"
+html_logo = 'logo_torchKGE_small.png'
+html_favicon = "logo_torchKGE_small.png"
 html_theme_options = {
     'logo_only': True
 }

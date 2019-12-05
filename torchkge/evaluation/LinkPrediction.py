@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
 """
 
 from torch import empty
@@ -25,18 +25,18 @@ class LinkPredictionEvaluator(object):
     model: torchkge.models.Model
     kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
         Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
-    rank_true_heads: torch tensor, shape = (n_facts), dtype = int
-        Rank of the true head when all possible entities are ranked in term of dissimilarity\
+    rank_true_heads: torch tensor, shape: (n_facts), dtype: `torch.int`
+        Rank of the true head when all possible entities are ranked in term of dissimilarity_type\
         with tail - relation.
-    rank_true_tails: torch tensor, shape = (n_facts), dtype = int
-        Rank of the true tail when all possible entities are ranked in term of dissimilarity\
+    rank_true_tails: torch tensor, shape: (n_facts), dtype: `torch.int`
+        Rank of the true tail when all possible entities are ranked in term of dissimilarity_type\
         with head + relation.
-    filt_rank_true_heads: torch tensor, shape = (n_facts), dtype = int
+    filt_rank_true_heads: torch tensor, shape: (n_facts), dtype: `torch.int`
         Filtered rank of the true tail when all possible entities are ranked in term of\
-        dissimilarity with head + relation.
-    filt_rank_true_tails: torch tensor, shape = (n_facts), dtype = int
+        dissimilarity_type with head + relation.
+    filt_rank_true_tails: torch tensor, shape: (n_facts), dtype: `torch.int`
         Filtered rank of the true tail when all possible entities are ranked in term of\
-        dissimilarity with head + relation.
+        dissimilarity_type with head + relation.
     evaluated: bool
         Indicates if the method LinkPredictionEvaluator.evaluate() has been called on\
         current object

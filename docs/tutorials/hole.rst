@@ -1,29 +1,29 @@
-======
-TransE
-======
+====
+HolE
+====
 
-To run TransE on FB15k::
+To run HolE on FB15k::
 
     from torch.optim import SGD
     from torch import cuda
     from torch.utils.data import DataLoader
 
     from torchkge.data.DataLoader import load_fb15k
-    from torchkge.models import TransEModel
-    from torchkge.utils import MarginLoss
+    from torchkge.models import HolEModel
+    from torchkge.utils import LogisticLoss
     from torchkge.sampling import BernoulliNegativeSampler
 
     # Load dataset
     kg_train, _, _ = load_fb15k()
 
     # Define some hyper-parameters for training
-    lr, nb_epochs, batch_size, margin = 0.01, 500, 1024, 1
+    lr, nb_epochs, batch_size = 0.001, 500, 1024
     n_ent, n_rel = kg_train.n_ent, kg_train.n_rel
     ent_emb_dim = 50
 
     # Define the model and criterion
-    model = TransEModel(ent_emb_dim, n_ent, n_rel, dissimilarity_type='L2')
-    criterion = MarginLoss(margin)
+    model = HolEModel(ent_emb_dim, n_ent, n_rel)
+    criterion = LogisticLoss()
 
     # Move everything to CUDA if available
     use_cuda = True
@@ -65,4 +65,3 @@ To run TransE on FB15k::
         print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / batch_size))
 
     model.normalize_parameters()
-

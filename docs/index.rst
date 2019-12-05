@@ -1,13 +1,14 @@
-Welcome to TorchKGE's documentation!
+Welcome to TorchKGE' s documentation!
 ======================================
 
 .. include:: readme.rst
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Tutorials:
 
-   tutorials/transe
+   tutorials/training
+   tutorials/evaluation
 
 .. toctree::
    :maxdepth: 1
@@ -17,6 +18,7 @@ Welcome to TorchKGE's documentation!
    reference/sampling
    reference/evaluation
    reference/data
+   reference/dataloader
    reference/utils
 
 

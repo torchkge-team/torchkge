@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Copyright TorchKGE developers
-aboschin@enst.fr
+@author: Armand Boschin <aboschin@enst.fr>
 """
 
 
@@ -21,5 +21,20 @@ class WrongDimensionError(Exception):
 
 
 class NotYetImplementedError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class WrongArgumentsError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class SanityError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class SplitabilityError(Exception):
     def __init__(self, message):
         super().__init__(message)
