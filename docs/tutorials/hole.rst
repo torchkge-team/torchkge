@@ -1,6 +1,6 @@
-=============
-HolE Tutorial
-=============
+====
+HolE
+====
 
 To run HolE on FB15k::
 
@@ -12,10 +12,9 @@ To run HolE on FB15k::
     from torchkge.models import HolEModel
     from torchkge.utils import LogisticLoss
     from torchkge.sampling import BernoulliNegativeSampler
-    from torchkge.evaluation import LinkPredictionEvaluator, TripletClassificationEvaluator
 
     # Load dataset
-    kg_train, kg_val, kg_test = load_fb15k()
+    kg_train, _, _ = load_fb15k()
 
     # Define some hyper-parameters for training
     lr, nb_epochs, batch_size = 0.001, 500, 1024
@@ -26,7 +25,7 @@ To run HolE on FB15k::
     model = HolEModel(ent_emb_dim, n_ent, n_rel)
     criterion = LogisticLoss()
 
-    # Move everything to CUDA is available
+    # Move everything to CUDA if available
     use_cuda = True
     if use_cuda and cuda.is_available():
         model.cuda()
@@ -42,9 +41,8 @@ To run HolE on FB15k::
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, pin_memory=use_cuda)
 
     for epoch in range(nb_epochs):
+        running_loss = 0.0
         for i, batch in enumerate(dataloader):
-            running_loss = 0.0
-
             # get the input
             heads, tails, rels = batch[0], batch[1], batch[2]
             if heads.is_pinned():
@@ -67,18 +65,3 @@ To run HolE on FB15k::
         print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / batch_size))
 
     model.normalize_parameters()
-
-    # Triplet classification evaluation on test set by learning thresholds on validation set
-    evaluator = TripletClassificationEvaluator(model, kg_val, kg_test)
-    evaluator.evaluate(100)
-    print('Accuracy on test set: {}'.format(evaluator.accuracy(100)))
-
-    # Link prediction evaluation on test set.
-    evaluator = LinkPredictionEvaluator(model, kg_test)
-    evaluator.evaluate(batch_size=1, k_max=10)
-    print('Hit@{} : {}'.format(1, evaluator.hit_at_k(k=10)[0]))
-    print('Mean Rank : {}'.format(evaluator.mean_rank()[0]))
-    print('MRR : {}'.format(evaluator.mrr()[0]))
-    print('Filt. Hit@{} : {}'.format(10, evaluator.hit_at_k(k=10)[1]))
-    print('Filt. Mean Rank : {}'.format(evaluator.mean_rank()[1]))
-    print('Filt. MRR : {}'.format(evaluator.mrr()[1]))
