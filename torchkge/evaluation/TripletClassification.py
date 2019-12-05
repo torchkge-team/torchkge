@@ -52,7 +52,8 @@ class TripletClassificationEvaluator(object):
     def __init__(self, model, kg_val, kg_test):
         self.model = model
         self.kg_val = kg_val
-        assert len(kg_val.relations.unique()) == kg_val.n_rel == kg_test.n_rel
+        # assert kg_val.n_rel == kg_test.n_rel
+        # assert set(kg_test.relations.unique().tolist()).issubset(set(kg_val.relations.unique().tolist()))
         self.kg_test = kg_test
         self.use_cuda = self.model.entity_embeddings.weight.is_cuda
 
@@ -62,8 +63,7 @@ class TripletClassificationEvaluator(object):
         self.sampler = PositionalNegativeSampler(self.kg_val, kg_test=self.kg_test)
 
     def get_scores(self, heads, tails, relations, batch_size):
-        """With head, tail and relation indexes, compute the value of the scoring function of the\
-        model.
+        """With head, tail and relation indexes, compute the value of the scoring function of the model.
 
         Parameters
         ----------
@@ -96,9 +96,10 @@ class TripletClassificationEvaluator(object):
         return cat(scores, dim=0)
 
     def evaluate(self, batch_size):
-        """Find relation thresholds using the validation set. As described in the paper by\
-         Socher et al., for a relation, the threshold is a value t such that if the score of a\
-         triplet is larger than t, the fact is true.
+        """Find relation thresholds using the validation set. As described in the paper by Socher et al., for a
+        relation, the threshold is a value t such that if the score of a triplet is larger than t, the fact is true.
+        If a relation is not present in any fact of the validation set, then the largest value score of all negative
+        samples is used as threshold.
 
         Parameters
         ----------
@@ -132,8 +133,8 @@ class TripletClassificationEvaluator(object):
         Returns
         -------
         acc: float
-            Share of all triplets (true and negatively sampled ones) that where correctly\
-            classified using the thresholds learned from the validation set.
+            Share of all triplets (true and negatively sampled ones) that where correctly classified using the
+            thresholds learned from the validation set.
 
         """
         if not self.evaluated:

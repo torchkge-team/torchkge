@@ -4,13 +4,13 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import empty, tensor, cat, int64, Tensor, zeros_like, randperm
+from collections import defaultdict
+
+from torch import cat, eq, int64, long, randperm, tensor, Tensor, zeros_like
 from torch.utils.data import Dataset
 
+from torchkge.exceptions import SizeMismatchError, WrongArgumentsError, SanityError
 from torchkge.utils import get_dictionaries
-from torchkge.exceptions import SizeMismatchError, WrongArgumentsError, SanityError, SplitabilityError
-
-from collections import defaultdict
 
 
 class SmallKG(Dataset):
@@ -148,7 +148,9 @@ class KnowledgeGraph(Dataset):
         assert (len(self.head_idx) == len(self.tail_idx) == len(self.relations))
 
     def split_kg(self, share=0.8, sizes=None, validation=False):
-        """Split the knowledge graph into train and test.
+        """Split the knowledge graph into train and test. If `sizes` is provided then it is used to split the
+        samples as explained below. If only `share` is provided, the split is done at random but it assures to keep at
+        least one fact involving each type of entity and relation in the training subset.
 
         Parameters
         ----------
@@ -170,7 +172,7 @@ class KnowledgeGraph(Dataset):
         test_kg: `torchkge.data.KnowledgeGraph.KnowledgeGraph`
 
         """
-
+        # TODO: assert that all relations in test appear as well in validation (for triplet classification)
         if sizes is not None:
             try:
                 if len(sizes) == 3:
@@ -191,18 +193,11 @@ class KnowledgeGraph(Dataset):
         else:
             assert share < 1
 
-        _, counts = self.relations.unique(return_counts=True)
-
         if ((sizes is not None) and (len(sizes) == 3)) or ((sizes is None) and validation):
             # return training, validation and a testing graphs
-            if (counts < 3).sum().item() > 0:
-                raise SplitabilityError("Cannot split in three subsets and keep on fact of each relation in the three.")
 
             if (sizes is None) and validation:
-                samp = empty(self.head_idx.shape).uniform_()
-                mask_tr = (samp < share)
-                mask_val = (samp > share) & (samp < (1 + share) / 2)
-                mask_te = ~(mask_tr | mask_val)
+                mask_tr, mask_val, mask_te = self.get_mask(share, validation=True)
             else:
                 mask_tr = cat([tensor([1 for _ in range(sizes[0])]),
                                tensor([0 for _ in range(sizes[1] + sizes[2])])]).bool()
@@ -226,64 +221,99 @@ class KnowledgeGraph(Dataset):
                 dict_of_tails=self.dict_of_tails)
         else:
             # return training and testing graphs
-            if (counts < 2).sum().item() > 0:
-                raise SplitabilityError("Cannot split in two subsets and keep on fact of each relation in both.")
+
             assert (((sizes is not None) and len(sizes) == 2) or
                     ((sizes is None) and not validation))
             if sizes is None:
-                mask_tr = (empty(self.head_idx.shape).uniform_() < share)
+                mask_tr, mask_te = self.get_mask(share, validation=False)
             else:
                 mask_tr = cat([tensor([1 for _ in range(sizes[0])]),
                                tensor([0 for _ in range(sizes[1])])]).bool()
+                mask_te = ~mask_tr
             return KnowledgeGraph(
                 kg={'heads': self.head_idx[mask_tr], 'tails': self.tail_idx[mask_tr],
                     'relations': self.relations[mask_tr]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails), KnowledgeGraph(
-                kg={'heads': self.head_idx[~mask_tr], 'tails': self.tail_idx[~mask_tr],
-                    'relations': self.relations[~mask_tr]},
+                kg={'heads': self.head_idx[mask_te], 'tails': self.tail_idx[mask_te],
+                    'relations': self.relations[mask_te]},
                 ent2ix=self.ent2ix, rel2ix=self.rel2ix, dict_of_heads=self.dict_of_heads,
                 dict_of_tails=self.dict_of_tails)
 
     def get_mask(self, share, validation=False):
-        """ TODO: include the use of this function to split
-        TODO: also include the fact that all entities should be at least once in the training set
+        """Returns masks to split knowledge graph into train, test and optionally validation sets.
+        The mask is first created by dividing samples between subsets based on relation equilibrium.
+        Then if any entity is not present in the training subset it is manually added by assigning a share of the sample
+        involving the missing entity either as head or tail.
 
-        :param share:
-        :param validation:
-        :return:
+        :param share: float
+        :param uniques_e: `torch.Tensor`, dtype: `torch.long`, shape: (m)
+        :param uniques_r: `torch.Tensor`, dtype: `torch.long`, shape: (p)
+        :param counts_r: `torch.Tensor`, dtype: `torch.long`, shape: (p)
+        :param validation: bool
+        :return: mask: `torch.Tensor`, dtype: `torch.bool`, shape: (n)
+        :return: mask_val: `torch.Tensor`, dtype: `torch.bool`, shape: (n) (optional)
+        :return mask_te: `torch.Tensor`, dtype: `torch.bool`, shape: (n)
         """
+
+        uniques_r, counts_r = self.relations.unique(return_counts=True)
+        uniques_e, _ = cat((self.head_idx, self.tail_idx)).unique(return_counts=True)
+
         mask = zeros_like(self.relations).bool()
         if validation:
-            val_mask = zeros_like(self.relations).bool()
-        uniques, counts = self.relations.unique(return_counts=True)
-        for i, r in enumerate(uniques):
-            rand = tensor(list(range(counts[i])))[randperm(counts[i])]
+            mask_val = zeros_like(self.relations).bool()
 
-            sub_mask = (self.relations == r).nonzero()[:, 0]  # list of indices k such that relations[k] == r
+        # splitting relations among subsets
+        for i, r in enumerate(uniques_r):
+            rand = randperm(counts_r[i].item())
 
-            assert len(sub_mask) == counts[i].item()
+            sub_mask = eq(self.relations, r).nonzero()[:, 0]  # list of indices k such that relations[k] == r
+
+            assert len(sub_mask) == counts_r[i].item()
 
             if validation:
-                train_size, val_size, test_size = self.get_sizes(counts[i], share=share, validation=True)
+                train_size, val_size, test_size = self.get_sizes(counts_r[i], share=share, validation=True)
                 mask[sub_mask[rand[:train_size]]] = True
-                val_mask[sub_mask[rand[train_size:train_size + val_size]]] = True
-
+                mask_val[sub_mask[rand[train_size:train_size + val_size]]] = True
 
             else:
-                train_size, test_size = self.get_sizes(counts[i], share=share, validation=False)
+                train_size, test_size = self.get_sizes(counts_r[i], share=share, validation=False)
                 mask[sub_mask[rand[:train_size]]] = True
-                print(mask, train_size, (~mask).sum().item(), test_size)
+
+        # adding missing entities to the train set
+        u = cat((self.head_idx[mask], self.tail_idx[mask])).unique()
+        if len(u) < self.n_ent:
+            missing_entities = tensor(list(set(uniques_e.tolist()) - set(u.tolist())), dtype=long)
+            for e in missing_entities:
+                sub_mask = ((self.head_idx == e) | (self.tail_idx == e)).nonzero()[:, 0]
+                rand = randperm(len(sub_mask))
+                sizes = self.get_sizes(mask.shape[0], share=share, validation=validation)
+                mask[sub_mask[rand[:sizes[0]]]] = True
+                if validation:
+                    mask_val[sub_mask[rand[:sizes[0]]]] = False
 
         if validation:
-            return mask, val_mask, ~(mask | val_mask)
+            assert not (mask & mask_val).any().item()
+            return mask, mask_val, ~(mask | mask_val)
         else:
             return mask, ~mask
 
-    def get_sizes(self, count, share, validation=False):
+    @staticmethod
+    def get_sizes(count, share, validation=False):
+        """With `count` samples, returns how many should go to train and test
+
         """
-        with `count` samples, return how many should go to train and test
-        """
+        if count == 1:
+            if validation:
+                return 1, 0, 0
+            else:
+                return 1, 0
+        if count == 2:
+            if validation:
+                return 1, 1, 0
+            else:
+                return 1, 1
+
         n_train = int(count * share)
         assert n_train < count
         if n_train == 0:
@@ -300,7 +330,7 @@ class KnowledgeGraph(Dataset):
                 return n_train, n_val, count - n_train - n_val
 
     def evaluate_dicts(self):
-        """Evaluate dicts of possible alternatives to an entity in a fact that still gives a true\
+        """Evaluates dicts of possible alternatives to an entity in a fact that still gives a true\
         fact in the entire knowledge graph.
 
         """

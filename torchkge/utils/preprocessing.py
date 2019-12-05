@@ -4,9 +4,8 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import cat, tensor
-
-from torchkge.utils.operations import groupby_mean, groupby_count
+from pandas import DataFrame
+from torch import cat
 
 
 def get_dictionaries(df, ent=True):
@@ -45,9 +44,10 @@ def get_tph(t):
     d: dict
         keys: relation indices, values: average number of tail per heads.
     """
-    tmp = groupby_count(t, by=[0, 2])  # group by ['from', 'rel']
-    tmp = tensor([[i[1].item(), tmp[i]] for i in tmp.keys()])
-    return groupby_mean(tmp, by=0)
+    df = DataFrame(t.numpy(), columns=['from', 'to', 'rel'])
+    df = df.groupby(['from', 'rel']).count().groupby('rel').mean()
+    df.reset_index(inplace=True)
+    return {df.loc[i].values[0]: df.loc[i].values[1] for i in df.index}
 
 
 def get_hpt(t):
@@ -62,9 +62,10 @@ def get_hpt(t):
     d: dict
         keys: relation indices, values: average number of head per tails.
     """
-    tmp = groupby_count(t, by=[1, 2])  # group by ['to', 'rel']
-    tmp = tensor([[i[1].item(), tmp[i]] for i in tmp.keys()])
-    return groupby_mean(tmp, by=0)
+    df = DataFrame(t.numpy(), columns=['from', 'to', 'rel'])
+    df = df.groupby(['rel', 'to']).count().groupby('rel').mean()
+    df.reset_index(inplace=True)
+    return {df.loc[i].values[0]: df.loc[i].values[1] for i in df.index}
 
 
 def get_bernoulli_probs(kg):
