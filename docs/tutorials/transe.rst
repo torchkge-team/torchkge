@@ -37,7 +37,8 @@ To train TransE on FB15k::
     # Define the sampler useful for negative sampling during training
     sampler = BernoulliNegativeSampler(kg_train, kg_test=kg_test)
 
-    dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, pin_memory=cuda.is_available())
+    dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, 
+                            pin_memory=cuda.is_available())
 
     for epoch in range(nb_epochs):
         running_loss = 0.0
