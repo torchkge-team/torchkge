@@ -159,7 +159,7 @@ class RESCALModel(Model):
         return h_emb, t_emb, candidates, r_mat
 
     def compute_ranks(self, e_emb, candidates, r_mat, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """
+        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
 
         Parameters
         ----------
