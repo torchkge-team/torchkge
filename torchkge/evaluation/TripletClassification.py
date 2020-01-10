@@ -55,7 +55,7 @@ class TripletClassificationEvaluator(object):
         # assert kg_val.n_rel == kg_test.n_rel
         # assert set(kg_test.relations.unique().tolist()).issubset(set(kg_val.relations.unique().tolist()))
         self.kg_test = kg_test
-        self.use_cuda = self.model.entity_embeddings.weight.is_cuda
+        self.use_cuda = next(self.model.parameters()).is_cuda
 
         self.evaluated = False
         self.thresholds = None

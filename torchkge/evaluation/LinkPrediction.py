@@ -77,7 +77,7 @@ class LinkPredictionEvaluator(object):
 
         """
         self.k_max = k_max
-        use_cuda = self.model.entity_embeddings.weight.is_cuda
+        use_cuda = next(self.model.parameters()).is_cuda
         dataloader = DataLoader(self.kg, batch_size=batch_size, pin_memory=use_cuda)
 
         if use_cuda:
