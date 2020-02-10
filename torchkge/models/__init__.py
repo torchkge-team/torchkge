@@ -11,3 +11,5 @@ from .BilinearModels import DistMultModel
 from .BilinearModels import HolEModel
 from .BilinearModels import ComplExModel
 from .BilinearModels import AnalogyModel
+
+from .DeepModels import ConvKBModel
