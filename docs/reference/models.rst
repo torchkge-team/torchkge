@@ -66,3 +66,11 @@ ANALOGY
 -------
 .. autoclass:: torchkge.models.BilinearModels.AnalogyModel
    :members:
+
+Deep Models
+===========
+
+ConvKB
+------
+.. autoclass:: torchkge.models.DeepModels.ConvKBModel
+   :members:
