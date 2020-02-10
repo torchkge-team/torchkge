@@ -87,8 +87,6 @@ class Model(Module):
         raise NotImplementedError
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using the L2 norm.
-        """
         raise NotImplementedError
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
