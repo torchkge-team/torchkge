@@ -32,7 +32,8 @@ def get_mask(length, start, end):
 
 
 def get_rank(data, true, low_values=False):
-    """Computes how many entities have higher (or lower) value in data than the one at index true[i]
+    """Computes the rank of entity at index true[i]. If the rank is k then there are k-1 entities with better (higher \
+    or lower) value in data.
 
     Parameters
     ----------
@@ -46,14 +47,14 @@ def get_rank(data, true, low_values=False):
     Returns
     -------
     ranks: `torch.Tensor`, dtype: `torch.int`, shape: (n_facts)
-        ranks[i] is the number of entities which have better scores in data than the one and index true[i]
+        ranks[i] - 1 is the number of entities which have better scores in data than the one and index true[i]
     """
     true_data = data.gather(1, true.long().view(-1, 1))
 
     if low_values:
-        return (data <= true_data).sum(dim=1)
+        return (data < true_data).sum(dim=1) + 1
     else:
-        return (data >= true_data).sum(dim=1)
+        return (data > true_data).sum(dim=1) + 1
 
 
 def get_rolling_matrix(x):
