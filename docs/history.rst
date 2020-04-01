@@ -2,9 +2,13 @@
 History
 =======
 
+0.15.2 (2020-04-01)
+-------------------
+* Fixed a misfit test
+
 0.15.1 (2020-04-01)
 -------------------
-* Cleared the definition of rank in link prediction.
+* Cleared the definition of rank in link prediction
 
 0.15.0 (2020-04-01)
 -------------------
