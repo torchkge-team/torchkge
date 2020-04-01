@@ -57,7 +57,7 @@ class Model(Module):
 
         Returns
         -------
-        golden_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
+        positive_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Scoring function evaluated on true triples.
         negative_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Scoring function evaluated on negatively sampled triples.
@@ -87,8 +87,6 @@ class Model(Module):
         raise NotImplementedError
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using the L2 norm.
-        """
         raise NotImplementedError
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):

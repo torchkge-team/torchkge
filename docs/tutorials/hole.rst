@@ -54,14 +54,14 @@ To train HolE on FB15k::
             model.zero_grad()
 
             # forward + backward + optimize
-            output = model(heads, tails, neg_heads, neg_tails, rels)
+            positive_triplets, negative_triplets = model(heads, tails, neg_heads, neg_tails, rels)
 
-            loss = criterion(output)
+            loss = criterion(positive_triplets, negative_triplets)
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
 
-        print('[%d, %5d] loss: %.3f' % (epoch + 1, i + 1, running_loss / batch_size))
+        print('[%d] loss: %.3f' % (epoch + 1, running_loss / (i + 1)))
 
     model.normalize_parameters()
