@@ -2,6 +2,10 @@
 History
 =======
 
+0.15.1 (2020-04-01)
+-------------------
+* Cleared the definition of rank in link prediction.
+
 0.15.0 (2020-04-01)
 -------------------
 * Improved use of tqdm progress bars
