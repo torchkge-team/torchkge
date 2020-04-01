@@ -112,7 +112,8 @@ class ConvKBModel(Model):
         return h, t, candidates.view(b_size, self.number_entities, 1, self.ent_emb_dim), r
 
     def compute_ranks(self, e_emb, candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
+        """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
+        best rank possible is 1.
 
         Parameters
         ----------
