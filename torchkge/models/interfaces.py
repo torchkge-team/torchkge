@@ -117,7 +117,8 @@ class Model(Module):
         raise NotImplementedError
 
     def compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
+        """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
+        best rank possible is 1.
 
         Parameters
         ----------
@@ -250,7 +251,8 @@ class TranslationalModel(Model):
         raise NotImplementedError
 
     def compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
+        """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
+        best rank possible is 1.
 
         Parameters
         ----------
