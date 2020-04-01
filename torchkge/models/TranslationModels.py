@@ -14,7 +14,7 @@ from torchkge.models import TranslationalModel
 from torchkge.utils import init_embedding
 from torchkge.utils import l1_torus_dissimilarity, l2_torus_dissimilarity, el2_torus_dissimilarity
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 
 class TransEModel(TranslationalModel):
