@@ -57,7 +57,7 @@ class Model(Module):
 
         Returns
         -------
-        golden_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
+        positive_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Scoring function evaluated on true triples.
         negative_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
             Scoring function evaluated on negatively sampled triples.
