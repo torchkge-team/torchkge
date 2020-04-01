@@ -8,7 +8,7 @@ from torch import empty
 from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluatedError
 
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 
 class LinkPredictionEvaluator(object):
@@ -64,7 +64,7 @@ class LinkPredictionEvaluator(object):
         self.evaluated = False
         self.k_max = 10
 
-    def evaluate(self, batch_size, k_max):
+    def evaluate(self, batch_size, k_max, verbose=True):
         """
 
         Parameters
@@ -74,6 +74,8 @@ class LinkPredictionEvaluator(object):
         k_max: int
             Maximal k value we plan to use for Hit@k. This is used to truncate tensor so that it\
             fits in memory.
+        verbose: bool
+            Indicates whether a progress bar should be displayed during evaluation.
 
         """
         self.k_max = k_max
@@ -86,7 +88,12 @@ class LinkPredictionEvaluator(object):
             self.filt_rank_true_heads = self.filt_rank_true_heads.cuda()
             self.filt_rank_true_tails = self.filt_rank_true_tails.cuda()
 
-        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
+        if verbose:
+            iterator = tqdm(enumerate(dataloader), total=len(dataloader))
+        else:
+            iterator = enumerate(dataloader)
+
+        for i, batch in iterator:
 
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
