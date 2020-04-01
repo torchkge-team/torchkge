@@ -4,7 +4,7 @@
 
 __author__ = """Armand Boschin"""
 __email__ = 'aboschin@enst.fr'
-__version__ = '0.15.1'
+__version__ = '0.15.2'
 
 from .data import KnowledgeGraph
 
