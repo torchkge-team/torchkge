@@ -18,13 +18,15 @@ class MarginLoss(Module):
         super().__init__()
         self.loss = MarginRankingLoss(margin=margin, reduction='sum')
 
-    def forward(self, output):
+    def forward(self, positive_triplets, negative_triplets):
         """
         Parameters
         ----------
-        output: tuple of two `torch.FloatTensor`
-            This tuple of length 2 contains the scores of the golden triplets and the negative triplets as returned by
-            the `forward` methods of the models.
+        positive_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
+            Scores of the true triplets as returned by the `forward` methods of the models.
+        negative_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
+            Scores of the negative triplets as returned by the `forward` methods of the models.
+
         Returns
         -------
         loss: `torch.FloatTensor`, shape: (n_facts, dim)
@@ -32,8 +34,7 @@ class MarginLoss(Module):
             (defined at initialization), :math:`f(h,r,t)` is the score of a true fact and :math:`f(h',r',t')` is
             the score of the associated negative fact.
         """
-        golden_triplets, negative_triplets = output[0], output[1]
-        return self.loss(golden_triplets, negative_triplets, target=ones_like(golden_triplets))
+        return self.loss(positive_triplets, negative_triplets, target=ones_like(positive_triplets))
 
 
 class LogisticLoss(Module):
@@ -46,19 +47,19 @@ class LogisticLoss(Module):
         super().__init__()
         self.loss = SoftMarginLoss(reduction='sum')
 
-    def forward(self, output):
+    def forward(self, positive_triplets, negative_triplets):
         """
         Parameters
         ----------
-        output: tuple of two `torch.FloatTensor`
-            This tuple of length 2 contains the scores of the golden triplets and the negative triplets as returned by
-            the `forward` methods of the models.
+        positive_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
+            Scores of the true triplets as returned by the `forward` methods of the models.
+        negative_triplets: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
+            Scores of the negative triplets as returned by the `forward` methods of the models.
         Returns
         -------
         loss: `torch.FloatTensor`, shape: (n_facts, dim)
             Loss of the form :math:`\\log(1+ \\exp(\\eta \\times f(h,r,t))` where :math:`f(h,r,t)` is the score of
             the fact and :math:`\\eta` is either 1 or -1 if the fact is true or false.
         """
-        golden_triplets, negative_triplets = output[0], output[1]
-        targets = ones_like(golden_triplets)
-        return self.loss(golden_triplets, targets) + self.loss(negative_triplets, -targets)
+        targets = ones_like(positive_triplets)
+        return self.loss(positive_triplets, targets) + self.loss(negative_triplets, -targets)
