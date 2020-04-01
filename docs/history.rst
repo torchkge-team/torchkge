@@ -2,6 +2,24 @@
 History
 =======
 
+0.15.0 (2020-04-01)
+-------------------
+* Improved use of tqdm progress bars
+
+0.14.0 (2020-04-01)
+-------------------
+* Change in the API of loss functions (margin and logistic loss)
+* Documentation update
+
+0.13.0 (2020-02-10)
+-------------------
+* Added ConvKB model
+
+0.12.1 (2020-01-10)
+-------------------
+* Minor patch in interfaces
+* Comment additions
+
 0.12.0 (2019-12-05)
 -------------------
 * Various bug fixes
