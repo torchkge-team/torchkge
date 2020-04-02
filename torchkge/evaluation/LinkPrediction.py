@@ -207,3 +207,26 @@ class LinkPredictionEvaluator(object):
         filt_tail_mrr = (self.filt_rank_true_tails.float()**(-1)).mean()
 
         return (head_mrr + tail_mrr).item() / 2, (filt_head_mrr + filt_tail_mrr).item() / 2
+
+    def print_results(self, k=None):
+        """
+
+        Parameters
+        ----------
+        k: int or list
+            k (or list of k) such that hit@k will be printed.
+
+        """
+        if k is None:
+            k = 10
+
+        if k is not None and type(k) == int:
+            print('Hit@{} : {} \t Filt. Hit@{} : {}'.format(k, self.hit_at_k(k=k)[0],
+                                                            k, self.hit_at_k(k=k)[1]))
+        if k is not None and type(k) == list:
+            for i in k:
+                print('Hit@{} : {} \t Filt. Hit@{} : {}'.format(i, self.hit_at_k(k=i)[0],
+                                                                i, self.hit_at_k(k=i)[1]))
+
+        print('Mean Rank : {} \t Filt. Mean Rank : {}'.format(self.mean_rank()[0], self.mean_rank()[1]))
+        print('MRR : {} \t Filt. MRR : {}'.format(self.mrr()[0], self.mrr()[1]))
