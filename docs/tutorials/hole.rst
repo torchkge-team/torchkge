@@ -2,7 +2,7 @@
 HolE
 ====
 
-To run HolE on FB15k::
+To train HolE on FB15k::
 
     from torch.optim import SGD
     from torch import cuda
@@ -26,11 +26,10 @@ To run HolE on FB15k::
     criterion = LogisticLoss()
 
     # Move everything to CUDA if available
-    use_cuda = True
-    if use_cuda and cuda.is_available():
+    if cuda.is_available():
+        cuda.empty_cache()
         model.cuda()
         criterion.cuda()
-    cuda.empty_cache()
 
     # Define the torch optimizer to be used
     optimizer = SGD(model.parameters(), lr=lr)
@@ -38,7 +37,8 @@ To run HolE on FB15k::
     # Define the sampler useful for negative sampling during training
     sampler = BernoulliNegativeSampler(kg_train, kg_test=kg_test)
 
-    dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, pin_memory=use_cuda)
+    dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, 
+                            pin_memory=cuda.is_available())
 
     for epoch in range(nb_epochs):
         running_loss = 0.0

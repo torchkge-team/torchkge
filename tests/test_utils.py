@@ -140,8 +140,8 @@ class TestUtils(unittest.TestCase):
         r1 = get_rank(data, true)
         r2 = get_rank(data, true, low_values=True)
 
-        assert eq(r1, tensor([5, 4])).all()
-        assert eq(r2, tensor([1, 3])).all()
+        assert eq(r1, tensor([5, 3])).all()
+        assert eq(r2, tensor([1, 2])).all()
 
     def test_get_rolling_matrix(self):
         x = tensor([[1, 2, 3], [4, 5, 6]])
