@@ -2,6 +2,10 @@
 History
 =======
 
+0.15.3 (2020-04-02)
+-------------------
+* Added a method to print results in link prediction evaluator
+
 0.15.2 (2020-04-01)
 -------------------
 * Fixed a misfit test
