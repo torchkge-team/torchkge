@@ -208,25 +208,26 @@ class LinkPredictionEvaluator(object):
 
         return (head_mrr + tail_mrr).item() / 2, (filt_head_mrr + filt_tail_mrr).item() / 2
 
-    def print_results(self, k=None):
+    def print_results(self, k=None, n_digits=3):
         """
 
         Parameters
         ----------
         k: int or list
             k (or list of k) such that hit@k will be printed.
-
+        n_digits: int
+            Number of digits to be printed for hit@k and MRR.
         """
         if k is None:
             k = 10
 
         if k is not None and type(k) == int:
-            print('Hit@{} : {} \t Filt. Hit@{} : {}'.format(k, self.hit_at_k(k=k)[0],
-                                                            k, self.hit_at_k(k=k)[1]))
+            print('Hit@{} : {} \t Filt. Hit@{} : {}'.format(k, round(self.hit_at_k(k=k)[0], n_digits),
+                                                            k, round(self.hit_at_k(k=k)[1], n_digits)))
         if k is not None and type(k) == list:
             for i in k:
-                print('Hit@{} : {} \t Filt. Hit@{} : {}'.format(i, self.hit_at_k(k=i)[0],
-                                                                i, self.hit_at_k(k=i)[1]))
+                print('Hit@{} : {} \t Filt. Hit@{} : {}'.format(i, round(self.hit_at_k(k=i)[0], n_digits),
+                                                                i, round(self.hit_at_k(k=i)[1], n_digits)))
 
-        print('Mean Rank : {} \t Filt. Mean Rank : {}'.format(self.mean_rank()[0], self.mean_rank()[1]))
-        print('MRR : {} \t Filt. MRR : {}'.format(self.mrr()[0], self.mrr()[1]))
+        print('Mean Rank : {} \t Filt. Mean Rank : {}'.format(int(self.mean_rank()[0]), int(self.mean_rank()[1])))
+        print('MRR : {} \t Filt. MRR : {}'.format(round(self.mrr()[0], n_digits), round(self.mrr()[1], n_digits)))
