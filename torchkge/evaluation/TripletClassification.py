@@ -5,10 +5,8 @@ Copyright TorchKGE developers
 """
 
 from torch import zeros, cat
-from torch.utils.data import DataLoader
-from torchkge.data import SmallKG
-
 from torchkge.sampling import PositionalNegativeSampler
+from torchkge.utils import get_batches
 
 
 class TripletClassificationEvaluator(object):
@@ -52,8 +50,6 @@ class TripletClassificationEvaluator(object):
     def __init__(self, model, kg_val, kg_test):
         self.model = model
         self.kg_val = kg_val
-        # assert kg_val.n_rel == kg_test.n_rel
-        # assert set(kg_test.relations.unique().tolist()).issubset(set(kg_val.relations.unique().tolist()))
         self.kg_test = kg_test
         self.use_cuda = next(self.model.parameters()).is_cuda
 
@@ -82,14 +78,13 @@ class TripletClassificationEvaluator(object):
         """
         scores = []
 
-        small_kg = SmallKG(heads, tails, relations)
-        dataloader = DataLoader(small_kg, batch_size=batch_size, pin_memory=self.use_cuda)
-        for i, batch in enumerate(dataloader):
+        if self.use_cuda:
+            iterator = enumerate(get_batches(heads.cuda(), tails.cuda(), relations.cuda(), batch_size))
+        else:
+            iterator = enumerate(get_batches(heads, tails, relations, batch_size))
 
+        for i, batch in iterator:
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-
-            if h_idx.is_pinned():
-                h_idx, t_idx, r_idx = h_idx.cuda(), t_idx.cuda(), r_idx.cuda()
 
             scores.append(self.model.scoring_function(h_idx, t_idx, r_idx))
 

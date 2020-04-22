@@ -15,10 +15,5 @@ To evaluate a model on link prediction::
     # Link prediction evaluation on test set.
     evaluator = LinkPredictionEvaluator(model, kg_test)
     evaluator.evaluate(batch_size=32, k_max=10)
-
-    print('Hit@{} : {}'.format(10, evaluator.hit_at_k(k=10)[0]))
-    print('Mean Rank : {}'.format(evaluator.mean_rank()[0]))
-    print('MRR : {}'.format(evaluator.mrr()[0]))
-    print('Filt. Hit@{} : {}'.format(10, evaluator.hit_at_k(k=10)[1]))
-    print('Filt. Mean Rank : {}'.format(evaluator.mean_rank()[1]))
-    print('Filt. MRR : {}'.format(evaluator.mrr()[1]))
+    evaluator.evaluate(k=10)
+    evaluator.print_results()

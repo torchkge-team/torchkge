@@ -5,10 +5,9 @@ Copyright TorchKGE developers
 """
 
 from torch import tensor, bernoulli, randint, ones, rand, cat
-from torch.utils.data import DataLoader
 
-from torchkge.utils import get_bernoulli_probs, get_possible_heads_tails
 from torchkge.exceptions import NotYetImplementedError
+from torchkge.utils import get_bernoulli_probs, get_possible_heads_tails, get_batches
 
 
 class NegativeSampler:
@@ -99,18 +98,26 @@ class NegativeSampler:
             assert self.n_facts_test > 0
 
         if which == 'val':
-            dataloader = DataLoader(self.kg_val, batch_size=batch_size, shuffle=False,
-                                    pin_memory=use_cuda)
+            tmp_h = self.kg_val.head_idx
+            tmp_t = self.kg_val.tail_idx
+            tmp_r = self.kg_val.relations
         elif which == 'test':
-            dataloader = DataLoader(self.kg_test, batch_size=batch_size, shuffle=False,
-                                    pin_memory=use_cuda)
+            tmp_h = self.kg_test.head_idx
+            tmp_t = self.kg_test.tail_idx
+            tmp_r = self.kg_test.relations
         else:
-            dataloader = DataLoader(self.kg, batch_size=batch_size, shuffle=False,
-                                    pin_memory=use_cuda)
+            tmp_h = self.kg.head_idx
+            tmp_t = self.kg.tail_idx
+            tmp_r = self.kg.relations
+
+        if use_cuda:
+            tmp_h, tmp_t, tmp_r = tmp_h.cuda(), tmp_t.cuda(), tmp_r.cuda()
+
+        iterator = enumerate(get_batches(tmp_h, tmp_t, tmp_r, batch_size))
 
         corr_heads, corr_tails = [], []
 
-        for i, batch in enumerate(dataloader):
+        for i, batch in iterator:
 
             heads, tails, rels = batch[0], batch[1], batch[2]
             if heads.is_pinned():
@@ -120,6 +127,8 @@ class NegativeSampler:
 
             corr_heads.append(neg_heads)
             corr_tails.append(neg_tails)
+
+        del tmp_h, tmp_t, tmp_r
 
         if use_cuda:
             return cat(corr_heads).long().cpu(), cat(corr_tails).long().cpu()
