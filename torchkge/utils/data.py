@@ -6,7 +6,22 @@ def get_n_batches(n, b_size):
 
 
 class DataLoader:
+    """This class is inspired from torch.utils.dataloader.DataLoader. It is however way simpler.
+
+    """
     def __init__(self, kg, batch_size, use_cuda=None):
+        """
+
+        Parameters
+        ----------
+        kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+            Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
+        batch_size: int
+            Size of the required batches.
+        use_cuda: str (opt, default = None)
+            Can be either None (no use of cuda at all), 'all' to move all the dataset to cuda and then split in \
+            batches or 'batch' to simply move the batches to cuda before they are returned.
+        """
         self.h = kg.head_idx
         self.t = kg.tail_idx
         self.r = kg.relations

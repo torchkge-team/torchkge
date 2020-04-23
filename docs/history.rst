@@ -2,6 +2,14 @@
 History
 =======
 
+0.15.5 (2020-04-23)
+-------------------
+* Defined a new homemade and simpler DataLoader class.
+
+0.15.4 (2020-04-22)
+-------------------
+* Removed the use of torch DataLoader object.
+
 0.15.3 (2020-04-02)
 -------------------
 * Added a method to print results in link prediction evaluator
