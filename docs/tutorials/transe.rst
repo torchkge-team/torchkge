@@ -11,7 +11,7 @@ To train TransE on FB15k::
     from torchkge.evaluation import LinkPredictionEvaluator
     from torchkge.models import TransEModel
     from torchkge.sampling import BernoulliNegativeSampler
-    from torchkge.utils import MarginLoss, get_batches
+    from torchkge.utils import MarginLoss, DataLoader
 
     from tqdm.autonotebook import tqdm
 
@@ -37,14 +37,16 @@ To train TransE on FB15k::
         cuda.empty_cache()
         model.cuda()
         criterion.cuda()
+        cuda_val = 'all'
+    else:
+        cuda_val = None
 
     # Define the torch optimizer to be used
     optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-5)
 
-    h, t, r = kg_train.head_idx.cuda(), kg_train.tail_idx.cuda(), kg_train.relations.cuda()
+    dataloader = DataLoader(kg_train, batch_size=batch_size, use_cuda=cuda_val)
 
     iterator = tqdm(range(nb_epochs), unit='epoch')
-
     for epoch in iterator:
         running_loss = 0.0
 
