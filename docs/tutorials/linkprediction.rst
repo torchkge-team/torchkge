@@ -14,6 +14,6 @@ To evaluate a model on link prediction::
 
     # Link prediction evaluation on test set.
     evaluator = LinkPredictionEvaluator(model, kg_test)
-    evaluator.evaluate(batch_size=32, k_max=10)
+    evaluator.evaluate(batch_size=512, k_max=10)
     evaluator.evaluate(k=10)
     evaluator.print_results()
