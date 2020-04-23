@@ -72,30 +72,3 @@ def get_rolling_matrix(x):
     b_size, dim = x.shape
     x = x.view(b_size, 1, dim)
     return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
-
-
-def get_n_batch(n, b_size):
-    n_batch = n // b_size
-    if n % b_size > 0:
-        n_batch += 1
-    return n_batch
-
-
-def get_batches(h, t, r, b_size):
-    """
-    TODO
-    Parameters
-    ----------
-    h
-    t
-    r
-    b_size
-
-    Returns
-    -------
-
-    """
-    assert len(h) == len(t) == len(r)
-    n_batch = get_n_batch(len(h), b_size)
-    for i in range(n_batch):
-        yield h[i * b_size: (i + 1) * b_size], t[i * b_size: (i + 1) * b_size], r[i * b_size: (i + 1) * b_size]

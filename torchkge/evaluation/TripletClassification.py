@@ -5,8 +5,9 @@ Copyright TorchKGE developers
 """
 
 from torch import zeros, cat
+from torchkge.data import SmallKG
 from torchkge.sampling import PositionalNegativeSampler
-from torchkge.utils import get_batches
+from torchkge.utils import DataLoader
 
 
 class TripletClassificationEvaluator(object):
@@ -78,14 +79,14 @@ class TripletClassificationEvaluator(object):
         """
         scores = []
 
+        small_kg = SmallKG(heads, tails, relations)
         if self.use_cuda:
-            iterator = enumerate(get_batches(heads.cuda(), tails.cuda(), relations.cuda(), batch_size))
+            dataloader = DataLoader(small_kg, batch_size=batch_size, use_cuda='batch')
         else:
-            iterator = enumerate(get_batches(heads, tails, relations, batch_size))
+            dataloader = DataLoader(small_kg, batch_size=batch_size)
 
-        for i, batch in iterator:
+        for i, batch in enumerate(dataloader):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-
             scores.append(self.model.scoring_function(h_idx, t_idx, r_idx))
 
         return cat(scores, dim=0)

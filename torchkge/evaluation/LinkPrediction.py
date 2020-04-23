@@ -6,7 +6,7 @@ Copyright TorchKGE developers
 
 from torch import empty
 from torchkge.exceptions import NotYetEvaluatedError
-from torchkge.utils import get_n_batch, get_batches
+from torchkge.utils import DataLoader
 
 from tqdm.autonotebook import tqdm
 
@@ -81,25 +81,16 @@ class LinkPredictionEvaluator(object):
         self.k_max = k_max
         use_cuda = next(self.model.parameters()).is_cuda
 
-        tmp_h = self.kg.head_idx
-        tmp_t = self.kg.tail_idx
-        tmp_r = self.kg.relations
-
         if use_cuda:
-            tmp_h, tmp_t, tmp_r = tmp_h.cuda(), tmp_t.cuda(), tmp_r.cuda()
-
-        if use_cuda:
+            dataloader = DataLoader(self.kg, batch_size=batch_size, use_cuda='batch')
             self.rank_true_heads = self.rank_true_heads.cuda()
             self.rank_true_tails = self.rank_true_tails.cuda()
             self.filt_rank_true_heads = self.filt_rank_true_heads.cuda()
             self.filt_rank_true_tails = self.filt_rank_true_tails.cuda()
+        else:
+            dataloader = DataLoader(self.kg, batch_size=batch_size)
 
-        iterator = enumerate(get_batches(tmp_h, tmp_t, tmp_r, batch_size))
-        if verbose:
-            iterator = tqdm(iterator, total=get_n_batch(len(tmp_h), batch_size), unit='batch')
-
-        for i, batch in iterator:
-
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), unit='batch', disable=(not verbose)):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
             rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads \
@@ -112,8 +103,6 @@ class LinkPredictionEvaluator(object):
             self.filt_rank_true_tails[i * batch_size: (i + 1) * batch_size] = filt_rank_true_tails
 
         self.evaluated = True
-
-        del tmp_h, tmp_t, tmp_r
 
         if use_cuda:
             self.rank_true_heads = self.rank_true_heads.cpu()

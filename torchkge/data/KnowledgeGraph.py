@@ -19,8 +19,8 @@ class SmallKG(Dataset):
     """
     def __init__(self, heads, tails, relations):
         assert heads.shape == tails.shape == relations.shape
-        self.heads = heads
-        self.tails = tails
+        self.head_idx = heads
+        self.tail_idx = tails
         self.relations = relations
         self.length = heads.shape[0]
 
@@ -28,7 +28,7 @@ class SmallKG(Dataset):
         return self.length
 
     def __getitem__(self, item):
-        return self.heads[item].item(), self.tails[item].item(), self.relations[item].item()
+        return self.head_idx[item].item(), self.tail_idx[item].item(), self.relations[item].item()
 
 
 class KnowledgeGraph(Dataset):

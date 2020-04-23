@@ -618,7 +618,6 @@ class TransDModel(TranslationalModel):
             return
 
         print('Projecting entities in relations spaces.')
-
         for i in tqdm(range(self.number_entities)):
             ent_proj_vect = self.ent_proj_vects.data[i].view(1, -1)
             rel_proj_vects = self.rel_proj_vects.data.view(self.number_relations,
