@@ -6,9 +6,8 @@ Copyright TorchKGE developers
 
 from torch import tensor, bernoulli, randint, ones, rand, cat
 from torch.utils.data import DataLoader
-
 from torchkge.exceptions import NotYetImplementedError
-from torchkge.utils import get_bernoulli_probs, get_possible_heads_tails
+from torchkge.utils import get_bernoulli_probs, get_possible_heads_tails, DataLoader
 
 
 class NegativeSampler:
@@ -98,24 +97,22 @@ class NegativeSampler:
         if which == 'test':
             assert self.n_facts_test > 0
 
-        if which == 'val':
-            dataloader = DataLoader(self.kg_val, batch_size=batch_size, shuffle=False,
-                                    pin_memory=use_cuda)
-        elif which == 'test':
-            dataloader = DataLoader(self.kg_test, batch_size=batch_size, shuffle=False,
-                                    pin_memory=use_cuda)
+        if use_cuda:
+            tmp_cuda = 'batch'
         else:
-            dataloader = DataLoader(self.kg, batch_size=batch_size, shuffle=False,
-                                    pin_memory=use_cuda)
+            tmp_cuda = None
+
+        if which == 'val':
+            dataloader = DataLoader(self.kg_val, batch_size=batch_size, use_cuda=tmp_cuda)
+        elif which == 'test':
+            dataloader = DataLoader(self.kg_test, batch_size=batch_size, use_cuda=tmp_cuda)
+        else:
+            dataloader = DataLoader(self.kg, batch_size=batch_size, use_cuda=tmp_cuda)
 
         corr_heads, corr_tails = [], []
 
         for i, batch in enumerate(dataloader):
-
             heads, tails, rels = batch[0], batch[1], batch[2]
-            if heads.is_pinned():
-                heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
-
             neg_heads, neg_tails = self.corrupt_batch(heads, tails, rels)
 
             corr_heads.append(neg_heads)

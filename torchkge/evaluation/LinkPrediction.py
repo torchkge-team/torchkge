@@ -5,8 +5,8 @@ Copyright TorchKGE developers
 """
 
 from torch import empty
-from torch.utils.data import DataLoader
 from torchkge.exceptions import NotYetEvaluatedError
+from torchkge.utils import DataLoader
 
 from tqdm.autonotebook import tqdm
 
@@ -80,19 +80,18 @@ class LinkPredictionEvaluator(object):
         """
         self.k_max = k_max
         use_cuda = next(self.model.parameters()).is_cuda
-        dataloader = DataLoader(self.kg, batch_size=batch_size, pin_memory=use_cuda)
 
         if use_cuda:
+            dataloader = DataLoader(self.kg, batch_size=batch_size, use_cuda='batch')
             self.rank_true_heads = self.rank_true_heads.cuda()
             self.rank_true_tails = self.rank_true_tails.cuda()
             self.filt_rank_true_heads = self.filt_rank_true_heads.cuda()
             self.filt_rank_true_tails = self.filt_rank_true_tails.cuda()
+        else:
+            dataloader = DataLoader(self.kg, batch_size=batch_size)
 
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), unit='batch', disable=(not verbose)):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-
-            if h_idx.is_pinned():
-                h_idx, t_idx, r_idx = h_idx.cuda(), t_idx.cuda(), r_idx.cuda()
 
             rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads \
                 = self.model.evaluate_candidates(h_idx, t_idx, r_idx, self.kg)
