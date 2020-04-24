@@ -55,20 +55,3 @@ def get_rank(data, true, low_values=False):
         return (data < true_data).sum(dim=1) + 1
     else:
         return (data > true_data).sum(dim=1) + 1
-
-
-def get_rolling_matrix(x):
-    """Build a rolling matrix.
-
-    Parameters
-    ----------
-    x: `torch.Tensor`, shape: (b_size, dim)
-
-    Returns
-    -------
-    mat: `torch.Tensor`, shape: (b_size, dim, dim)
-        Rolling matrix such that mat[i,j] = x[i - j mod(dim)]
-    """
-    b_size, dim = x.shape
-    x = x.view(b_size, 1, dim)
-    return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)

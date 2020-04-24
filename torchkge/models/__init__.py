@@ -1,4 +1,4 @@
-from .interfaces import Model, TranslationalModel
+from .interfaces import Model, TranslationModel, BilinearModel
 
 from .TranslationModels import TransEModel
 from .TranslationModels import TransHModel

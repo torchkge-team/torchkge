@@ -10,14 +10,14 @@ from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
 
-from torchkge.models import TranslationalModel
+from torchkge.models import TranslationModel
 from torchkge.utils import init_embedding
 from torchkge.utils import l1_torus_dissimilarity, l2_torus_dissimilarity, el2_torus_dissimilarity
 
 from tqdm.autonotebook import tqdm
 
 
-class TransEModel(TranslationalModel):
+class TransEModel(TranslationModel):
     """Implementation of TransE model detailed in 2013 paper by Bordes et al.. This class inherits from the
     :class:`torchkge.models.interfaces.TranslationalModel` interface. It then has its attributes as well.
 
@@ -42,7 +42,7 @@ class TransEModel(TranslationalModel):
 
     Attributes
     ----------
-    relation_embeddings: torch Embedding, shape: (number_relations, ent_emb_dim)
+    relation_embeddings: torch Embedding, shape: (number_relations, emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
          normalized.
 
@@ -57,22 +57,22 @@ class TransEModel(TranslationalModel):
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type)
 
         # initialize embeddings
-        self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
+        self.relation_embeddings = init_embedding(self.n_rel, self.ent_emb_dim)
 
         # normalize parameters
         self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data, p=2, dim=1)
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data, p=2, dim=1)
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        h_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        t_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        r_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
@@ -82,11 +82,11 @@ class TransEModel(TranslationalModel):
 
         """
         # recover relations embeddings
-        rels_emb = self.relation_embeddings(rels_idx)
+        rels_emb = self.relation_embeddings(r_idx)
 
         # recover, project and normalize entity embeddings
-        h_emb = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
-        t_emb = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
+        h_emb = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
+        t_emb = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
 
         return - self.dissimilarity(h_emb + rels_emb, t_emb)
 
@@ -104,7 +104,7 @@ class TransEModel(TranslationalModel):
 
         Returns
         -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, ent_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, emb_dim)
             Embedded entities normalized.
 
         """
@@ -149,7 +149,7 @@ class TransEModel(TranslationalModel):
 
         """
         # recover, project and normalize entity embeddings
-        all_idx = arange(0, self.number_entities).long()
+        all_idx = arange(0, self.n_ent).long()
 
         if h_idx.is_cuda:
             all_idx = all_idx.cuda()
@@ -161,8 +161,8 @@ class TransEModel(TranslationalModel):
 
         b_size, emb_dim = proj_h_emb.shape
         proj_candidates = proj_candidates.transpose(0, 1)
-        proj_candidates = proj_candidates.view(1, emb_dim, self.number_entities)
-        proj_candidates = proj_candidates.expand(b_size, emb_dim, self.number_entities)
+        proj_candidates = proj_candidates.view(1, emb_dim, self.n_ent)
+        proj_candidates = proj_candidates.expand(b_size, emb_dim, self.n_ent)
 
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
@@ -190,7 +190,7 @@ class TransHModel(TransEModel):
 
     Attributes
     ----------
-    normal_vectors: `torch.Tensor`, shape: (number_relations, ent_emb_dim)
+    normal_vectors: `torch.Tensor`, shape: (number_relations, emb_dim)
         Normal vectors associated to each relation and used to compute the relation-specific\
         hyperplanes entities are projected on. See paper for more details.
 
@@ -201,16 +201,16 @@ class TransHModel(TransEModel):
         self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))),
                                         requires_grad=True)
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        h_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        t_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        r_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
@@ -220,12 +220,12 @@ class TransHModel(TransEModel):
 
         """
         # recover relations embeddings and normal projection vectors
-        relations_embeddings = self.relation_embeddings(rels_idx)
-        self.normal_vectors[rels_idx] = normalize(self.normal_vectors[rels_idx], p=2, dim=1)
+        relations_embeddings = self.relation_embeddings(r_idx)
+        self.normal_vectors[r_idx] = normalize(self.normal_vectors[r_idx], p=2, dim=1)
 
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
-        projected_tails = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
+        projected_heads = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
+        projected_tails = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
 
         return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
@@ -244,7 +244,7 @@ class TransHModel(TransEModel):
 
         Returns
         -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, ent_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, emb_dim)
             Projection of the embedded entities on the hyperplanes defined by the provided normal\
             vectors.
 
@@ -304,11 +304,11 @@ class TransHModel(TransEModel):
 
         # project each candidates with each normal vector
         normal_components = candidates * normal_vectors.view((b_size, self.ent_emb_dim, 1))
-        normal_components = normal_components.sum(dim=1).view(b_size, 1, self.number_entities)
+        normal_components = normal_components.sum(dim=1).view(b_size, 1, self.n_ent)
         normal_components = normal_components * normal_vectors.view(b_size, self.ent_emb_dim, 1)
         proj_candidates = candidates - normal_components
 
-        assert proj_candidates.shape == (b_size, self.ent_emb_dim, self.number_entities)
+        assert proj_candidates.shape == (b_size, self.ent_emb_dim, self.n_ent)
 
         # recover, project and normalize entity embeddings
         proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, proj_candidates,
@@ -317,7 +317,7 @@ class TransHModel(TransEModel):
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
-class TransRModel(TranslationalModel):
+class TransRModel(TranslationModel):
     """Implementation of TransR model detailed in 2015 paper by Lin et al.. This class inherits from the
     :class:`torchkge.models.interfaces.TranslationalModel` interface. It then has its attributes as well.
 
@@ -346,7 +346,7 @@ class TransRModel(TranslationalModel):
     relation_embeddings: torch.nn.Embedding, shape: (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
-    projection_matrices: `torch.Tensor`, shape: (number_relations, rel_emb_dim, ent_emb_dim)
+    projection_matrices: `torch.Tensor`, shape: (number_relations, rel_emb_dim, emb_dim)
         Relation-specific projection matrices. See paper for more details.
 
     """
@@ -356,23 +356,23 @@ class TransRModel(TranslationalModel):
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
 
         self.rel_emb_dim = rel_emb_dim
-        self.relation_embeddings = init_embedding(self.number_relations, self.rel_emb_dim)
+        self.relation_embeddings = init_embedding(self.n_rel, self.rel_emb_dim)
 
         self.projection_matrices = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim,
                                                                          ent_emb_dim))),
                                              requires_grad=True)
         self.normalize_parameters()
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        h_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        t_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        r_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
@@ -382,11 +382,11 @@ class TransRModel(TranslationalModel):
 
         """
         # recover relations embeddings and normal projection matrices
-        relations_embeddings = normalize(self.relation_embeddings(rels_idx), p=2, dim=1)
+        relations_embeddings = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
 
         # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
-        projected_tails = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
+        projected_heads = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
+        projected_tails = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
 
         return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
@@ -472,7 +472,7 @@ class TransRModel(TranslationalModel):
         return proj_h_emb, proj_t_emb, proj_candidates, r_emb
 
 
-class TransDModel(TranslationalModel):
+class TransDModel(TranslationModel):
     """Implementation of TransD model detailed in 2015 paper by Ji et al.. This class inherits from the
     :class:`torchkge.models.interfaces.TranslationalModel` interface. It then has its attributes as well.
 
@@ -503,7 +503,7 @@ class TransDModel(TranslationalModel):
     relation_embeddings: torch.nn.Embedding, shape: (number_relations, rel_emb_dim)
         Contains the embeddings of the relations. It is initialized with Xavier uniform and then\
         normalized.
-    ent_proj_vects: `torch.Tensor`, shape: (number_entities, ent_emb_dim)
+    ent_proj_vects: `torch.Tensor`, shape: (number_entities, emb_dim)
         Entity-specific vector used to build projection matrices. See paper for more details.
     rel_proj_vects: `torch.Tensor`, shape: (number_relations, rel_emb_dim)
         Relation-specific vector used to build projection matrices. See paper for more details.
@@ -515,7 +515,7 @@ class TransDModel(TranslationalModel):
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
 
         self.rel_emb_dim = rel_emb_dim
-        self.relation_embeddings = init_embedding(self.number_relations, self.rel_emb_dim)
+        self.relation_embeddings = init_embedding(self.n_rel, self.rel_emb_dim)
 
         self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))),
                                         requires_grad=True)
@@ -524,20 +524,20 @@ class TransDModel(TranslationalModel):
         self.normalize_parameters()
 
         self.evaluated_projections = False
-        self.projected_entities = Parameter(empty(size=(self.number_relations,
+        self.projected_entities = Parameter(empty(size=(self.n_rel,
                                                         self.rel_emb_dim,
-                                                        self.number_entities)), requires_grad=False)
+                                                        self.n_ent)), requires_grad=False)
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        h_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        t_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        r_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
@@ -549,12 +549,12 @@ class TransDModel(TranslationalModel):
         self.evaluated_projections = False
 
         # recover relations projection vectors and relations embeddings
-        self.rel_proj_vects[rels_idx] = normalize(self.rel_proj_vects[rels_idx], p=2, dim=1)
-        relations_embeddings = normalize(self.relation_embeddings(rels_idx), p=2, dim=1)
+        self.rel_proj_vects[r_idx] = normalize(self.rel_proj_vects[r_idx], p=2, dim=1)
+        relations_embeddings = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
 
         # project
-        projected_heads = self.recover_project_normalize(heads_idx, rels_idx, normalize_=True)
-        projected_tails = self.recover_project_normalize(tails_idx, rels_idx, normalize_=True)
+        projected_heads = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
+        projected_tails = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
 
         return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
 
@@ -618,9 +618,9 @@ class TransDModel(TranslationalModel):
             return
 
         print('Projecting entities in relations spaces.')
-        for i in tqdm(range(self.number_entities)):
+        for i in tqdm(range(self.n_ent)):
             ent_proj_vect = self.ent_proj_vects.data[i].view(1, -1)
-            rel_proj_vects = self.rel_proj_vects.data.view(self.number_relations,
+            rel_proj_vects = self.rel_proj_vects.data.view(self.n_rel,
                                                            self.rel_emb_dim, 1)
 
             projection_matrices = matmul(rel_proj_vects, ent_proj_vect)
@@ -632,7 +632,7 @@ class TransDModel(TranslationalModel):
 
             id_mat = id_mat.view(1, self.rel_emb_dim, self.ent_emb_dim)
 
-            projection_matrices += id_mat.expand(self.number_relations, self.rel_emb_dim,
+            projection_matrices += id_mat.expand(self.n_rel, self.rel_emb_dim,
                                                  self.ent_emb_dim)
 
             empty_cache()
@@ -646,8 +646,8 @@ class TransDModel(TranslationalModel):
 
             entity = self.entity_embeddings(mask)
             projected_entity = matmul(projection_matrices, entity.view(-1)).detach()
-            projected_entity = projected_entity.view(self.number_relations, self.rel_emb_dim, 1)
-            self.projected_entities[:, :, i] = projected_entity.view(self.number_relations,
+            projected_entity = projected_entity.view(self.n_rel, self.rel_emb_dim, 1)
+            self.projected_entities[:, :, i] = projected_entity.view(self.n_rel,
                                                                      self.rel_emb_dim)
 
             del projected_entity
@@ -720,7 +720,7 @@ class TorusEModel(TransEModel):
         ----------
         dissimilarity_type: function
             Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
-        relation_embeddings: torch Embedding, shape: (number_relations, ent_emb_dim)
+        relation_embeddings: torch Embedding, shape: (number_relations, emb_dim)
             Contains the embeddings of the relations. It is initialized with Xavier uniform and\
             then normalized.
 
@@ -733,7 +733,7 @@ class TorusEModel(TransEModel):
 
         super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type=None)
 
-        self.relation_embeddings = init_embedding(self.number_relations, self.ent_emb_dim)
+        self.relation_embeddings = init_embedding(self.n_rel, self.ent_emb_dim)
 
         if self.dissimilarity_type == 'L1':
             self.dissimilarity = l1_torus_dissimilarity
@@ -744,16 +744,16 @@ class TorusEModel(TransEModel):
 
         self.normalize_parameters()
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        h_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        t_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        r_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
@@ -764,11 +764,11 @@ class TorusEModel(TransEModel):
         """
 
         # recover relations embeddings
-        rels_emb = self.relation_embeddings(rels_idx)
+        rels_emb = self.relation_embeddings(r_idx)
 
         # recover, project and normalize entity embeddings
-        h_emb = self.recover_project_normalize(heads_idx, normalize_=False)
-        t_emb = self.recover_project_normalize(tails_idx, normalize_=False)
+        h_emb = self.recover_project_normalize(h_idx, normalize_=False)
+        t_emb = self.recover_project_normalize(t_idx, normalize_=False)
 
         if self.dissimilarity_type == 'L1':
             return 2 * self.dissimilarity(h_emb + rels_emb, t_emb)
@@ -792,7 +792,7 @@ class TorusEModel(TransEModel):
 
         Returns
         -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, ent_emb_dim)
+        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, emb_dim)
             Embedded entities normalized.
 
         """

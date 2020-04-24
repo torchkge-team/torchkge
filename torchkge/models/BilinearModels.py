@@ -4,17 +4,17 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import empty, matmul, diag_embed
+from torch import empty, matmul, diag_embed, cat
 from torch.nn import Embedding, Parameter
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 
-from torchkge.models import Model
-from torchkge.utils import get_rank, get_mask, get_rolling_matrix, get_true_targets
+from torchkge.models import Model, BilinearModel
+from torchkge.utils import get_rank, get_mask, get_true_targets
 from torchkge.exceptions import WrongDimensionError
 
 
-class RESCALModel(Model):
+class RESCALModel(BilinearModel):
     """Implementation of RESCAL model detailed in 2011 paper by Nickel et al..\
     In the original paper, optimization is done using Alternating Least Squares (ALS). Here we use\
     iterative gradient descent optimization. This class inherits from the
@@ -30,7 +30,7 @@ class RESCALModel(Model):
 
     Parameters
     ----------
-    ent_emb_dim: int
+    emb_dim: int
         Dimension of embedding space.
     n_entities: int
         Number of entities in the current data set.
@@ -39,95 +39,35 @@ class RESCALModel(Model):
 
     Attributes
     ----------
-    entity_embeddings: torch.nn.Embedding, shape: (number_entities, ent_emb_dim)
+    ent_emb: torch.nn.Embedding, shape: (number_entities, emb_dim)
         Contains the embeddings of the entities. It is initialized with Xavier uniform and then\
          normalized.
-    relation_matrices: torch Parameter, shape: (number_relations, ent_emb_dim, ent_emb_dim)
+    rel_mat: torch.nn.Parameter, shape: (number_relations, emb_dim * emb_dim)
         Contains the matrices of the relations. It is initialized with Xavier uniform.
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations):
-        super().__init__(ent_emb_dim, n_entities, n_relations)
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super(RESCALModel, self).__init__(emb_dim, n_entities, n_relations)
 
         # initialize embedding objects
-        self.entity_embeddings = Embedding(self.number_entities, self.ent_emb_dim)
-        self.relation_matrices = Parameter(xavier_uniform_(empty(size=(self.number_relations,
-                                                                       self.ent_emb_dim,
-                                                                       self.ent_emb_dim))),
-                                           requires_grad=True)
+        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.rel_mat = Embedding(self.n_rel, self.emb_dim * self.emb_dim)
 
-        # fill the embedding weights with Xavier initialized values
-        self.entity_embeddings.weight = Parameter(xavier_uniform_(
-            empty(size=(self.number_entities, self.ent_emb_dim))),
-            requires_grad=True)
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_mat.weight.data)
 
         # normalize the embeddings
         self.normalize_parameters()
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
-        # recover entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads_idx), p=2, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails_idx), p=2, dim=1)
-
-        # recover relation matrices
-        relation_matrices = self.relation_matrices[rels_idx]
-
-        product = self.compute_product(heads_embeddings, tails_embeddings, relation_matrices)
-        return product.view(heads_idx.shape[0])
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        return self.compute_product(normalize(self.ent_emb(h_idx), p=2, dim=1),
+                                    normalize(self.ent_emb(t_idx), p=2, dim=1),
+                                    self.rel_mat(r_idx).view(-1, self.ent_emb_dim, self.ent_emb_dim),
+                                    self.emb_dim)
 
     def normalize_parameters(self):
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
-
-    def compute_product(self, heads, tails, rel_mat):
-        """Compute the matrix product h^tRt with proper reshapes. It can do the batch matrix
-        product both in the forward pass and in the evaluation pass with one matrix containing
-        all candidates.
-
-        Parameters
-        ----------
-        heads: torch Tensor, shape: (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
-        self.ent_emb_dim), dtype: `torch.float`
-            Tensor containing embeddings of current head entities or candidates.
-        tails: `torch.Tensor`, shape: (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
-        self.ent_emb_dim), dtype: `torch.float`
-            Tensor containing embeddings of current tail entities or canditates.
-        rel_mat: `torch.Tensor`, shape: (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype: `torch.float`
-            Tensor containing relation matrices for current relations.
-
-        Returns
-        -------
-        product: `torch.Tensor`, shape: (b_size) or (b_size, self.number_entities), dtype: `torch.float`
-            Tensor containing the matrix products h.W.t^t for each sample of the batch.
-
-        """
-        b_size = len(heads)
-
-        if len(heads.shape) == 2 and len(tails.shape) == 2:
-            heads = heads.view(b_size, 1, self.ent_emb_dim)
-            tails = tails.view(b_size, self.ent_emb_dim, 1)
-            return matmul(matmul(heads, rel_mat), tails).view(b_size)
-
-        elif len(heads.shape) == 2 and len(tails.shape) == 3:
-            heads = heads.view(b_size, 1, self.ent_emb_dim)
-            tails = tails.transpose(1, 2)
-        else:
-            tails = tails.view(b_size, self.ent_emb_dim, 1)
-
-        return matmul(matmul(heads, rel_mat), tails).view(b_size, -1)
-
-    def get_head_tail_candidates(self, h_idx, t_idx):
-        b_size = h_idx.shape[0]
-
-        candidates = self.entity_embeddings.weight.data
-        candidates = candidates.view(1, self.number_entities, self.ent_emb_dim)
-        candidates = candidates.expand(b_size, self.number_entities, self.ent_emb_dim)
-
-        h_emb = self.entity_embeddings(h_idx)
-        t_emb = self.entity_embeddings(t_idx)
-
-        return h_emb, t_emb, candidates
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -143,79 +83,23 @@ class RESCALModel(Model):
 
         Returns
         -------
-        h_emb: `torch.Tensor`, shape: (b_size, ent_emb_dim), dtype: `torch.float`
+        h_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities.
-        t_emb: `torch.Tensor`, shape: (b_size, ent_emb_dim), dtype: `torch.float`
+        t_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities.
-        r_mat: `torch.Tensor`, shape: (b_size, ent_emb_dim, ent_emb_dim), dtype: `torch.float`
+        r_mat: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim), dtype: `torch.float`
             Tensor containing matrices of current relations.
-        candidates: `torch.Tensor`, shape: (b_size, number_entities, ent_emb_dim), dtype: `torch.float`
+        candidates: `torch.Tensor`, shape: (b_size, number_entities, emb_dim), dtype: `torch.float`
             Tensor containing all entities as candidates for each sample of the batch.
 
         """
         h_emb, t_emb, candidates = self.get_head_tail_candidates(h_idx, t_idx)
-        r_mat = self.relation_matrices[r_idx]
+        r_mat = self.rel_mat(r_idx).view(-1, self.ent_emb_dim, self.ent_emb_dim)
 
         return h_emb, t_emb, candidates, r_mat
 
-    def compute_ranks(self, e_emb, candidates, r_mat, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
 
-        Parameters
-        ----------
-        e_emb: torch tensor, shape: (batch_size, rel_emb_dim), dtype: `torch.float`
-            Tensor containing current embeddings of entities.
-        candidates: torch tensor, shape: (b_size, number_entities, ent_emb_dim), dtype: `torch.float`
-            Tensor containing projected embeddings of all entities.
-        r_mat: `torch.Tensor`, shape: (b_size, ent_emb_dim, ent_emb_dim), dtype: `torch.float`
-            Tensor containing current matrices of relations.
-        e_idx: torch tensor, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the indices of entities.
-        r_idx: torch tensor, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the indices of relations.
-        true_idx: torch tensor, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the true entity for each sample.
-        dictionary: default dict
-            Dictionary of keys (int, int) and values list of ints giving all possible entities for\
-            the (entity, relation) pair.
-        heads: integer
-            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). We test\
-             dissimilarity_type between heads * entities + relations and heads * targets.
-
-
-        Returns
-        -------
-        rank_true_entities: torch Tensor, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true entities when ranking any entity based on\
-            estimation of 1 or 0.
-        filtered_rank_true_entities: torch Tensor, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true entities when ranking only true false entities\
-            based on estimation of 1 or 0.
-
-        """
-        current_batch_size, _ = e_emb.shape
-
-        if heads == 1:
-            scores = self.compute_product(e_emb, candidates, r_mat)
-        else:
-            scores = self.compute_product(candidates, e_emb, r_mat)
-
-        # filter out the true negative samples by assigning negative score
-        filt_scores = scores.clone()
-        for i in range(current_batch_size):
-            true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)
-            if true_targets is None:
-                continue
-            filt_scores[i][true_targets] = float(-1)
-
-        # from dissimilarities, extract the rank of the true entity.
-        rank_true_entities = get_rank(scores, true_idx)
-        filtered_rank_true_entities = get_rank(filt_scores, true_idx)
-
-        return rank_true_entities, filtered_rank_true_entities
-
-
-class DistMultModel(RESCALModel):
+class DistMultModel(BilinearModel):
     """Implementation of DistMult model detailed in 2014 paper by Yang et al.. This class inherits from the
     :class:`torchkge.models.BilinearModels.RESCALModel` class interpreted as an interface.
     It then has its attributes as well.
@@ -230,7 +114,7 @@ class DistMultModel(RESCALModel):
 
     Parameters
     ----------
-    ent_emb_dim: int
+    emb_dim: int
         Dimension of embedding space.
     n_entities: int
         Number of entities in the current data set.
@@ -239,31 +123,45 @@ class DistMultModel(RESCALModel):
 
     Attributes
     ----------
-    relation_vectors: torch Parameter, shape: (number_relations, ent_emb_dim)
+    ent_emb: `torch.nn.Embedding`, shape: (number_relations, ent_emb_dim)
         Contains the vectors to build diagonal matrices of the relations. It is initialized with
         Xavier uniform.
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations):
-        super().__init__(ent_emb_dim, n_entities, n_relations)
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super(DistMultModel, self).__init__(emb_dim, n_entities, n_relations)
+        self.emb_dim = emb_dim
 
-        del self.relation_matrices
-        self.relation_vectors = Parameter(
-            xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))),
-            requires_grad=True)
+        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
-        # recover entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads_idx), p=2, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails_idx), p=2, dim=1)
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
 
-        # recover relation matrices
-        relation_matrices = diag_embed(self.relation_vectors[rels_idx])
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        return self.compute_product(normalize(self.ent_emb(h_idx), p=2, dim=1),
+                                    normalize(self.ent_emb(t_idx), p=2, dim=1),
+                                    self.rel_emb(r_idx),
+                                    self.emb_dim)
 
-        product = self.compute_product(heads_embeddings, tails_embeddings, relation_matrices)
+    def normalize_parameters(self):
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
 
-        return product.view(heads_idx.shape[0])
+    @staticmethod
+    def compute_product(h, t, r, emb_dim):
+        b_size = h.shape[0]
+
+        if len(h.shape) == 2 and len(t.shape) == 2:
+            # this is the easy forward case
+            return (h * r * t).sum(dim=1)
+
+        elif len(h.shape) == 2 and len(t.shape) == 3:
+            # this is the tail completion case in link prediction
+            return ((h * r).view(b_size, emb_dim, 1) * t.transpose(1, 2)).sum(dim=1)
+        else:
+            # this is the head completion case in link prediction
+            return ((r * t).view(b_size, emb_dim, 1) * h.transpose(1, 2)).sum(dim=1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -279,13 +177,13 @@ class DistMultModel(RESCALModel):
 
         Returns
         -------
-        h_emb: `torch.Tensor`, shape: (b_size, ent_emb_dim), dtype: `torch.float`
+        h_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities.
-        t_emb: `torch.Tensor`, shape: (b_size, ent_emb_dim), dtype: `torch.float`
+        t_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities.
-        r_mat: `torch.Tensor`, shape: (b_size, ent_emb_dim, ent_emb_dim), dtype: `torch.float`
+        r_mat: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim), dtype: `torch.float`
             Tensor containing matrices of current relations.
-        candidates: `torch.Tensor`, shape: (b_size, number_entities, ent_emb_dim), dtype: `torch.float`
+        candidates: `torch.Tensor`, shape: (b_size, number_entities, emb_dim), dtype: `torch.float`
             Tensor containing all entities as candidates for each sample of the batch.
 
         """
@@ -295,7 +193,7 @@ class DistMultModel(RESCALModel):
         return h_emb, t_emb, candidates, r_mat
 
 
-class HolEModel(RESCALModel):
+class HolEModel(BilinearModel):
     """Implementation of HolE model detailed in 2015 paper by Nickel et al.. This class inherits from the
     :class:`torchkge.models.BilinearModels.RESCALModel` class interpreted as an interface.
     It then has its attributes as well.
@@ -320,30 +218,43 @@ class HolEModel(RESCALModel):
     ----------
     ent_emb_dim: int
         Dimension of the embedding of entities
-    relation_vectors: torch Parameter, shape: (number_relations, ent_emb_dim)
+    relation_vectors: torch Parameter, shape: (number_relations, emb_dim)
         Contains the vectors to build circular matrices of the relations. It is initialized
         with Xavier uniform.
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations):
-        super().__init__(ent_emb_dim, n_entities, n_relations)
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super(HolEModel, self).__init__(emb_dim, n_entities, n_relations)
 
-        del self.relation_matrices
-        self.relation_vectors = Parameter(
-            xavier_uniform_(empty(size=(self.number_relations, self.ent_emb_dim))), requires_grad=True)
+        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
-        # recover entities embeddings
-        heads_embeddings = normalize(self.entity_embeddings(heads_idx), p=2, dim=1)
-        tails_embeddings = normalize(self.entity_embeddings(tails_idx), p=2, dim=1)
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
 
-        # recover relation matrices
-        relation_matrices = get_rolling_matrix(self.relation_vectors[rels_idx])
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        return self.compute_product(normalize(self.ent_emb(h_idx), p=2, dim=1),
+                                    normalize(self.ent_emb(t_idx), p=2, dim=1),
+                                    self.get_rolling_matrix(self.rel_emb(r_idx)),
+                                    self.emb_dim)
 
-        product = self.compute_product(heads_embeddings, tails_embeddings, relation_matrices)
+    @staticmethod
+    def get_rolling_matrix(x):
+        """Build a rolling matrix.
 
-        return product.view(heads_idx.shape[0])
+        Parameters
+        ----------
+        x: `torch.Tensor`, shape: (b_size, dim)
+
+        Returns
+        -------
+        mat: `torch.Tensor`, shape: (b_size, dim, dim)
+            Rolling matrix such that mat[i,j] = x[i - j mod(dim)]
+        """
+        b_size, dim = x.shape
+        x = x.view(b_size, 1, dim)
+        return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
 
     def evaluation_helper(self, h_idx, t_idx, r_idx):
         """
@@ -359,18 +270,18 @@ class HolEModel(RESCALModel):
 
         Returns
         -------
-        h_emb: `torch.Tensor`, shape: (b_size, ent_emb_dim), dtype: `torch.float`
+        h_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities.
-        t_emb: `torch.Tensor`, shape: (b_size, ent_emb_dim), dtype: `torch.float`
+        t_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities.
-        r_mat: `torch.Tensor`, shape: (b_size, ent_emb_dim, ent_emb_dim), dtype: `torch.float`
+        r_mat: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim), dtype: `torch.float`
             Tensor containing matrices of current relations.
-        candidates: `torch.Tensor`, shape: (b_size, number_entities, ent_emb_dim), dtype: `torch.float`
+        candidates: `torch.Tensor`, shape: (b_size, number_entities, emb_dim), dtype: `torch.float`
             Tensor containing all entities as candidates for each sample of the batch.
 
         """
         h_emb, t_emb, candidates = self.get_head_tail_candidates(h_idx, t_idx)
-        r_mat = get_rolling_matrix(self.relation_vectors[r_idx])
+        r_mat = self.get_rolling_matrix(self.rel_emb(r_idx))
 
         return h_emb, t_emb, candidates, r_mat
 
@@ -378,7 +289,7 @@ class HolEModel(RESCALModel):
         pass
 
 
-class ComplExModel(DistMultModel):
+class ComplExModel(BilinearModel):
     """Implementation of ComplEx model detailed in 2016 paper by Trouillon et al.. This class inherits from the
     :class:`torchkge.models.BilinearModels.DistMultModel` class interpreted as an interface.
     It then has its attributes as well.
@@ -392,7 +303,7 @@ class ComplExModel(DistMultModel):
 
     Parameters
     ----------
-    ent_emb_dim: int
+    emb_dim: int
         Dimension of embedding space.
     n_entities: int
         Number of entities in the current data set.
@@ -405,33 +316,39 @@ class ComplExModel(DistMultModel):
         Number of 2x2 matrices on the diagonals of relation-specific matrices.
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations):
-        try:
-            assert ent_emb_dim % 2 == 0
-        except AssertionError:
-            raise WrongDimensionError('Embedding dimension should be pair.')
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super(ComplExModel, self).__init__(emb_dim, n_entities, n_relations)
+        self.re_ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.im_ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.re_rel_emb = Embedding(self.n_ent, self.emb_dim)
+        self.im_rel_emb = Embedding(self.n_ent, self.emb_dim)
 
-        super().__init__(ent_emb_dim, n_entities, n_relations)
+        xavier_uniform_(self.re_ent_emb.weight.data)
+        xavier_uniform_(self.im_ent_emb.weight.data)
+        xavier_uniform_(self.re_rel_emb.weight.data)
+        xavier_uniform_(self.im_rel_emb.weight.data)
 
-        self.smaller_dim = int(self.ent_emb_dim / 2)
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        return self.compute_product((self.re_ent_emb(h_idx), self.im_ent_emb(h_idx)),
+                                    (self.re_ent_emb(t_idx), self.im_ent_emb(t_idx)),
+                                    (self.re_rel_emb(r_idx), self.im_rel_emb(r_idx)),
+                                    self.emb_dim)
 
-        self.real_mask = get_mask(self.ent_emb_dim, 0, self.smaller_dim)
-        self.im_mask = get_mask(self.ent_emb_dim, self.smaller_dim, self.ent_emb_dim)
-
-    def compute_product(self, heads, tails, rel_mat):
+    @staticmethod
+    def compute_product(h, t, r, emb_dim):
         """Compute the matrix product h^tRt with proper reshapes. It can do the batch matrix
         product both in the forward pass and in the evaluation pass with one matrix containing
         all candidates.
 
-        Parameters
+        Parameters TODO
         ----------
-        heads: torch Tensor, shape: (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
-        self.ent_emb_dim), dtype: `torch.float`
+        h: tuple[`torch.Tensor`, `torch.Tensor`], shape: (b_size, self.emb_dim) or (b_size, self.number_entities,\
+        self.emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities or candidates.
-        tails: `torch.Tensor`, shape: (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
-        self.ent_emb_dim), dtype: `torch.float`
+        t: tuple(`torch.Tensor`, `torch.Tensor`), shape: (b_size, self.emb_dim) or (b_size, self.number_entities,\
+        self.emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities or canditates.
-        rel_mat: `torch.Tensor`, shape: (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype: `torch.float`
+        r: tuple(`torch.Tensor`, `torch.Tensor`), shape: (b_size, self.emb_dim, self.emb_dim), dtype: `torch.float`
             Tensor containing relation matrices for current relations.
 
         Returns
@@ -440,38 +357,75 @@ class ComplExModel(DistMultModel):
             Tensor containing the matrix products h^t.W.t for each sample of the batch.
 
         """
-        b_size = len(heads)
-        r_re = rel_mat[:, self.real_mask][:, :, self.real_mask]
-        r_im = rel_mat[:, self.im_mask][:, :, self.im_mask]
+        re_h, im_h = h[0], h[1]
+        re_t, im_t = t[0], t[1]
+        re_r, im_r = r[0], r[1]
 
-        if len(heads.shape) == 2 and len(tails.shape) == 2:
-            h_re = heads[:, self.real_mask].view(b_size, 1, self.smaller_dim)
-            h_im = heads[:, self.im_mask].view(b_size, 1, self.smaller_dim)
+        if len(re_h.shape) == 2 and len(re_t.shape) == 2:
+            # this is the easy forward case
+            return (re_h * (re_r * re_t + im_r + im_t) + im_h * (re_r * im_t - im_r * re_t)).sum(dim=1)
 
-            t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
-            t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
+        if len(re_h.shape) == 2 and len(re_t.shape) == 3:
+            # this is the tail completion case in link prediction
+            return ((re_h * re_r).view(-1, emb_dim, 1) * re_t.transpose(1, 2)
+                    + (re_h * im_r).view(-1, emb_dim, 1) * im_t.transpose(1, 2)
+                    + (im_h * re_r).view(-1, emb_dim, 1) * im_t.transpose(1, 2)
+                    - (im_h * im_r).view(-1, emb_dim, 1) * re_t.transpose(1, 2)).sum(dim=1)
 
-        elif len(heads.shape) == 2 and len(tails.shape) == 3:
-            h_re = heads[:, self.real_mask].view(b_size, 1, self.smaller_dim)
-            h_im = heads[:, self.im_mask].view(b_size, 1, self.smaller_dim)
-
-            t_re = tails[:, :, self.real_mask].transpose(2, 1)
-            t_im = tails[:, :, self.im_mask].transpose(2, 1)
-
-        else:
-            h_re = heads[:, :, self.real_mask]
-            h_im = heads[:, :, self.im_mask]
-
-            t_re = tails[:, self.real_mask].view(b_size, self.smaller_dim, 1)
-            t_im = tails[:, self.im_mask].view(b_size, self.smaller_dim, 1)
-
-        re = matmul(h_re, matmul(r_re, t_re) + matmul(r_im, t_im)).view(b_size, -1)
-        im = matmul(h_im, matmul(r_re, t_im) - matmul(r_im, t_re)).view(b_size, -1)
-
-        return re + im
+        if len(re_h.shape) == 3 and len(re_t.shape) == 2:
+            # this is the head completion case in link prediction
+            return ((re_t * re_r).view(-1, emb_dim, 1) * re_h.transpose(1, 2)
+                    + (re_t * im_r).view(-1, emb_dim, 1) * im_h.transpose(1, 2)
+                    + (im_t * re_r).view(-1, emb_dim, 1) * im_h.transpose(1, 2)
+                    - (im_t * im_r).view(-1, emb_dim, 1) * re_h.transpose(1, 2)).sum(dim=1)
 
     def normalize_parameters(self):
         pass
+
+    def get_head_tail_candidates(self, h_idx, t_idx):
+        b_size = h_idx.shape[0]
+
+        re_candidates = self.re_ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+        im_candidates = self.im_ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+
+        re_candidates = re_candidates.expand(b_size, self.n_ent, self.emb_dim)
+        im_candidates = im_candidates.expand(b_size, self.n_ent, self.emb_dim)
+
+        re_h_emb = self.re_ent_emb(h_idx)
+        im_h_emb = self.im_ent_emb(h_idx)
+        re_t_emb = self.re_ent_emb(t_idx)
+        im_t_emb = self.im_ent_emb(t_idx)
+
+        return (re_h_emb, im_h_emb), (re_t_emb, im_t_emb), (re_candidates, im_candidates)
+
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
+        """
+
+        Parameters
+        ----------
+        h_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
+            Tensor containing indices of current head entities.
+        t_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
+            Tensor containing indices of current tail entities.
+        r_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
+            Tensor containing indices of current relations.
+
+        Returns
+        -------
+        h_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
+            Tensor containing embeddings of current head entities.
+        t_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
+            Tensor containing embeddings of current tail entities.
+        r_mat: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim), dtype: `torch.float`
+            Tensor containing matrices of current relations.
+        candidates: `torch.Tensor`, shape: (b_size, number_entities, emb_dim), dtype: `torch.float`
+            Tensor containing all entities as candidates for each sample of the batch.
+
+        """
+        h_emb, t_emb, candidates = self.get_head_tail_candidates(h_idx, t_idx)
+        r_mat = self.get_rolling_matrix(self.rel_emb(r_idx))
+
+        return h_emb, t_emb, candidates, r_mat
 
 
 class AnalogyModel(DistMultModel):
@@ -491,7 +445,7 @@ class AnalogyModel(DistMultModel):
 
     Parameters
     ----------
-    ent_emb_dim: int
+    emb_dim: int
         Dimension of embedding space.
     n_entities: int
         Number of entities in the current data set.
@@ -510,13 +464,13 @@ class AnalogyModel(DistMultModel):
         Number of 2x2 matrices on the diagonals of relation-specific matrices.
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, scalar_share=0.5):
+    def __init__(self, emb_dim, n_entities, n_relations, scalar_share=0.5):
         try:
-            assert ent_emb_dim % 2 == 0
+            assert emb_dim % 2 == 0
         except AssertionError:
             raise WrongDimensionError('Embedding dimension should be pair.')
 
-        super().__init__(ent_emb_dim, n_entities, n_relations)
+        super().__init__(emb_dim, n_entities, n_relations)
 
         self.number_scalars = int(self.ent_emb_dim * scalar_share)
 
@@ -540,13 +494,13 @@ class AnalogyModel(DistMultModel):
 
         Parameters
         ----------
-        heads: torch Tensor, shape: (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
-        self.ent_emb_dim), dtype: `torch.float`
+        heads: torch Tensor, shape: (b_size, self.emb_dim) or (b_size, self.number_entities,\
+        self.emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current head entities or candidates.
-        tails: `torch.Tensor`, shape: (b_size, self.ent_emb_dim) or (b_size, self.number_entities,\
-        self.ent_emb_dim), dtype: `torch.float`
+        tails: `torch.Tensor`, shape: (b_size, self.emb_dim) or (b_size, self.number_entities,\
+        self.emb_dim), dtype: `torch.float`
             Tensor containing embeddings of current tail entities or canditates.
-        rel_mat: `torch.Tensor`, shape: (b_size, self.ent_emb_dim, self.ent_emb_dim), dtype: `torch.float`
+        rel_mat: `torch.Tensor`, shape: (b_size, self.emb_dim, self.emb_dim), dtype: `torch.float`
             Tensor containing relation matrices for current relations.
 
         Returns

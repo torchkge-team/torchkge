@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import arange
+from torch import arange, matmul
 from torch.nn import Module
 
 from torchkge.utils import init_embedding, l1_dissimilarity, l2_dissimilarity
@@ -16,8 +16,6 @@ class Model(Module):
 
     Parameters
     ----------
-    ent_emb_dim: int
-        Embedding dimension of the entities.
     n_entities: int
         Number of entities to be embedded.
     n_relations: int
@@ -25,19 +23,16 @@ class Model(Module):
 
     Attributes
     ----------
-    ent_emb_dim: int
-        Embedding dimension of the entities.
-    number_entities: int
+    n_ent: int
         Number of entities to be embedded.
-    number_relations: int
+    n_rel: int
         Number of relations to be embedded.
 
     """
-    def __init__(self, ent_emb_dim, n_entities, n_relations):
+    def __init__(self, n_entities, n_relations):
         super().__init__()
-        self.ent_emb_dim = ent_emb_dim
-        self.number_entities = n_entities
-        self.number_relations = n_relations
+        self.n_ent = n_entities
+        self.n_rel = n_relations
 
     def forward(self, heads, tails, negative_heads, negative_tails, relations):
         """Forward pass on the current batch.
@@ -66,16 +61,16 @@ class Model(Module):
         return self.scoring_function(heads, tails, relations), \
             self.scoring_function(negative_heads, negative_tails, relations)
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
 
         Parameters
         ----------
-        heads_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        h_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's heads
-        tails_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        t_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's tails.
-        rels_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
+        r_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
             Integer keys of the current batch's relations.
 
         Returns
@@ -126,7 +121,7 @@ class Model(Module):
             Tensor containing current projected embeddings of entities.
         proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing projected embeddings of all entities.
-        r_emb: `torch.Tensor`, shape: (batch_size, ent_emb_dim), dtype: `torch.float`
+        r_emb: `torch.Tensor`, shape: (batch_size, emb_dim), dtype: `torch.float`
             Tensor containing current embeddings of relations.
         e_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
             Tensor containing the indices of entities.
@@ -202,7 +197,7 @@ class Model(Module):
         return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
 
 
-class TranslationalModel(Model):
+class TranslationModel(Model):
     """Model interface to be used by any other class implementing a translational knowledge graph embedding model.
     This interface inherits from the interface :class:`torchkge.models.interfaces.Model`.
 
@@ -228,7 +223,7 @@ class TranslationalModel(Model):
     def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
         super().__init__(ent_emb_dim, n_entities, n_relations)
 
-        self.entity_embeddings = init_embedding(self.number_entities, self.ent_emb_dim)
+        self.entity_embeddings = init_embedding(self.n_ent, self.ent_emb_dim)
 
         assert dissimilarity_type in ['L1', 'L2', None]
         if dissimilarity_type == 'L1':
@@ -238,7 +233,7 @@ class TranslationalModel(Model):
         else:
             self.dissimilarity = None
 
-    def scoring_function(self, heads_idx, tails_idx, rels_idx):
+    def scoring_function(self, h_idx, t_idx, r_idx):
         raise NotImplementedError
 
     def normalize_parameters(self):
@@ -260,7 +255,7 @@ class TranslationalModel(Model):
             Tensor containing current projected embeddings of entities.
         proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
             Tensor containing projected embeddings of all entities.
-        r_emb: `torch.Tensor`, shape: (batch_size, ent_emb_dim), dtype: `torch.float`
+        r_emb: `torch.Tensor`, shape: (batch_size, emb_dim), dtype: `torch.float`
             Tensor containing current embeddings of relations.
         e_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
             Tensor containing the indices of entities.
@@ -290,7 +285,7 @@ class TranslationalModel(Model):
 
         # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
         tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
-        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.number_entities))
+        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.n_ent))
 
         # compute either dissimilarity_type(heads + relation, proj_candidates) or
         # dissimilarity_type(-proj_candidates, relation - tails)
@@ -322,19 +317,19 @@ class TranslationalModel(Model):
 
         Returns
         -------
-        candidates: `torch.Tensor`, shape: (b_size, ent_emb_dim, number_entities), dtype: `torch.float`
+        candidates: `torch.Tensor`, shape: (b_size, emb_dim, number_entities), dtype: `torch.float`
             Tensor containing replications of all entities embeddings as many times as the batch size.
 
         """
-        all_idx = arange(0, self.number_entities).long()
+        all_idx = arange(0, self.n_ent).long()
         if h_idx.is_cuda:
             all_idx = all_idx.cuda()
         candidates = self.entity_embeddings(all_idx).transpose(0, 1)
         candidates = candidates.view((1,
                                       self.ent_emb_dim,
-                                      self.number_entities)).expand((b_size,
-                                                                     self.ent_emb_dim,
-                                                                     self.number_entities))
+                                      self.n_ent)).expand((b_size,
+                                                           self.ent_emb_dim,
+                                                           self.n_ent))
         return candidates
 
     @staticmethod
@@ -346,3 +341,124 @@ class TranslationalModel(Model):
         proj_t_emb = candidates.gather(dim=2, index=mask).view(b_size, rel_emb_dim)
 
         return proj_h_emb, proj_t_emb
+
+
+class BilinearModel(Model):
+
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super().__init__(n_entities, n_relations)
+        self.emb_dim = emb_dim
+
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
+
+    def normalize_parameters(self):
+        raise NotImplementedError
+
+    def evaluation_helper(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
+
+    @staticmethod
+    def compute_product(h, t, r, emb_dim):
+        """Compute the matrix product :math:`h^tRt` with proper reshapes. It can do the batch matrix
+        product both in the forward pass and in the evaluation pass with one matrix containing
+        all candidates.
+
+        Parameters
+        ----------
+        h: `torch.Tensor`, shape: (b_size, emb_dim) or (b_size, self.n_ent, emb_dim), dtype: `torch.float`
+            Tensor containing embeddings of current head entities or candidates.
+        t: `torch.Tensor`, shape: (b_size, emb_dim) or (b_size, self.n_ent, emb_dim), dtype: `torch.float`
+            Tensor containing embeddings of current tail entities or canditates.
+        r: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim), dtype: `torch.float`
+            Tensor containing relation matrices for current relations.
+        emb_dim: int
+            Embedding dimension
+        Returns
+        -------
+        product: `torch.Tensor`, shape: (b_size) or (b_size, self.n_ent), dtype: `torch.float`
+            Tensor containing the matrix products :math:`h^t \\cdot R \\cdot t` for each sample of the batch.
+
+        """
+        b_size = h.shape[0]
+
+        if len(h.shape) == 2 and len(t.shape) == 2:
+            # this is the easy forward case
+            return (matmul(h.view(b_size, 1, emb_dim), r).view(b_size, emb_dim) * t).sum(dim=1)
+
+        elif len(h.shape) == 2 and len(t.shape) == 3:
+            # this is the tail completion case in link prediction
+            h = h.view(b_size, 1, emb_dim)
+            return (matmul(h, r).view(b_size, emb_dim, 1) * t.transpose(1, 2)).sum(dim=1)
+        else:
+            # this is the head completion case in link prediction
+            t = t.view(b_size, emb_dim, 1)
+            return matmul(matmul(h, r), t).view(b_size, -1)
+
+    def get_head_tail_candidates(self, h_idx, t_idx):
+        b_size = h_idx.shape[0]
+
+        candidates = self.ent_emb.weight.data
+        candidates = candidates.view(1, self.n_ent, self.emb_dim)
+        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+
+        h_emb = self.ent_emb(h_idx)
+        t_emb = self.ent_emb(t_idx)
+
+        return h_emb, t_emb, candidates
+
+    def compute_ranks(self, e_emb, candidates, r, e_idx, r_idx, true_idx, dictionary, heads=1):
+        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
+
+        Parameters
+        ----------
+        e_emb: `torch.Tensor`, shape: (batch_size, rel_emb_dim), dtype: `torch.float`
+            Tensor containing current embeddings of entities.
+        candidates: torch tensor, shape: (b_size, number_entities, emb_dim), dtype: `torch.float`
+            Tensor containing projected embeddings of all entities.
+        r: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim) or (b_size, emb_dim) dtype: `torch.float`
+            Tensor containing current matrices or embeddings of relations.
+        e_idx: torch tensor, shape: (batch_size), dtype: `torch.long`
+            Tensor containing the indices of entities.
+        r_idx: torch tensor, shape: (batch_size), dtype: `torch.long`
+            Tensor containing the indices of relations.
+        true_idx: torch tensor, shape: (batch_size), dtype: `torch.long`
+            Tensor containing the true entity for each sample.
+        dictionary: default dict
+            Dictionary of keys (int, int) and values list of ints giving all possible entities for\
+            the (entity, relation) pair.
+        heads: integer
+            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). We test\
+             dissimilarity_type between heads * entities + relations and heads * targets.
+
+
+        Returns
+        -------
+        rank_true_entities: torch Tensor, shape: (b_size), dtype: `torch.int`
+            Tensor containing the rank of the true entities when ranking any entity based on\
+            estimation of 1 or 0.
+        filtered_rank_true_entities: torch Tensor, shape: (b_size), dtype: `torch.int`
+            Tensor containing the rank of the true entities when ranking only true false entities\
+            based on estimation of 1 or 0.
+
+        """
+        current_batch_size = r_idx.shape
+
+        if heads == 1:
+            scores = self.compute_product(e_emb, candidates, r, self.emb_dim)
+        else:
+            scores = self.compute_product(candidates, e_emb, r, self.emb_dim)
+
+        # filter out the true negative samples by assigning negative score
+        filt_scores = scores.clone()
+        for i in range(current_batch_size):
+            true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)
+            if true_targets is None:
+                continue
+            filt_scores[i][true_targets] = float(-1)
+
+        # from dissimilarities, extract the rank of the true entity.
+        rank_true_entities = get_rank(scores, true_idx)
+        filtered_rank_true_entities = get_rank(filt_scores, true_idx)
+
+        return rank_true_entities, filtered_rank_true_entities
