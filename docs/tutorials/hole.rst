@@ -56,7 +56,7 @@ To train HolE on FB15k::
             neg_heads, neg_tails = sampler.corrupt_batch(heads, tails, rels)
 
             # zero model gradient
-            model.zero_grad()
+            optimizer.zero_grad()
 
             # forward + backward + optimize
             positive_triplets, negative_triplets = model(heads, tails, neg_heads, neg_tails, rels)
