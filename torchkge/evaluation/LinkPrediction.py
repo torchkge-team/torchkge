@@ -90,11 +90,12 @@ class LinkPredictionEvaluator(object):
         else:
             dataloader = DataLoader(self.kg, batch_size=batch_size)
 
-        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), unit='batch', disable=(not verbose)):
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), unit='batch', disable=(not verbose),
+                             desc='Link prediction evaluation'):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
             rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads \
-                = self.model.evaluate_candidates(h_idx, t_idx, r_idx, self.kg)
+                = self.model.lp_helper(h_idx, t_idx, r_idx, self.kg)
 
             self.rank_true_heads[i * batch_size: (i + 1) * batch_size] = rank_true_heads
             self.rank_true_tails[i * batch_size: (i + 1) * batch_size] = rank_true_tails
