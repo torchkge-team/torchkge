@@ -461,7 +461,8 @@ class AnalogyModel(BilinearModel):
         sc_t, re_t, im_t = self.sc_ent_emb(t_idx), self.re_ent_emb(t_idx), self.im_ent_emb(t_idx)
         sc_r, re_r, im_r = self.sc_rel_emb(r_idx), self.re_rel_emb(r_idx), self.im_rel_emb(r_idx)
 
-        return (sc_h * sc_r * sc_t + re_h * (re_r * re_t + im_r * im_t) + im_h * (re_r * im_t - im_r * re_t)).sum(dim=1)
+        return ((sc_h * sc_r * sc_t).sum(dim=1) +
+                (re_h * (re_r * re_t + im_r * im_t) + im_h * (re_r * im_t - im_r * re_t)).sum(dim=1))
 
     def normalize_parameters(self):  # TODO
         """According to original paper, no normalization should be done on the parameters.
