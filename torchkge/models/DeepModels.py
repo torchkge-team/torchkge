@@ -76,7 +76,7 @@ class ConvKBModel(Model):
     def normalize_parameters(self):
         raise NotImplementedError
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Prepares current entities, relations and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -111,7 +111,7 @@ class ConvKBModel(Model):
                                                                                          self.ent_emb_dim)
         return h, t, candidates.view(b_size, self.n_ent, 1, self.ent_emb_dim), r
 
-    def compute_ranks(self, e_emb, candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
+    def lp_compute_ranks(self, e_emb, candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
         best rank possible is 1.
 

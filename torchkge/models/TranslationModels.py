@@ -123,7 +123,7 @@ class TransEModel(TranslationModel):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=2, dim=1)
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -269,7 +269,7 @@ class TransHModel(TransEModel):
         self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
                                                        p=2, dim=1)
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -430,7 +430,7 @@ class TransRModel(TranslationModel):
                                                          p=2, dim=1)
         self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -654,7 +654,7 @@ class TransDModel(TranslationModel):
 
         self.evaluated_projections = True
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters

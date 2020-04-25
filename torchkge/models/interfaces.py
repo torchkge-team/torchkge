@@ -84,8 +84,8 @@ class Model(Module):
     def normalize_parameters(self):
         raise NotImplementedError
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
-        """Project current entities and candidates into relation-specific sub-spaces.
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        """Get entities and relations, along with candidates, ready for rank computation (projected if needed).
 
         Parameters
         ----------
@@ -111,7 +111,7 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
+    def lp_compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
         best rank possible is 1.
 
@@ -149,7 +149,7 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def evaluate_candidates(self, h_idx, t_idx, r_idx, kg):
+    def lp_helper(self, h_idx, t_idx, r_idx, kg):
         """Compute the head and tail ranks and filtered ranks of the current batch.
 
         Parameters
@@ -178,21 +178,12 @@ class Model(Module):
             based on computation of d(hear+relation, tail).
 
         """
-        proj_h_emb, proj_t_emb, candidates, r_emb = self.evaluation_helper(h_idx, t_idx, r_idx)
+        h_emb, t_emb, candidates, r = self.lp_get_emb_cand(h_idx, t_idx, r_idx)
 
-        # evaluation_helper both ways (head, rel) -> tail and (rel, tail) -> head
-        rank_true_tails, filt_rank_true_tails = self.compute_ranks(proj_h_emb,
-                                                                   candidates,
-                                                                   r_emb, h_idx, r_idx,
-                                                                   t_idx,
-                                                                   kg.dict_of_tails,
-                                                                   heads=1)
-        rank_true_heads, filt_rank_true_heads = self.compute_ranks(proj_t_emb,
-                                                                   candidates,
-                                                                   r_emb, t_idx, r_idx,
-                                                                   h_idx,
-                                                                   kg.dict_of_heads,
-                                                                   heads=-1)
+        rank_true_tails, filt_rank_true_tails = self.lp_compute_ranks(h_emb, candidates, r, h_idx, r_idx, t_idx,
+                                                                      kg.dict_of_tails, heads=1)
+        rank_true_heads, filt_rank_true_heads = self.lp_compute_ranks(t_emb, candidates, r, t_idx, r_idx, h_idx,
+                                                                      kg.dict_of_heads, heads=-1)
 
         return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
 
@@ -239,13 +230,13 @@ class TranslationModel(Model):
     def normalize_parameters(self):
         raise NotImplementedError
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         raise NotImplementedError
 
     def recover_project_normalize(self, ent_idx, rel_idx, normalize_):
         raise NotImplementedError
 
-    def compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
+    def lp_compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
         best rank possible is 1.
 
@@ -355,59 +346,13 @@ class BilinearModel(Model):
     def normalize_parameters(self):
         raise NotImplementedError
 
-    def evaluation_helper(self, h_idx, t_idx, r_idx):
+    def lp_batch_scoring_function(self, h, t, r):
         raise NotImplementedError
 
-    @staticmethod
-    def compute_product(h, t, r, emb_dim):
-        """Compute the matrix product :math:`h^tRt` with proper reshapes. It can do the batch matrix
-        product both in the forward pass and in the evaluation pass with one matrix containing
-        all candidates.
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
 
-        Parameters
-        ----------
-        h: `torch.Tensor`, shape: (b_size, emb_dim) or (b_size, self.n_ent, emb_dim), dtype: `torch.float`
-            Tensor containing embeddings of current head entities or candidates.
-        t: `torch.Tensor`, shape: (b_size, emb_dim) or (b_size, self.n_ent, emb_dim), dtype: `torch.float`
-            Tensor containing embeddings of current tail entities or canditates.
-        r: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim), dtype: `torch.float`
-            Tensor containing relation matrices for current relations.
-        emb_dim: int
-            Embedding dimension
-        Returns
-        -------
-        product: `torch.Tensor`, shape: (b_size) or (b_size, self.n_ent), dtype: `torch.float`
-            Tensor containing the matrix products :math:`h^t \\cdot R \\cdot t` for each sample of the batch.
-
-        """
-        b_size = h.shape[0]
-
-        if len(h.shape) == 2 and len(t.shape) == 2:
-            # this is the easy forward case
-            return (matmul(h.view(b_size, 1, emb_dim), r).view(b_size, emb_dim) * t).sum(dim=1)
-
-        elif len(h.shape) == 2 and len(t.shape) == 3:
-            # this is the tail completion case in link prediction
-            h = h.view(b_size, 1, emb_dim)
-            return (matmul(h, r).view(b_size, emb_dim, 1) * t.transpose(1, 2)).sum(dim=1)
-        else:
-            # this is the head completion case in link prediction
-            t = t.view(b_size, emb_dim, 1)
-            return matmul(matmul(h, r), t).view(b_size, -1)
-
-    def get_head_tail_candidates(self, h_idx, t_idx):
-        b_size = h_idx.shape[0]
-
-        candidates = self.ent_emb.weight.data
-        candidates = candidates.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
-
-        h_emb = self.ent_emb(h_idx)
-        t_emb = self.ent_emb(t_idx)
-
-        return h_emb, t_emb, candidates
-
-    def compute_ranks(self, e_emb, candidates, r, e_idx, r_idx, true_idx, dictionary, heads=1):
+    def lp_compute_ranks(self, e_emb, candidates, r, e_idx, r_idx, true_idx, dictionary, heads=1):
         """Compute the ranks and the filtered ranks of true entities when doing link prediction.
 
         Parameters
@@ -442,16 +387,16 @@ class BilinearModel(Model):
             based on estimation of 1 or 0.
 
         """
-        current_batch_size = r_idx.shape
+        b_size = r_idx.shape[0]
 
         if heads == 1:
-            scores = self.compute_product(e_emb, candidates, r, self.emb_dim)
+            scores = self.lp_batch_scoring_function(e_emb, candidates, r)
         else:
-            scores = self.compute_product(candidates, e_emb, r, self.emb_dim)
+            scores = self.lp_batch_scoring_function(candidates, e_emb, r)
 
         # filter out the true negative samples by assigning negative score
         filt_scores = scores.clone()
-        for i in range(current_batch_size):
+        for i in range(b_size):
             true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)
             if true_targets is None:
                 continue
