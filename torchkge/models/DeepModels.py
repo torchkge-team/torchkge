@@ -1,7 +1,15 @@
-from torch import nn, cat
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+@author: Armand Boschin <aboschin@enst.fr>
+"""
 
-from .interfaces import Model
-from torchkge.utils import init_embedding, get_true_targets, get_rank
+from torch import nn, cat
+from torch.nn import Embedding
+from torch.nn.init import xavier_uniform_
+
+from ..models.interfaces import Model
+from ..utils import get_true_targets, get_rank
 
 
 class ConvKBModel(Model):
@@ -39,10 +47,14 @@ class ConvKBModel(Model):
     """
 
     def __init__(self, emb_dim, n_filters, n_entities, n_relations):
-        super().__init__(emb_dim, n_entities, n_relations)
+        super().__init__(n_entities, n_relations)
+        self.emb_dim = emb_dim
 
-        self.entity_embeddings = init_embedding(n_entities, emb_dim)
-        self.relation_embeddings = init_embedding(n_relations, emb_dim)
+        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
+
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
 
         self.convlayer = nn.Sequential(nn.Conv1d(3, n_filters, 1, stride=1), nn.ReLU())
         self.output = nn.Sequential(nn.Linear(emb_dim * n_filters, 2), nn.Softmax(dim=1))
@@ -66,11 +78,13 @@ class ConvKBModel(Model):
             Score function computed after convolutions.
 
         """
-        b_size = len(h_idx)
-        h = self.entity_embeddings(h_idx).view(b_size, 1, -1)
-        t = self.entity_embeddings(t_idx).view(b_size, 1, -1)
-        r = self.relation_embeddings(r_idx).view(b_size, 1, -1)
+        b_size = h_idx.shape[0]
+
+        h = self.ent_emb(h_idx).view(b_size, 1, -1)
+        t = self.ent_emb(t_idx).view(b_size, 1, -1)
+        r = self.rel_emb(r_idx).view(b_size, 1, -1)
         concat = cat((h, r, t), dim=1)
+
         return self.output(self.convlayer(concat).reshape(b_size, -1))
 
     def normalize_parameters(self):
@@ -100,16 +114,15 @@ class ConvKBModel(Model):
             Tensor containing current relations embeddings.
 
         """
-        b_size = len(h_idx)
-        h = self.entity_embeddings(h_idx)
-        t = self.entity_embeddings(t_idx)
-        r = self.relation_embeddings(r_idx)
-        candidates = self.entity_embeddings.weight.clone().view(1,
-                                                                self.n_ent,
-                                                                self.ent_emb_dim).expand(b_size,
-                                                                                         self.n_ent,
-                                                                                         self.ent_emb_dim)
-        return h, t, candidates.view(b_size, self.n_ent, 1, self.ent_emb_dim), r
+        b_size = h_idx.shape[0]
+
+        h = self.ent_emb(h_idx)
+        t = self.ent_emb(t_idx)
+        r = self.rel_emb(r_idx)
+
+        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim).expand(b_size, self.n_ent, self.emb_dim)
+
+        return h, t, candidates.view(b_size, self.n_ent, 1, self.emb_dim), r
 
     def lp_compute_ranks(self, e_emb, candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
         """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
@@ -147,32 +160,32 @@ class ConvKBModel(Model):
             based on computation of d(hear+relation, tail).
 
         """
-        current_batch_size, embedding_dimension = e_emb.shape
+        b_size = e_emb.shape[0]
 
         if heads == 1:
-            concat = cat((e_emb.view(current_batch_size, 1, self.ent_emb_dim),
-                          r_emb.view(current_batch_size, 1, self.ent_emb_dim)),
+            concat = cat((e_emb.view(b_size, 1, self.emb_dim),
+                          r_emb.view(b_size, 1, self.emb_dim)),
                          dim=1)
-            concat = concat.view(current_batch_size, 1, 2, self.ent_emb_dim)
-            concat = concat.expand(current_batch_size, self.n_ent, 2, self.ent_emb_dim)
+            concat = concat.view(b_size, 1, 2, self.emb_dim)
+            concat = concat.expand(b_size, self.n_ent, 2, self.emb_dim)
             concat = cat((concat, candidates), dim=2)  # shape = (b_size, n_entities, 3, emb_dim)
-            concat = concat.reshape(-1, 3, self.ent_emb_dim)
+            concat = concat.reshape(-1, 3, self.emb_dim)
 
         else:
-            concat = cat((r_emb.view(current_batch_size, 1, self.ent_emb_dim),
-                          e_emb.view(current_batch_size, 1, self.ent_emb_dim)),
+            concat = cat((r_emb.view(b_size, 1, self.emb_dim),
+                          e_emb.view(b_size, 1, self.emb_dim)),
                          dim=1)
-            concat = concat.view(current_batch_size, 1, 2, self.ent_emb_dim)
-            concat = concat.expand(current_batch_size, self.n_ent, 2, self.ent_emb_dim)
+            concat = concat.view(b_size, 1, 2, self.emb_dim)
+            concat = concat.expand(b_size, self.n_ent, 2, self.emb_dim)
             concat = cat((candidates, concat), dim=2)  # shape = (b_size, n_entities, 3, emb_dim)
-            concat = concat.reshape(-1, 3, self.ent_emb_dim)
+            concat = concat.reshape(-1, 3, self.emb_dim)
 
-        scores = self.output(self.convlayer(concat).reshape(len(concat), -1)).reshape(current_batch_size, -1, 2)
+        scores = self.output(self.convlayer(concat).reshape(concat.shape[0], -1)).reshape(b_size, -1, 2)
         scores = scores[:, :, 1]
 
         filt_scores = scores.clone()
 
-        for i in range(current_batch_size):
+        for i in range(b_size):
             true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)
             if true_targets is None:
                 continue
