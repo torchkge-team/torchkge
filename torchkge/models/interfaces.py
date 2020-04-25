@@ -111,249 +111,9 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def lp_compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
-        best rank possible is 1.
-
-        Parameters
-        ----------
-        proj_e_emb: `torch.Tensor`, shape: (batch_size, rel_emb_dim), dtype: `torch.float`
-            Tensor containing current projected embeddings of entities.
-        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
-            Tensor containing projected embeddings of all entities.
-        r_emb: `torch.Tensor`, shape: (batch_size, emb_dim), dtype: `torch.float`
-            Tensor containing current embeddings of relations.
-        e_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the indices of entities.
-        r_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the indices of relations.
-        true_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the true entity for each sample.
-        dictionary: default dict
-            Dictionary of keys (int, int) and values list of ints giving all possible entities for
-            the (entity, relation) pair.
-        heads: integer
-            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
-            We test dissimilarity_type between heads * entities + relations and heads * targets.
-
-
-        Returns
-        -------
-        rank_true_entities: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true entities when ranking any entity based on \
-            computation of d(hear+relation, tail).
-        filtered_rank_true_entities: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true entities when ranking only true false entities \
-            based on computation of d(hear+relation, tail).
-
-        """
-        raise NotImplementedError
-
-    def lp_helper(self, h_idx, t_idx, r_idx, kg):
-        """Compute the head and tail ranks and filtered ranks of the current batch.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Tensor containing indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Tensor containing indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Tensor containing indices of current relations.
-        kg: `torchkge.data.KnowledgeGraph.KnowledgeGraph`
-            Knowledge graph on which the model was trained.
-
-        Returns
-        -------
-        rank_true_tails: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true tails when ranking any entity based on \
-            computation of d(hear+relation, tail).
-        filt_rank_true_tails: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true tails when ranking only true false entities \
-            based on computation of d(hear+relation, tail).
-        rank_true_heads: Tensor containing the rank of the true heads when ranking any entity based on \
-            computation of d(hear+relation, tail).
-        filt_rank_true_heads: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true heads when ranking only true false entities \
-            based on computation of d(hear+relation, tail).
-
-        """
-        h_emb, t_emb, candidates, r = self.lp_get_emb_cand(h_idx, t_idx, r_idx)
-
-        rank_true_tails, filt_rank_true_tails = self.lp_compute_ranks(h_emb, candidates, r, h_idx, r_idx, t_idx,
-                                                                      kg.dict_of_tails, heads=1)
-        rank_true_heads, filt_rank_true_heads = self.lp_compute_ranks(t_emb, candidates, r, t_idx, r_idx, h_idx,
-                                                                      kg.dict_of_heads, heads=-1)
-
-        return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
-
-
-class TranslationModel(Model):
-    """Model interface to be used by any other class implementing a translational knowledge graph embedding model.
-    This interface inherits from the interface :class:`torchkge.models.interfaces.Model`.
-
-    Parameters
-    ----------
-    ent_emb_dim: int
-        Embedding dimension of the entities.
-    n_entities: int
-        Number of entities to be embedded.
-    n_relations: int
-        Number of relations to be embedded.
-    dissimilarity_type: string
-        Name of the dissimilarity function to be used.
-
-    Attributes
-    ----------
-    entity_embeddings: `torch.nn.Embedding`
-        Embedding object containing the embeddings of the entities.
-    dissimilarity: function
-        Dissimilarity function defined in `torchkge.utils.dissimilarities`.
-
-    """
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
-        super().__init__(ent_emb_dim, n_entities, n_relations)
-
-        self.entity_embeddings = init_embedding(self.n_ent, self.ent_emb_dim)
-
-        assert dissimilarity_type in ['L1', 'L2', None]
-        if dissimilarity_type == 'L1':
-            self.dissimilarity = l1_dissimilarity
-        elif dissimilarity_type == 'L2':
-            self.dissimilarity = l2_dissimilarity
-        else:
-            self.dissimilarity = None
-
-    def scoring_function(self, h_idx, t_idx, r_idx):
-        raise NotImplementedError
-
-    def normalize_parameters(self):
-        raise NotImplementedError
-
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        raise NotImplementedError
-
-    def recover_project_normalize(self, ent_idx, rel_idx, normalize_):
-        raise NotImplementedError
-
-    def lp_compute_ranks(self, proj_e_emb, proj_candidates, r_emb, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
-        best rank possible is 1.
-
-        Parameters
-        ----------
-        proj_e_emb: `torch.Tensor`, shape: (batch_size, rel_emb_dim), dtype: `torch.float`
-            Tensor containing current projected embeddings of entities.
-        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_entities), dtype: `torch.float`
-            Tensor containing projected embeddings of all entities.
-        r_emb: `torch.Tensor`, shape: (batch_size, emb_dim), dtype: `torch.float`
-            Tensor containing current embeddings of relations.
-        e_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the indices of entities.
-        r_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the indices of relations.
-        true_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-            Tensor containing the true entity for each sample.
-        dictionary: default dict
-            Dictionary of keys (int, int) and values list of ints giving all possible entities for
-            the (entity, relation) pair.
-        heads: integer
-            1 ou -1 (must be 1 if entities are heads and -1 if entities are tails). \
-            We test dissimilarity_type between heads * entities + relations and heads * targets.
-
-
-        Returns
-        -------
-        rank_true_entities: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true entities when ranking any entity based on \
-            computation of d(hear+relation, tail).
-        filtered_rank_true_entities: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
-            Tensor containing the rank of the true entities when ranking only true false entities \
-            based on computation of d(hear+relation, tail).
-
-        """
-        current_batch_size, embedding_dimension = proj_e_emb.shape
-
-        # tmp_sum is either heads + r_emb or r_emb - tails (expand does not use extra memory)
-        tmp_sum = (heads * proj_e_emb + r_emb).view((current_batch_size, embedding_dimension, 1))
-        tmp_sum = tmp_sum.expand((current_batch_size, embedding_dimension, self.n_ent))
-
-        # compute either dissimilarity_type(heads + relation, proj_candidates) or
-        # dissimilarity_type(-proj_candidates, relation - tails)
-        dissimilarities = self.dissimilarity(tmp_sum, heads * proj_candidates)
-
-        # filter out the true negative samples by assigning infinite dissimilarity_type
-        filt_dissimilarities = dissimilarities.clone()
-        for i in range(current_batch_size):
-            true_targets = get_true_targets(dictionary, e_idx, r_idx, true_idx, i)
-            if true_targets is None:
-                continue
-            filt_dissimilarities[i][true_targets] = float('Inf')
-
-        # from dissimilarities, extract the rank of the true entity.
-        rank_true_entities = get_rank(-dissimilarities, true_idx)
-        filtered_rank_true_entities = get_rank(-filt_dissimilarities, true_idx)
-
-        return rank_true_entities, filtered_rank_true_entities
-
-    def recover_candidates(self, h_idx, b_size):
-        """Prepare candidates for link prediction evaluation.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Tensor containing indices of current head entities.
-        b_size: int
-            Batch size.
-
-        Returns
-        -------
-        candidates: `torch.Tensor`, shape: (b_size, emb_dim, number_entities), dtype: `torch.float`
-            Tensor containing replications of all entities embeddings as many times as the batch size.
-
-        """
-        all_idx = arange(0, self.n_ent).long()
-        if h_idx.is_cuda:
-            all_idx = all_idx.cuda()
-        candidates = self.entity_embeddings(all_idx).transpose(0, 1)
-        candidates = candidates.view((1,
-                                      self.ent_emb_dim,
-                                      self.n_ent)).expand((b_size,
-                                                           self.ent_emb_dim,
-                                                           self.n_ent))
-        return candidates
-
-    @staticmethod
-    def projection_helper(h_idx, t_idx, b_size, candidates, rel_emb_dim):
-        mask = h_idx.view(b_size, 1, 1).expand(b_size, rel_emb_dim, 1)
-        proj_h_emb = candidates.gather(dim=2, index=mask).view(b_size, rel_emb_dim)
-
-        mask = t_idx.view(b_size, 1, 1).expand(b_size, rel_emb_dim, 1)
-        proj_t_emb = candidates.gather(dim=2, index=mask).view(b_size, rel_emb_dim)
-
-        return proj_h_emb, proj_t_emb
-
-
-class BilinearModel(Model):
-
-    def __init__(self, emb_dim, n_entities, n_relations):
-        super().__init__(n_entities, n_relations)
-        self.emb_dim = emb_dim
-
-    def scoring_function(self, h_idx, t_idx, r_idx):
-        raise NotImplementedError
-
-    def normalize_parameters(self):
-        raise NotImplementedError
-
-    def lp_batch_scoring_function(self, h, t, r):
-        raise NotImplementedError
-
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        raise NotImplementedError
-
     def lp_compute_ranks(self, e_emb, candidates, r, e_idx, r_idx, true_idx, dictionary, heads=1):
-        """Compute the ranks and the filtered ranks of true entities when doing link prediction.
+        """Compute the ranks and the filtered ranks of true entities when doing link prediction. Note that the \
+        best rank possible is 1.
 
         Parameters
         ----------
@@ -407,3 +167,105 @@ class BilinearModel(Model):
         filtered_rank_true_entities = get_rank(filt_scores, true_idx)
 
         return rank_true_entities, filtered_rank_true_entities
+
+    def lp_helper(self, h_idx, t_idx, r_idx, kg):
+        """Compute the head and tail ranks and filtered ranks of the current batch.
+
+        Parameters
+        ----------
+        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
+            Tensor containing indices of current head entities.
+        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
+            Tensor containing indices of current tail entities.
+        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
+            Tensor containing indices of current relations.
+        kg: `torchkge.data.KnowledgeGraph.KnowledgeGraph`
+            Knowledge graph on which the model was trained.
+
+        Returns
+        -------
+        rank_true_tails: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
+            Tensor containing the rank of the true tails when ranking any entity based on \
+            computation of d(hear+relation, tail).
+        filt_rank_true_tails: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
+            Tensor containing the rank of the true tails when ranking only true false entities \
+            based on computation of d(hear+relation, tail).
+        rank_true_heads: Tensor containing the rank of the true heads when ranking any entity based on \
+            computation of d(hear+relation, tail).
+        filt_rank_true_heads: `torch.Tensor`, shape: (b_size), dtype: `torch.int`
+            Tensor containing the rank of the true heads when ranking only true false entities \
+            based on computation of d(hear+relation, tail).
+
+        """
+        h_emb, t_emb, candidates, r = self.lp_get_emb_cand(h_idx, t_idx, r_idx)
+
+        rank_true_tails, filt_rank_true_tails = self.lp_compute_ranks(h_emb, candidates, r, h_idx, r_idx, t_idx,
+                                                                      kg.dict_of_tails, heads=1)
+        rank_true_heads, filt_rank_true_heads = self.lp_compute_ranks(t_emb, candidates, r, t_idx, r_idx, h_idx,
+                                                                      kg.dict_of_heads, heads=-1)
+
+        return rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads
+
+
+class TranslationModel(Model):
+    """Model interface to be used by any other class implementing a translational knowledge graph embedding model.
+    This interface inherits from the interface :class:`torchkge.models.interfaces.Model`.
+
+    Parameters
+    ----------
+    ent_emb_dim: int
+        Embedding dimension of the entities.
+    n_entities: int
+        Number of entities to be embedded.
+    n_relations: int
+        Number of relations to be embedded.
+    dissimilarity_type: int
+        Name of the dissimilarity function to be used.
+
+    Attributes
+    ----------
+    dissimilarity: function
+        Dissimilarity function defined in `torchkge.utils.dissimilarities`.
+
+    """
+    def __init__(self, n_entities, n_relations, dissimilarity_type):
+        super().__init__(n_entities, n_relations)
+        self.dissimilarity_type = dissimilarity_type
+
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
+
+    def normalize_parameters(self):
+        raise NotImplementedError
+
+    def lp_batch_scoring_function(self, proj_h, proj_t, r):
+        b_size = proj_h.shape[0]
+
+        if len(proj_h.shape) == 2 and len(proj_t.shape) == 3:
+            # this is the tail completion case in link prediction
+            return - ((proj_h + r).view(b_size, 1, r.shape[1]) - proj_t).norm(p=self.dissimilarity_type, dim=2)
+        else:
+            # this is the head completion case in link prediction
+            return - (proj_h + (r - proj_t).view(b_size, 1, r.shape[1])).norm(p=self.dissimilarity_type, dim=2)
+
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
+
+
+class BilinearModel(Model):
+
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super().__init__(n_entities, n_relations)
+        self.emb_dim = emb_dim
+
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
+
+    def normalize_parameters(self):
+        raise NotImplementedError
+
+    def lp_batch_scoring_function(self, h, t, r):
+        raise NotImplementedError
+
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
