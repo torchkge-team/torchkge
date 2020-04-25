@@ -4,8 +4,8 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import empty, matmul, eye, arange, tensor
-from torch.nn import Parameter
+from torch import empty, matmul, eye, tensor
+from torch.nn import Parameter, Embedding
 from torch.nn.functional import normalize
 from torch.nn.init import xavier_uniform_
 from torch.cuda import empty_cache
@@ -48,20 +48,21 @@ class TransEModel(TranslationModel):
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
-        try:
-            assert dissimilarity_type in ['L1', 'L2', None]
-        except AssertionError:
-            raise AssertionError("Dissimilarity variable can either be 'L1' or 'L2'.")
+    def __init__(self, emb_dim, n_entities, n_relations, dissimilarity_type):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type)
+        super().__init__(n_entities, n_relations, dissimilarity_type)
 
-        # initialize embeddings
-        self.relation_embeddings = init_embedding(self.n_rel, self.ent_emb_dim)
+        self.dissimilarity_type = dissimilarity_type
+        self.emb_dim = emb_dim
 
-        # normalize parameters
-        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data, p=2, dim=1)
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data, p=2, dim=1)
+        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
+
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
+
+        self.normalize_parameters()
+        self.rel_emb.weight.data = normalize(self.rel_emb.weight.data, p=2, dim=1)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -81,49 +82,18 @@ class TransEModel(TranslationModel):
             Score function: opposite of dissimilarities between h+r and t.
 
         """
-        # recover relations embeddings
-        rels_emb = self.relation_embeddings(r_idx)
+        h_emb = normalize(self.ent_emb(h_idx), p=2, dim=1)
+        t_emb = normalize(self.ent_emb(t_idx), p=2, dim=1)
+        r_emb = self.rel_emb(r_idx)
 
-        # recover, project and normalize entity embeddings
-        h_emb = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
-        t_emb = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
+        return - (h_emb + r_emb - t_emb).norm(p=self.dissimilarity_type, dim=1)
 
-        return - self.dissimilarity(h_emb + rels_emb, t_emb)
-
-    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
-        """
-
-        Parameters
-        ----------
-        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of entities
-        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of relations
-        normalize_: bool
-            Whether entities embeddings should be normalized or not.
-
-        Returns
-        -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, emb_dim)
-            Embedded entities normalized.
-
-        """
-        # recover entity embeddings
-        ent_emb = self.entity_embeddings(ent_idx)
-
-        # normalize entity embeddings
-        if normalize_:
-            ent_emb = normalize(ent_emb, p=2, dim=1)
-
-        return ent_emb
-
-    def normalize_parameters(self):
+    def normalize_parameters(self):  # TODO
         """Normalize the parameters of the model using the L2 norm.
         """
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):  # TODO : check shape of candidates used to be (bsize, emb_dim, n_ent)
         """Project current entities and candidates into relation-specific sub-spaces.
 
         Parameters
@@ -148,26 +118,18 @@ class TransEModel(TranslationModel):
             Tensor containing current relations embeddings.
 
         """
-        # recover, project and normalize entity embeddings
-        all_idx = arange(0, self.n_ent).long()
+        b_size = h_idx.shape[0]
 
-        if h_idx.is_cuda:
-            all_idx = all_idx.cuda()
-        proj_candidates = self.recover_project_normalize(all_idx, None, normalize_=False)
+        h_emb = self.ent_emb(h_idx)
+        t_emb = self.ent_emb(t_idx)
+        r_emb = self.rel_emb(r_idx)
 
-        proj_h_emb = proj_candidates[h_idx]
-        proj_t_emb = proj_candidates[t_idx]
-        r_emb = self.relation_embeddings(r_idx)
+        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim).expand(b_size, self.n_ent, self.emb_dim)
 
-        b_size, emb_dim = proj_h_emb.shape
-        proj_candidates = proj_candidates.transpose(0, 1)
-        proj_candidates = proj_candidates.view(1, emb_dim, self.n_ent)
-        proj_candidates = proj_candidates.expand(b_size, emb_dim, self.n_ent)
-
-        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
+        return h_emb, t_emb, candidates, r_emb
 
 
-class TransHModel(TransEModel):
+class TransHModel(TranslationModel):
     """Implementation of TransH model detailed in 2014 paper by Wang et al.. This class inherits from the
     :class:`torchkge.models.TranslationalModels.TransEModel` class interpreted as an interface.
     It then has its attributes as well.
@@ -196,10 +158,21 @@ class TransHModel(TransEModel):
 
     """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations):
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
-        self.normal_vectors = Parameter(xavier_uniform_(empty(size=(n_relations, ent_emb_dim))),
-                                        requires_grad=True)
+    def __init__(self, emb_dim, n_entities, n_relations):
+        super().__init__(n_entities, n_relations, dissimilarity_type=2)
+        self.emb_dim = emb_dim
+        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
+        self.norm_vect = Embedding(self.n_rel, self.emb_dim)
+
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
+        xavier_uniform_(self.norm_vect.weight.data)
+
+        self.normalize_parameters()
+
+        self.evaluated_projections = False
+        self.projected_entities = Parameter(empty(size=(self.n_rel, self.n_ent, self.emb_dim)), requires_grad=False)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -219,55 +192,23 @@ class TransHModel(TransEModel):
             Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
-        # recover relations embeddings and normal projection vectors
-        relations_embeddings = self.relation_embeddings(r_idx)
-        self.normal_vectors[r_idx] = normalize(self.normal_vectors[r_idx], p=2, dim=1)
+        self.evaluated_projections = False
 
-        # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
-        projected_tails = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
+        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
+        r, norm_vect = self.rel_emb(r_idx), normalize(self.norm_vect(r_idx), p=2, dim=1)
 
-        return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
+        return - (self.project(h, norm_vect) + r - self.project(t, norm_vect)).norm(p=2, dim=1)
 
-    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
-        """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
-        provided normal vectors.
+    @staticmethod
+    def project(ent, norm_vect):
+        return ent - (ent * norm_vect).sum(dim=1).view(-1, 1) * norm_vect
 
-        Parameters
-        ----------
-        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of entities
-        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of relations
-        normalize_: bool
-            Whether entities embeddings should be normalized or not.
-
-        Returns
-        -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, emb_dim)
-            Projection of the embedded entities on the hyperplanes defined by the provided normal\
-            vectors.
-
-        """
-        # recover entity embeddings
-        ent_emb = self.entity_embeddings(ent_idx)
-
-        # normalize entity embeddings
-        if normalize_:
-            ent_emb = normalize(ent_emb, p=2, dim=1)
-
-        # project entities into relation space
-        normal_vectors = self.normal_vectors[rel_idx]
-        normal_component = (ent_emb * normal_vectors).sum(dim=1).view((-1, 1))
-
-        return ent_emb - normal_component * normal_vectors
-
-    def normalize_parameters(self):
+    def normalize_parameters(self):  # TODO
         """Normalize the parameters of the model using the L2 norm.
         """
-        self.normal_vectors.data = normalize(self.normal_vectors, p=2, dim=1)
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
+        self.norm_vect.weight.data = normalize(self.norm_vect.weight.data, p=2, dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -294,27 +235,38 @@ class TransHModel(TransEModel):
             Tensor containing current relations embeddings.
 
         """
-        # recover relations embeddings and normal projection vectors
-        r_emb = self.relation_embeddings(r_idx)
-        normal_vectors = normalize(self.normal_vectors[r_idx], p=2, dim=1)
-        b_size, _ = normal_vectors.shape
+        if not self.evaluated_projections:
+            self.lp_evaluate_projections()
 
-        # recover candidates
-        candidates = self.recover_candidates(h_idx, b_size)
+        r = self.rel_emb(r_idx)
+        proj_h = self.projected_entities[r_idx, h_idx]
+        proj_t = self.projected_entities[r_idx, t_idx]
+        proj_candidates = self.projected_entities[r_idx]
 
-        # project each candidates with each normal vector
-        normal_components = candidates * normal_vectors.view((b_size, self.ent_emb_dim, 1))
-        normal_components = normal_components.sum(dim=1).view(b_size, 1, self.n_ent)
-        normal_components = normal_components * normal_vectors.view(b_size, self.ent_emb_dim, 1)
-        proj_candidates = candidates - normal_components
+        return proj_h, proj_t, proj_candidates, r
 
-        assert proj_candidates.shape == (b_size, self.ent_emb_dim, self.n_ent)
+    def lp_evaluate_projections(self):
+        """Project all entities according to each relation.
+                """
+        if self.evaluated_projections:
+            return
 
-        # recover, project and normalize entity embeddings
-        proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, proj_candidates,
-                                                        self.ent_emb_dim)
+        for i in tqdm(range(self.n_ent), unit='entities', desc='Projecting entities'):
 
-        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
+            norm_vect = self.norm_vect.weight.data.view(self.n_rel, self.emb_dim)
+
+            mask = tensor([i], device=norm_vect.device).long()
+
+            if norm_vect.is_cuda:
+                empty_cache()
+
+            ent = self.ent_emb(mask)
+            norm_components = (ent.view(1, self.emb_dim) * norm_vect).sum(dim=1)
+            self.projected_entities[:, i, :] = (ent.view(1, -1) - norm_components.view(-1, 1) * norm_vect)
+
+            del norm_components
+
+        self.evaluated_projections = True
 
 
 class TransRModel(TranslationModel):
@@ -353,15 +305,22 @@ class TransRModel(TranslationModel):
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
-
+        super().__init__(n_entities, n_relations, dissimilarity_type=2)
+        self.ent_emb_dim = ent_emb_dim
         self.rel_emb_dim = rel_emb_dim
-        self.relation_embeddings = init_embedding(self.n_rel, self.rel_emb_dim)
 
-        self.projection_matrices = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim,
-                                                                         ent_emb_dim))),
-                                             requires_grad=True)
+        self.ent_emb = Embedding(self.n_ent, self.ent_emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.rel_emb_dim)
+        self.proj_mat = Embedding(self.n_rel, self.rel_emb_dim * self.ent_emb_dim)
+
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
+        xavier_uniform_(self.proj_mat.weight.data)
+
         self.normalize_parameters()
+
+        self.evaluated_projections = False
+        self.projected_entities = Parameter(empty(size=(self.n_rel, self.n_ent, self.rel_emb_dim)), requires_grad=False)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -381,54 +340,24 @@ class TransRModel(TranslationModel):
             Score function: opposite of dissimilarities between h+r and t after projection.
 
         """
-        # recover relations embeddings and normal projection matrices
-        relations_embeddings = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
+        self.evaluated_projections = False
 
-        # project entities in relation specific hyperplane
-        projected_heads = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
-        projected_tails = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
+        b_size = h_idx.shape[0]
+        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
+        r, proj_mat = self.rel_emb(r_idx), self.proj_mat(r_idx).view(b_size, self.rel_emb_dim, self.ent_emb_dim)
 
-        return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
+        return - (self.project(h, proj_mat) + r - self.project(t, proj_mat)).norm(p=2, dim=1)
 
-    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
-        """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
-        provided projection matrices.
-
-        Parameters
-        ----------
-        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of entities
-        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of relations
-        normalize_: bool
-            Whether entities embeddings should be normalized or not.
-
-        Returns
-        -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, rel_emb_dim)
-            Projection of the entities into relation-specific subspaces.
-        """
-        b_size = ent_idx.shape[0]
-        # recover and normalize embeddings
-        ent_emb = self.entity_embeddings(ent_idx)
-        if normalize_:
-            ent_emb = normalize(ent_emb, p=2, dim=1)
-
-        # project entities into relation space
-        new_shape = (b_size, self.ent_emb_dim, 1)
-        projection_matrices = self.projection_matrices[rel_idx]
-        projection = matmul(projection_matrices, ent_emb.view(new_shape))
-
-        return normalize(projection.view(b_size, self.rel_emb_dim), p=2, dim=1)
+    def project(self, ent, proj_mat):
+        return matmul(proj_mat, ent.view(-1, self.ent_emb_dim, 1)).view(-1, self.rel_emb_dim)
 
     def normalize_parameters(self):
         """Normalize the parameters of the model using the L2 norm.
         """
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
-        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=2, dim=1)
-        self.projection_matrices.data = normalize(self.projection_matrices.data, p=2, dim=2)
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
+        self.rel_emb.weight.data = normalize(self.rel_emb.weight.data, p=2, dim=1)
+        # self.proj_mat.weight.data = normalize(self.proj_mat.weight.data, p=2, dim=1) #TODO fix this
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -455,21 +384,39 @@ class TransRModel(TranslationModel):
             Tensor containing current relations embeddings.
 
         """
-        # recover relations embeddings and normal projection matrices
-        r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
-        projection_matrices = normalize(self.projection_matrices[r_idx], p=2, dim=2)
-        b_size, _, _ = projection_matrices.shape
 
-        # recover candidates
-        candidates = self.recover_candidates(h_idx, b_size)
+        if not self.evaluated_projections:
+            self.lp_evaluate_projections()
 
-        # project each candidates with each projection matrix
-        proj_candidates = matmul(projection_matrices, candidates)
+        r = self.rel_emb(r_idx)  # shape = (b_size, rel_emb_dim)
+        proj_h = self.projected_entities[r_idx, h_idx]
+        proj_t = self.projected_entities[r_idx, t_idx]
+        proj_candidates = self.projected_entities[r_idx]
 
-        proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, candidates,
-                                                        self.rel_emb_dim)
+        return proj_h, proj_t, proj_candidates, r
 
-        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
+    def lp_evaluate_projections(self):
+        """Project all entities according to each relation.
+                """
+        if self.evaluated_projections:
+            return
+
+        for i in tqdm(range(self.n_ent), unit='entities', desc='Projecting entities'):
+            projection_matrices = self.proj_mat.weight.data.view(self.n_rel, self.rel_emb_dim, self.ent_emb_dim)
+
+            mask = tensor([i], device=projection_matrices.device).long()
+
+            if projection_matrices.is_cuda:
+                empty_cache()
+
+            ent = self.ent_emb(mask)
+            proj_ent = matmul(projection_matrices, ent.view(self.ent_emb_dim)).detach()
+            proj_ent = proj_ent.view(self.n_rel, self.rel_emb_dim, 1)
+            self.projected_entities[:, i, :] = proj_ent.view(self.n_rel, self.rel_emb_dim)
+
+            del proj_ent
+
+        self.evaluated_projections = True
 
 
 class TransDModel(TranslationModel):
@@ -512,21 +459,25 @@ class TransDModel(TranslationModel):
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type='L2')
+        super().__init__(n_entities, n_relations, 2)
 
+        self.ent_emb_dim = ent_emb_dim
         self.rel_emb_dim = rel_emb_dim
-        self.relation_embeddings = init_embedding(self.n_rel, self.rel_emb_dim)
 
-        self.ent_proj_vects = Parameter(xavier_uniform_(empty(size=(n_entities, ent_emb_dim))),
-                                        requires_grad=True)
-        self.rel_proj_vects = Parameter(xavier_uniform_(empty(size=(n_relations, rel_emb_dim))),
-                                        requires_grad=True)
+        self.ent_emb = Embedding(self.n_ent, self.ent_emb_dim)
+        self.rel_emb = Embedding(self.n_rel, self.rel_emb_dim)
+        self.ent_proj_vect = Embedding(self.n_ent, self.ent_emb_dim)
+        self.rel_proj_vect = Embedding(self.n_rel, self.rel_emb_dim)
+
+        xavier_uniform_(self.ent_emb.weight.data)
+        xavier_uniform_(self.rel_emb.weight.data)
+        xavier_uniform_(self.ent_proj_vect.weight.data)
+        xavier_uniform_(self.rel_proj_vect.weight.data)
+
         self.normalize_parameters()
 
         self.evaluated_projections = False
-        self.projected_entities = Parameter(empty(size=(self.n_rel,
-                                                        self.rel_emb_dim,
-                                                        self.n_ent)), requires_grad=False)
+        self.projected_entities = Parameter(empty(size=(self.n_rel, self.n_ent, self.rel_emb_dim)), requires_grad=False)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
@@ -547,112 +498,33 @@ class TransDModel(TranslationModel):
 
         """
         self.evaluated_projections = False
+        # TODO: project all pairs of entities and relations only once
+        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
+        r = normalize(self.rel_emb(r_idx), p=2, dim=1)
 
-        # recover relations projection vectors and relations embeddings
-        self.rel_proj_vects[r_idx] = normalize(self.rel_proj_vects[r_idx], p=2, dim=1)
-        relations_embeddings = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
+        h_proj_v = normalize(self.ent_proj_vect(h_idx), p=2, dim=1)
+        t_proj_v = normalize(self.ent_proj_vect(t_idx), p=2, dim=1)
+        r_proj_v = normalize(self.rel_proj_vect(r_idx), p=2, dim=1)
 
-        # project
-        projected_heads = self.recover_project_normalize(h_idx, r_idx, normalize_=True)
-        projected_tails = self.recover_project_normalize(t_idx, r_idx, normalize_=True)
+        return - (self.project(h, h_proj_v, r_proj_v) + r - self.project(t, t_proj_v, r_proj_v)).norm(p=2, dim=1)
 
-        return - self.dissimilarity(projected_heads + relations_embeddings, projected_tails)
+    def project(self, ent, e_proj_vect, r_proj_vect):
+        b_size = ent.shape[0]
 
-    def recover_project_normalize(self, ent_idx, rel_idx, normalize_=True):
-        """Recover entity (either head or tail) embeddings and project on hyperplane defined by\
-        provided normal vectors.
+        proj_mat = matmul(r_proj_vect.view((b_size, self.rel_emb_dim, 1)),
+                          e_proj_vect.view((b_size, 1, self.ent_emb_dim)))
+        proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device=proj_mat.device)
 
-        Parameters
-        ----------
-        ent_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of entities
-        rel_idx: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Integer keys of relations
-        normalize_: bool
-            Whether entities embeddings should be normalized or not.
-
-        Returns
-        -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, rel_emb_dim)
-            Projection of the entities into relation-specific subspaces.
-
-        """
-        b_size = ent_idx.shape[0]
-
-        # recover entities embeddings and projection vectors
-        ent_emb = self.entity_embeddings(ent_idx)
-        ent_proj = self.ent_proj_vects[ent_idx]
-
-        if normalize_:
-            ent_emb = normalize(ent_emb, p=2, dim=1)
-            ent_proj = normalize(ent_proj, p=2, dim=1)
-
-        # project entities into relation space
-        rel_proj = self.rel_proj_vects[rel_idx]
-        proj_mat = matmul(rel_proj.view((b_size, self.rel_emb_dim, 1)),
-                          ent_proj.view((b_size, 1, self.ent_emb_dim)))
-
-        if proj_mat.is_cuda:
-            proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device='cuda')
-        else:
-            proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
-
-        projection = matmul(proj_mat, ent_emb.view((b_size, self.ent_emb_dim, 1)))
-
-        return projection.view((b_size, self.rel_emb_dim))
+        return matmul(proj_mat, ent.view(b_size, self.ent_emb_dim, 1)).view(b_size, self.rel_emb_dim)
 
     def normalize_parameters(self):
         """Normalize the parameters of the model using the L2 norm.
         """
-        self.entity_embeddings.weight.data = normalize(self.entity_embeddings.weight.data,
-                                                       p=2, dim=1)
-        self.relation_embeddings.weight.data = normalize(self.relation_embeddings.weight.data,
-                                                         p=2, dim=1)
-        self.ent_proj_vects.data = normalize(self.ent_proj_vects.data, p=2, dim=1)
-        self.rel_proj_vects.data = normalize(self.rel_proj_vects.data, p=2, dim=1)
-
-    def evaluate_projections(self):
-        """Project all entities according to each relation.
-        """
-        if self.evaluated_projections:
-            return
-
-        print('Projecting entities in relations spaces.')
-        for i in tqdm(range(self.n_ent)):
-            ent_proj_vect = self.ent_proj_vects.data[i].view(1, -1)
-            rel_proj_vects = self.rel_proj_vects.data.view(self.n_rel,
-                                                           self.rel_emb_dim, 1)
-
-            projection_matrices = matmul(rel_proj_vects, ent_proj_vect)
-
-            if projection_matrices.is_cuda:
-                id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device='cuda')
-            else:
-                id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim)
-
-            id_mat = id_mat.view(1, self.rel_emb_dim, self.ent_emb_dim)
-
-            projection_matrices += id_mat.expand(self.n_rel, self.rel_emb_dim,
-                                                 self.ent_emb_dim)
-
-            empty_cache()
-
-            mask = tensor([i]).long()
-
-            if self.entity_embeddings.weight.is_cuda:
-                assert self.projected_entities.is_cuda
-                empty_cache()
-                mask = mask.cuda()
-
-            entity = self.entity_embeddings(mask)
-            projected_entity = matmul(projection_matrices, entity.view(-1)).detach()
-            projected_entity = projected_entity.view(self.n_rel, self.rel_emb_dim, 1)
-            self.projected_entities[:, :, i] = projected_entity.view(self.n_rel,
-                                                                     self.rel_emb_dim)
-
-            del projected_entity
-
-        self.evaluated_projections = True
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
+        self.rel_emb.weight.data = normalize(self.rel_emb.weight.data, p=2, dim=1)
+        self.ent_proj_vect.weight.data = normalize(self.ent_proj_vect.weight.data, p=2, dim=1)
+        self.rel_proj_vect.weight.data = normalize(self.rel_proj_vect.weight.data, p=2, dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Project current entities and candidates into relation-specific sub-spaces.
@@ -678,18 +550,43 @@ class TransDModel(TranslationModel):
             Tensor containing current relations embeddings.
 
         """
-        b_size = h_idx.shape[0]
         if not self.evaluated_projections:
-            self.evaluate_projections()
+            self.lp_evaluate_projections()
 
-        # recover relations embeddings and projected candidates
-        r_emb = normalize(self.relation_embeddings(r_idx), p=2, dim=1)
+        r = self.rel_emb(r_idx)
+        proj_h = self.projected_entities[r_idx, h_idx]
+        proj_t = self.projected_entities[r_idx, t_idx]
         proj_candidates = self.projected_entities[r_idx]
 
-        proj_h_emb, proj_t_emb = self.projection_helper(h_idx, t_idx, b_size, proj_candidates,
-                                                        self.rel_emb_dim)
+        return proj_h, proj_t, proj_candidates, r
 
-        return proj_h_emb, proj_t_emb, proj_candidates, r_emb
+    def lp_evaluate_projections(self):
+        """Project all entities according to each relation.
+        """
+        if self.evaluated_projections:
+            return
+
+        for i in tqdm(range(self.n_ent), unit='entities', desc='Projecting entities'):
+            ent_proj_vect = self.ent_proj_vect.weight[i].view(1, self.ent_emb_dim)
+            rel_proj_vects = self.rel_proj_vect.weight.data.view(self.n_rel, self.rel_emb_dim, 1)
+
+            projection_matrices = matmul(rel_proj_vects, ent_proj_vect)
+            id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim, device=projection_matrices.device)
+            projection_matrices += id_mat.view(1, self.rel_emb_dim, self.ent_emb_dim)
+
+            mask = tensor([i], device=projection_matrices.device).long()
+
+            if projection_matrices.is_cuda:
+                empty_cache()
+
+            ent = self.ent_emb(mask)
+            proj_ent = matmul(projection_matrices, ent.view(self.ent_emb_dim)).detach()
+            proj_ent = proj_ent.view(self.n_rel, self.rel_emb_dim, 1)
+            self.projected_entities[:, i, :] = proj_ent.view(self.n_rel, self.rel_emb_dim)
+
+            del proj_ent
+
+        self.evaluated_projections = True
 
 
 class TorusEModel(TransEModel):
