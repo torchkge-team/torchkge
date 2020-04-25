@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import tensor, empty
+from torch import empty, tensor
 from torch.nn import Embedding, Parameter
 from torch.nn.init import xavier_uniform_
 

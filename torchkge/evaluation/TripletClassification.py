@@ -5,9 +5,10 @@ Copyright TorchKGE developers
 """
 
 from torch import zeros, cat
-from torchkge.data import SmallKG
-from torchkge.sampling import PositionalNegativeSampler
-from torchkge.utils import DataLoader
+
+from ..data import SmallKG
+from ..sampling import PositionalNegativeSampler
+from ..utils import DataLoader
 
 
 class TripletClassificationEvaluator(object):

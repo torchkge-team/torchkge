@@ -5,12 +5,11 @@ Copyright TorchKGE developers
 """
 
 from collections import defaultdict
-
 from torch import cat, eq, int64, long, randperm, tensor, Tensor, zeros_like
 from torch.utils.data import Dataset
 
-from torchkge.exceptions import SizeMismatchError, WrongArgumentsError, SanityError
-from torchkge.utils import get_dictionaries
+from ..exceptions import SizeMismatchError, WrongArgumentsError, SanityError
+from ..utils import get_dictionaries
 
 
 class SmallKG(Dataset):

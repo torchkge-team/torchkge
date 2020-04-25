@@ -6,8 +6,9 @@ Copyright TorchKGE developers
 
 from torch import tensor, bernoulli, randint, ones, rand, cat
 from torch.utils.data import DataLoader
-from torchkge.exceptions import NotYetImplementedError
-from torchkge.utils import get_bernoulli_probs, get_possible_heads_tails, DataLoader
+
+from ..exceptions import NotYetImplementedError
+from ..utils import DataLoader, get_bernoulli_probs, get_possible_heads_tails
 
 
 class NegativeSampler:

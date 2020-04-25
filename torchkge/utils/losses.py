@@ -4,8 +4,8 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch.nn import Module, MarginRankingLoss, SoftMarginLoss
 from torch import ones_like
+from torch.nn import MarginRankingLoss, Module, SoftMarginLoss
 
 
 class MarginLoss(Module):

@@ -5,10 +5,10 @@ Copyright TorchKGE developers
 """
 
 from torch import empty
-from torchkge.exceptions import NotYetEvaluatedError
-from torchkge.utils import DataLoader
-
 from tqdm.autonotebook import tqdm
+
+from ..exceptions import NotYetEvaluatedError
+from ..utils import DataLoader
 
 
 class LinkPredictionEvaluator(object):

@@ -4,8 +4,8 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import abs, min, sqrt, cos
 from math import pi
+from torch import abs, cos, min, sqrt
 
 
 def l1_dissimilarity(a, b):

@@ -4,11 +4,9 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import arange, matmul
 from torch.nn import Module
 
-from torchkge.utils import init_embedding, l1_dissimilarity, l2_dissimilarity
-from torchkge.utils import get_rank, get_true_targets
+from ..utils import get_rank, get_true_targets
 
 
 class Model(Module):
@@ -238,6 +236,9 @@ class TranslationModel(Model):
     def normalize_parameters(self):
         raise NotImplementedError
 
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        raise NotImplementedError
+
     def lp_batch_scoring_function(self, proj_h, proj_t, r):
         b_size = proj_h.shape[0]
 
@@ -247,9 +248,6 @@ class TranslationModel(Model):
         else:
             # this is the head completion case in link prediction
             return - (proj_h + (r - proj_t).view(b_size, 1, r.shape[1])).norm(p=self.dissimilarity_type, dim=2)
-
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        raise NotImplementedError
 
 
 class BilinearModel(Model):

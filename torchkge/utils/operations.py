@@ -4,7 +4,7 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import cat, zeros
+from torch import zeros
 
 
 def get_mask(length, start, end):

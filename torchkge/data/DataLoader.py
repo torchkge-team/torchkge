@@ -6,16 +6,16 @@ Copyright TorchKGE developers
 This module's code is freely adapted from Scikit-Learn's sklearn.datasets.base.py code.
 """
 
-from .KnowledgeGraph import KnowledgeGraph
-
-from os import environ, makedirs, remove
-from os.path import exists, expanduser, join
-from pandas import read_csv, concat, merge, DataFrame
-from urllib.request import urlretrieve
-
 import shutil
 import tarfile
 import zipfile
+
+from os import environ, makedirs, remove
+from os.path import exists, expanduser, join
+from pandas import concat, DataFrame, merge, read_csv
+from urllib.request import urlretrieve
+
+from .KnowledgeGraph import KnowledgeGraph
 
 
 def get_data_home(data_home=None):

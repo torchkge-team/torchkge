@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Copyright TorchKGE developers
+@author: Armand Boschin <aboschin@enst.fr>
+"""
+
+
 def get_n_batches(n, b_size):
     n_batch = n // b_size
     if n % b_size > 0:
