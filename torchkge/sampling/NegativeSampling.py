@@ -32,8 +32,8 @@ class NegativeSampler:
     kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
         Test knowledge graph.
     n_ent: int
-        Number of entities in the entire knowledge graph. This is the same in `kg`, `kg_val`\
-         and `kg_test`.
+        Number of entities in the entire knowledge graph. This is the same in
+        `kg`, `kg_val` and `kg_test`.
     n_facts: int
         Number of triplets in `kg`.
     n_facts_val: in
@@ -61,12 +61,13 @@ class NegativeSampler:
             self.n_facts_test = kg_test.n_facts
 
     def corrupt_batch(self, heads, tails, relations):
-        raise NotYetImplementedError('NegativeSampler is just an interface, please consider using '
-                                     'a child class where this is implemented.')
+        raise NotYetImplementedError('NegativeSampler is just an interface, '
+                                     'please consider using a child class '
+                                     'where this is implemented.')
 
     def corrupt_kg(self, batch_size, use_cuda, which='main'):
-        """Corrupt an entire knowledge graph using a dataloader and by calling `corrupt_batch`
-        methods.
+        """Corrupt an entire knowledge graph using a dataloader and by calling
+        `corrupt_batch` method.
 
         Parameters
         ----------
@@ -75,22 +76,22 @@ class NegativeSampler:
         use_cuda: bool
             Indicate whether to use cuda or not
         which: str
-            Indicate which graph should be corrupted. Possible values are :\
+            Indicate which graph should be corrupted. Possible values are :
             * 'main': attribute self.kg is corrupted
             * 'train': attribute self.kg is corrupted
-            * 'val': attribute self.kg_val is corrupted. In this case this attribute should have\
-            been initialized.
-            * 'test': attribute self.kg_test is corrupted. In this case this attribute should have\
-            been initialized.
+            * 'val': attribute self.kg_val is corrupted. In this case this
+            attribute should have been initialized.
+            * 'test': attribute self.kg_test is corrupted. In this case this
+            attribute should have been initialized.
 
         Returns
         -------
-        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (n_facts)
-            Tensor containing the integer key of negatively sampled heads of the relations\
-            in the graph designated by `which`.
-        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (n_facts)
-            Tensor containing the integer key of negatively sampled tails of the relations\
-            in the graph designated by `which`.
+        neg_heads: torch.Tensor, dtype: torch.long, shape: (n_facts)
+            Tensor containing the integer key of negatively sampled heads of
+            the relations in the graph designated by `which`.
+        neg_tails: torch.Tensor, dtype: torch.long, shape: (n_facts)
+            Tensor containing the integer key of negatively sampled tails of
+            the relations in the graph designated by `which`.
         """
         assert which in ['main', 'train', 'test', 'val']
         if which == 'val':
@@ -104,11 +105,14 @@ class NegativeSampler:
             tmp_cuda = None
 
         if which == 'val':
-            dataloader = DataLoader(self.kg_val, batch_size=batch_size, use_cuda=tmp_cuda)
+            dataloader = DataLoader(self.kg_val, batch_size=batch_size,
+                                    use_cuda=tmp_cuda)
         elif which == 'test':
-            dataloader = DataLoader(self.kg_test, batch_size=batch_size, use_cuda=tmp_cuda)
+            dataloader = DataLoader(self.kg_test, batch_size=batch_size,
+                                    use_cuda=tmp_cuda)
         else:
-            dataloader = DataLoader(self.kg, batch_size=batch_size, use_cuda=tmp_cuda)
+            dataloader = DataLoader(self.kg, batch_size=batch_size,
+                                    use_cuda=tmp_cuda)
 
         corr_heads, corr_tails = [], []
 
@@ -126,16 +130,19 @@ class NegativeSampler:
 
 
 class UniformNegativeSampler(NegativeSampler):
-    """Uniform negative sampler as presented in 2013 paper by Bordes et al.. Either the head or\
-    the tail of a triplet is replaced by another entity at random. The choice of head/tail is\
-    uniform. This class inherits from the
-    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface. It then has its attributes as well.
+    """Uniform negative sampler as presented in 2013 paper by Bordes et al..
+    Either the head or the tail of a triplet is replaced by another entity at
+    random. The choice of head/tail is uniform. This class inherits from the
+    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface. It
+    then has its attributes as well.
 
     References
     ----------
-    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston, and Oksana Yakhnenko.
+    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston,
+      and Oksana Yakhnenko.
       Translating Embeddings for Modeling Multi-relational Data.
-      In Advances in Neural Information Processing Systems 26, pages 2787–2795, 2013.
+      In Advances in Neural Information Processing Systems 26, pages 2787–2795,
+      2013.
       https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
 
     Parameters
@@ -152,27 +159,31 @@ class UniformNegativeSampler(NegativeSampler):
         super().__init__(kg, kg_val, kg_test)
 
     def corrupt_batch(self, heads, tails, relations=None):
-        """For each golden triplet, produce a corrupted one not different from any other golden\
-        triplet. If `heads` and `tails` are cuda objects , then the returned tensors are on the GPU.
+        """For each true triplet, produce a corrupted one not different from
+        any other true triplet. If `heads` and `tails` are cuda objects ,
+        then the returned tensors are on the GPU.
 
         Parameters
         ----------
-        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of heads of the relations in the current batch.
-        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of tails of the relations in the current batch.
-        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of relations in the current batch. This is optional\
-            here and mainly present because of the interface with other NegativeSampler objects.
+        heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of heads of the relations in the
+            current batch.
+        tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of tails of the relations in the
+            current batch.
+        relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of relations in the current
+            batch. This is optional here and mainly present because of the
+            interface with other NegativeSampler objects.
 
         Returns
         -------
-        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of negatively sampled heads of the relations\
-            in the current batch.
-        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of negatively sampled tails of the relations\
-            in the current batch.
+        neg_heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of negatively sampled heads of
+            the relations in the current batch.
+        neg_tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of negatively sampled tails of
+            the relations in the current batch.
         """
         use_cuda = heads.is_cuda
         assert (use_cuda == tails.is_cuda)
@@ -187,19 +198,24 @@ class UniformNegativeSampler(NegativeSampler):
         # Randomly choose which samples will have head/tail corrupted
         mask = bernoulli(ones(size=(batch_size,), device=device) / 2).double()
         n_heads_corrupted = int(mask.sum().item())
-        neg_heads[mask == 1] = randint(1, self.n_ent, (n_heads_corrupted,), device=device)
-        neg_tails[mask == 0] = randint(1, self.n_ent, (batch_size - n_heads_corrupted,),
+        neg_heads[mask == 1] = randint(1, self.n_ent,
+                                       (n_heads_corrupted,),
+                                       device=device)
+        neg_tails[mask == 0] = randint(1, self.n_ent,
+                                       (batch_size - n_heads_corrupted,),
                                        device=device)
 
         return neg_heads.long(), neg_tails.long()
 
 
 class BernoulliNegativeSampler(NegativeSampler):
-    """Bernoulli negative sampler as presented in 2014 paper by Wang et al.. Either the head or\
-    the tail of a triplet is replaced by another entity at random. The choice of head/tail is done\
-    using probabilities taking into account profiles of the relations. See the paper for more\
-    details. This class inherits from the
-    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface. It then has its attributes as well.
+    """Bernoulli negative sampler as presented in 2014 paper by Wang et al..
+    Either the head or the tail of a triplet is replaced by another entity at
+    random. The choice of head/tail is done using probabilities taking into
+    account profiles of the relations. See the paper for more details. This
+    class inherits from the
+    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface.
+    It then has its attributes as well.
 
     References
     ----------
@@ -219,7 +235,7 @@ class BernoulliNegativeSampler(NegativeSampler):
 
     Attributes
     ----------
-    bern_probs: `torch.Tensor`, dtype: `torch.float`, shape: (kg.n_rel)
+    bern_probs: torch.Tensor, dtype: torch.float, shape: (kg.n_rel)
         Bernoulli sampling probabilities. See paper for more details.
 
     """
@@ -228,9 +244,8 @@ class BernoulliNegativeSampler(NegativeSampler):
         self.bern_probs = self.evaluate_probabilities()
 
     def evaluate_probabilities(self):
-        """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original\
-        paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.\
-
+        """Evaluate the Bernoulli probabilities for negative sampling as in the
+        TransH original paper by Wang et al. (2014).
         """
         bern_probs = get_bernoulli_probs(self.kg)
 
@@ -244,33 +259,33 @@ class BernoulliNegativeSampler(NegativeSampler):
         return tensor(tmp).float()
 
     def corrupt_batch(self, heads, tails, relations):
-        """For each golden triplet, produce a corrupted one different from any other golden\
-        triplet. If `heads` and `tails` are cuda objects , then the returned tensors are on the GPU.
+        """For each true triplet, produce a corrupted one different from any
+        other true triplet. If `heads` and `tails` are cuda objects , then the
+        returned tensors are on the GPU.
 
         Parameters
         ----------
-        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of heads of the relations in the current batch.
-        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of tails of the relations in the current batch.
-        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of relations in the current batch.
+        heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of heads of the relations in the
+            current batch.
+        tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of tails of the relations in the
+            current batch.
+        relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of relations in the current
+            batch.
 
         Returns
         -------
-        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of negatively sampled heads of the relations\
-            in the current batch.
-        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of negatively sampled tails of the relations\
-            in the current batch.
+        neg_heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of negatively sampled heads of
+            the relations in the current batch.
+        neg_tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of negatively sampled tails of
+            the relations in the current batch.
         """
-        use_cuda = heads.is_cuda
-        assert (use_cuda == tails.is_cuda)
-        if use_cuda:
-            device = 'cuda'
-        else:
-            device = 'cpu'
+        device = heads.device
+        assert (device == tails.device)
 
         batch_size = heads.shape[0]
         neg_heads, neg_tails = heads.clone(), tails.clone()
@@ -278,27 +293,33 @@ class BernoulliNegativeSampler(NegativeSampler):
         # Randomly choose which samples will have head/tail corrupted
         mask = bernoulli(self.bern_probs[relations]).double()
         n_heads_corrupted = int(mask.sum().item())
-        neg_heads[mask == 1] = randint(1, self.n_ent, (n_heads_corrupted,), device=device)
-        neg_tails[mask == 0] = randint(1, self.n_ent, (batch_size - n_heads_corrupted,),
+        neg_heads[mask == 1] = randint(1, self.n_ent,
+                                       (n_heads_corrupted,),
+                                       device=device)
+        neg_tails[mask == 0] = randint(1, self.n_ent,
+                                       (batch_size - n_heads_corrupted,),
                                        device=device)
 
         return neg_heads.long(), neg_tails.long()
 
 
 class PositionalNegativeSampler(BernoulliNegativeSampler):
-    """Positional negative sampler as presented in 2011 paper by Socher et al.. Either the head or\
-    the tail of a triplet is replaced by another entity chosen among entities that have already\
-    appeared at the same place in a triplet (involving the same relation). It is not clear in the\
-    paper how the choice of head/tail is done. We chose to use Bernoulli sampling as in 2014 paper\
-    by Wang et al. as we believe it serves the same purpose as the original paper. This class inherits from the
-    :class:`torchkge.sampling.NegativeSampling.BernouilliNegativeSampler` class seen as an interface.
-    It then has its attributes as well.
+    """Positional negative sampler as presented in 2011 paper by Socher et al..
+    Either the head or the tail of a triplet is replaced by another entity
+    chosen among entities that have already appeared at the same place in a
+    triplet (involving the same relation). It is not clear in the paper how the
+    choice of head/tail is done. We chose to use Bernoulli sampling as in 2014
+    paper by Wang et al. as we believe it serves the same purpose as the
+    original paper. This class inherits from the
+    :class:`torchkge.sampling.NegativeSampling.BernouilliNegativeSampler` class
+    seen as an interface. It then has its attributes as well.
 
     References
     ----------
     * Richard Socher, Danqi Chen, Christopher D Manning, and Andrew Ng.
       Reasoning With Neural Tensor Networks for Knowledge Base Completion.
-      In Advances in Neural Information Processing Systems 26, pages 926–934., 2013.
+      In Advances in Neural Information Processing Systems 26, pages 926–934.,
+      2013.
       https://nlp.stanford.edu/pubs/SocherChenManningNg_NIPS2013.pdf
     * Zhen Wang, Jianwen Zhang, Jianlin Feng, and Zheng Chen.
       Knowledge Graph Embedding by Translating on Hyperplanes.
@@ -328,12 +349,14 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
     """
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
-        self.possible_heads, self.possible_tails, self.n_poss_heads, self.n_poss_tails = self.find_possibilities()
+        self.possible_heads, self.possible_tails, \
+            self.n_poss_heads, self.n_poss_tails = self.find_possibilities()
 
     def find_possibilities(self):
-        """For each relation of the knowledge graph (and possibly the validation graph but not the\
-        test graph) find all the possible heads and tails in the sense of Wang et al., e.g. all\
-        entities that occupy once this position in another triplet.
+        """For each relation of the knowledge graph (and possibly the
+        validation graph but not the test graph) find all the possible heads
+        and tails in the sense of Wang et al., e.g. all entities that occupy
+        once this position in another triplet.
 
         Returns
         -------
@@ -341,17 +364,19 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
             keys : relation index, values : list of possible heads
         possible tails: dict
             keys : relation index, values : list of possible tails
-        n_poss_heads: `torch.Tensor`, dtype: `torch.long`, shape: (n_relations)
+        n_poss_heads: torch.Tensor, dtype: torch.long, shape: (n_relations)
             Number of possible heads for each relation.
-        n_poss_tails: `torch.Tensor`, dtype: `torch.long`, shape: (n_relations)
+        n_poss_tails: torch.Tensor, dtype: torch.long, shape: (n_relations)
             Number of possible tails for each relation.
 
         """
         possible_heads, possible_tails = get_possible_heads_tails(self.kg)
 
         if self.n_facts_val > 0:
-            possible_heads, possible_tails = get_possible_heads_tails(self.kg_val,
-                                                                      possible_heads, possible_tails)
+            possible_heads, \
+                possible_tails = get_possible_heads_tails(self.kg_val,
+                                                          possible_heads,
+                                                          possible_tails)
 
         n_poss_heads = []
         n_poss_tails = []
@@ -376,34 +401,34 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         return possible_heads, possible_tails, n_poss_heads, n_poss_tails
 
     def corrupt_batch(self, heads, tails, relations):
-        """For each golden triplet, produce a corrupted one not different from any other golden\
-        triplet. If `heads` and `tails` are cuda objects , then the returned tensors are on the GPU.
+        """For each true triplet, produce a corrupted one not different from
+        any other golden triplet. If `heads` and `tails` are cuda objects,
+        then the returned tensors are on the GPU.
 
         Parameters
         ----------
-        heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of heads of the relations in the current batch.
-        tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of tails of the relations in the current batch.
-        relations: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of relations in the current batch. This is optional\
-            here and mainly present because of the interface with other NegativeSampler objects.
+        heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of heads of the relations in the
+            current batch.
+        tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of tails of the relations in the
+            current batch.
+        relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of relations in the current
+            batch. This is optional here and mainly present because of the
+            interface with other NegativeSampler objects.
 
         Returns
         -------
-        neg_heads: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of negatively sampled heads of the relations\
-            in the current batch.
-        neg_tails: `torch.Tensor`, dtype: `torch.long`, shape: (batch_size)
-            Tensor containing the integer key of negatively sampled tails of the relations\
-            in the current batch.
+        neg_heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of negatively sampled heads of
+            the relations in the current batch.
+        neg_tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Tensor containing the integer key of negatively sampled tails of
+            the relations in the current batch.
         """
-        use_cuda = heads.is_cuda
-        assert (use_cuda == tails.is_cuda)
-        if use_cuda:
-            device = 'cuda'
-        else:
-            device = 'cpu'
+        device = heads.device
+        assert (device == tails.device)
 
         batch_size = heads.shape[0]
         neg_heads, neg_tails = heads.clone(), tails.clone()
@@ -420,9 +445,10 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         assert n_poss_tails.shape[0] == batch_size - n_heads_corrupted
 
         # Choose a rank of an entity in the list of possible entities
-        choice_heads = (n_poss_heads.float() * rand((n_heads_corrupted,))).floor().long()
-        choice_tails = (
-                n_poss_tails.float() * rand((batch_size - n_heads_corrupted,))).floor().long()
+        choice_heads = (n_poss_heads.float() *
+                        rand((n_heads_corrupted,))).floor().long()
+        choice_tails = (n_poss_tails.float() *
+                        rand((batch_size - n_heads_corrupted,))).floor().long()
 
         corr = []
         rels = relations[mask == 1]

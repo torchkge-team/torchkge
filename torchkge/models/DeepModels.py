@@ -5,11 +5,9 @@ Copyright TorchKGE developers
 """
 
 from torch import nn, cat
-from torch.nn import Embedding
-from torch.nn.init import xavier_uniform_
 
 from ..models.interfaces import Model
-from ..utils import get_true_targets, get_rank
+from ..utils import get_true_targets, get_rank, init_embedding
 
 
 class ConvKBModel(Model):
@@ -50,11 +48,8 @@ class ConvKBModel(Model):
         super().__init__(n_entities, n_relations)
         self.emb_dim = emb_dim
 
-        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
         self.convlayer = nn.Sequential(nn.Conv1d(3, n_filters, 1, stride=1), nn.ReLU())
         self.output = nn.Sequential(nn.Linear(emb_dim * n_filters, 2), nn.Softmax(dim=1))

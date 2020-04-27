@@ -4,41 +4,45 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import empty, tensor
-from torch.nn import Embedding, Parameter
+from torch import tensor
+from torch.nn import Embedding
 from torch.nn.init import xavier_uniform_
 
 
 def init_embedding(n_vectors, dim):
-    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim` dimensions.
+    """Create a torch.nn.Embedding object with `n_vectors` samples and `dim`
+    dimensions. It is then initialized with Xavier uniform distribution.
     """
     entity_embeddings = Embedding(n_vectors, dim)
-    entity_embeddings.weight = Parameter(xavier_uniform_(empty(size=(n_vectors, dim))), requires_grad=True)
+    xavier_uniform_(entity_embeddings.weight.data)
+
     return entity_embeddings
 
 
 def get_true_targets(dictionary, e_idx, r_idx, true_idx, i):
-    """For a current index `i` of the batch, returns a tensor containing the indices of entities for which the triplet
-    is an existing one (i.e. a true one under CWA).
+    """For a current index `i` of the batch, returns a tensor containing the
+    indices of entities for which the triplet is an existing one (i.e. a true
+    one under CWA).
 
     Parameters
     ----------
     dictionary: default dict
-        Dictionary of keys (int, int) and values list of ints giving all possible entities for
-        the (entity, relation) pair.
-    e_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
+        Dictionary of keys (int, int) and values list of ints giving all
+        possible entities for the (entity, relation) pair.
+    e_idx: torch.Tensor, shape: (batch_size), dtype: torch.long
         Tensor containing the indices of entities.
-    r_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
+    r_idx: torch.Tensor, shape: (batch_size), dtype: torch.long
         Tensor containing the indices of relations.
-    true_idx: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
+    true_idx: torch.Tensor, shape: (batch_size), dtype: torch.long
         Tensor containing the true entity for each sample.
     i: int
         Indicates which index of the batch is currently treated.
 
     Returns
     -------
-    true_targets: `torch.Tensor`, shape: (batch_size), dtype: `torch.long`
-        Tensor containing the indices of entities such that (e_idx[i], r_idx[i], true_target[any]) is a true fact.
+    true_targets: torch.Tensor, shape: (batch_size), dtype: torch.long
+        Tensor containing the indices of entities such that
+        (e_idx[i], r_idx[i], true_target[any]) is a true fact.
 
     """
     true_targets = dictionary[e_idx[i].item(), r_idx[i].item()].copy()

@@ -5,9 +5,9 @@ Copyright TorchKGE developers
 """
 
 from torch import matmul, cat
-from torch.nn import Embedding
 from torch.nn.functional import normalize
-from torch.nn.init import xavier_uniform_
+
+from ..utils import init_embedding
 
 from ..models import BilinearModel
 
@@ -39,10 +39,10 @@ class RESCALModel(BilinearModel):
 
     Attributes
     ----------
-    ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Embeddings of the entities, initialized with Xavier uniform
         distribution and then normalized.
-    rel_mat: `torch.nn.Embedding`, shape: (n_rel, emb_dim x emb_dim)
+    rel_mat: torch.nn.Embedding, shape: (n_rel, emb_dim x emb_dim)
         Matrices of the relations, initialized with Xavier uniform
         distribution.
 
@@ -52,27 +52,39 @@ class RESCALModel(BilinearModel):
         super().__init__(emb_dim, n_entities, n_relations)
 
         # initialize embedding objects
-        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.rel_mat = Embedding(self.n_rel, self.emb_dim * self.emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_mat.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_mat = init_embedding(self.n_rel, self.emb_dim * self.emb_dim)
 
         # normalize the embeddings
         self.normalize_parameters()
 
     def scoring_function(self, h_idx, t_idx, r_idx):
+        """Compute the scoring function for the triplets given as argument:
+        :math:`h^T \\cdot M_r \\cdot t`. See referenced paper for more details
+        on the score. See torchkge.models.interfaces.Models for more details
+        on the API.
+
+        """
         h = normalize(self.ent_emb(h_idx), p=2, dim=1)
         t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = self.rel_mat(r_idx).view(-1, self.emb_dim, self.emb_dim)
         hr = matmul(h.view(-1, 1, self.emb_dim), r)
         return (hr.view(-1, self.emb_dim) * t).sum(dim=1)
 
-    def normalize_parameters(self):  # TODO
+    def normalize_parameters(self):
+        """Normalize the entity embeddings, as explained in original paper.
+        This methods should be called at the end of each training epoch and at
+        the end of training as well.
+
+        """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data,
                                              p=2, dim=1)
 
     def lp_batch_scoring_function(self, h, t, r):
+        """Link prediction evaluation helper function. See
+        torchkge.models.interfaces.Models for more details of the API.
+
+        """
         b_size = h.shape[0]
 
         if len(h.shape) == 2 and len(t.shape) == 3:
@@ -86,6 +98,12 @@ class RESCALModel(BilinearModel):
             return (h.transpose(1, 2) * matmul(r, t)).sum(dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
+
+        """
         b_size = h_idx.shape[0]
 
         h_emb = self.ent_emb(h_idx)
@@ -123,10 +141,10 @@ class DistMultModel(BilinearModel):
 
     Attributes
     ----------
-    ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Embeddings of the entities, initialized with Xavier uniform
         distribution and then normalized.
-    rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Embeddings of the relations, initialized with Xavier uniform
         distribution.
 
@@ -136,26 +154,38 @@ class DistMultModel(BilinearModel):
         super().__init__(emb_dim, n_entities, n_relations)
         self.emb_dim = emb_dim
 
-        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
         self.normalize_parameters()
 
     def scoring_function(self, h_idx, t_idx, r_idx):
+        """Compute the scoring function for the triplets given as argument:
+        :math:`h^T \\cdot diag(r) \\cdot t`. See referenced paper for more
+        details on the score. See torchkge.models.interfaces.Models for more
+        details on the API.
+
+        """
         h = normalize(self.ent_emb(h_idx), p=2, dim=1)
         t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = self.rel_emb(r_idx)
 
         return (h * r * t).sum(dim=1)
 
-    def normalize_parameters(self):  # TODO
+    def normalize_parameters(self):
+        """Normalize the entity embeddings, as explained in original paper.
+        This methods should be called at the end of each training epoch and at
+        the end of training as well.
+
+        """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2,
                                              dim=1)
 
     def lp_batch_scoring_function(self, h, t, r):
+        """Link prediction evaluation helper function. See
+        torchkge.models.interfaces.Models for more details on the API.
+
+        """
         b_size = h.shape[0]
 
         if len(h.shape) == 2 and len(t.shape) == 3:
@@ -168,16 +198,22 @@ class DistMultModel(BilinearModel):
             return (h.transpose(1, 2) * rt).sum(dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
+
+        """
         b_size = h_idx.shape[0]
 
-        h_emb = self.ent_emb(h_idx)
-        t_emb = self.ent_emb(t_idx)
-        r_emb = self.rel_emb(r_idx)
+        h = self.ent_emb(h_idx)
+        t = self.ent_emb(t_idx)
+        r = self.rel_emb(r_idx)
 
         candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
         candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
 
-        return h_emb, t_emb, candidates, r_emb
+        return h, t, candidates, r
 
 
 class HolEModel(BilinearModel):
@@ -204,10 +240,10 @@ class HolEModel(BilinearModel):
 
     Attributes
     ----------
-    ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Embeddings of the entities, initialized with Xavier uniform
         distribution and then normalized.
-    rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Embeddings of the relations, initialized with Xavier uniform
         distribution.
 
@@ -216,15 +252,19 @@ class HolEModel(BilinearModel):
     def __init__(self, emb_dim, n_entities, n_relations):
         super().__init__(emb_dim, n_entities, n_relations)
 
-        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
         self.normalize_parameters()
 
     def scoring_function(self, h_idx, t_idx, r_idx):
+        """Compute the scoring function for the triplets given as argument:
+        :math:`h^T \\cdot M_r \\cdot t` where :math:`M_r` is the rolling matrix
+        built from the relation embedding `r`. See referenced paper for more
+        details on the score. See torchkge.models.interfaces.Models for more
+        details on the API.
+
+        """
         h = normalize(self.ent_emb(h_idx), p=2, dim=1)
         t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = self.get_rolling_matrix(self.rel_emb(r_idx))
@@ -237,11 +277,11 @@ class HolEModel(BilinearModel):
 
         Parameters
         ----------
-        x: `torch.Tensor`, shape: (b_size, dim)
+        x: torch.Tensor, shape: (b_size, dim)
 
         Returns
         -------
-        mat: `torch.Tensor`, shape: (b_size, dim, dim)
+        mat: torch.Tensor, shape: (b_size, dim, dim)
             Rolling matrix such that mat[i,j] = x[i - j mod(dim)]
         """
         b_size, dim = x.shape
@@ -249,10 +289,19 @@ class HolEModel(BilinearModel):
         return cat([x.roll(i, dims=2) for i in range(dim)], dim=1)
 
     def normalize_parameters(self):
+        """Normalize the entity embeddings, as explained in original paper.
+        This methods should be called at the end of each training epoch and at
+        the end of training as well.
+
+        """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2,
                                              dim=1)
 
     def lp_batch_scoring_function(self, h, t, r):
+        """Link prediction evaluation helper function. See
+        torchkge.models.interfaces.Models for more details on the API.
+
+        """
         b_size = h.shape[0]
 
         if len(h.shape) == 2 and len(t.shape) == 3:
@@ -266,30 +315,10 @@ class HolEModel(BilinearModel):
             return (h.transpose(1, 2) * matmul(r, t)).sum(dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        """
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        h_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Tensor containing embeddings of current head entities.
-        t_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Tensor containing embeddings of current tail entities.
-        candidates: `torch.Tensor`, shape: (b_size, n_ent, emb_dim),
-            dtype: `torch.float`
-            Tensor containing all entities as candidates for each sample of
-            the batch.
-        r_mat: `torch.Tensor`, shape: (b_size, emb_dim, emb_dim),
-            dtype: `torch.float`
-            Tensor containing matrices of current relations.
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -328,47 +357,32 @@ class ComplExModel(BilinearModel):
 
     Attributes
     ----------
-    re_ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    re_ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Real part of the entities complex embeddings. Initialized with Xavier
         uniform distribution.
-    im_ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    im_ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Imaginary part of the entities complex embeddings. Initialized with
         Xavier uniform distribution.
-    re_rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    re_rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Real part of the relations complex embeddings. Initialized with Xavier
         uniform distribution.
-    im_rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    im_rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Imaginary part of the relations complex embeddings. Initialized with
         Xavier uniform distribution.
     """
 
     def __init__(self, emb_dim, n_entities, n_relations):
         super().__init__(emb_dim, n_entities, n_relations)
-        self.re_ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.im_ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.re_rel_emb = Embedding(self.n_rel, self.emb_dim)
-        self.im_rel_emb = Embedding(self.n_rel, self.emb_dim)
-
-        xavier_uniform_(self.re_ent_emb.weight.data)
-        xavier_uniform_(self.im_ent_emb.weight.data)
-        xavier_uniform_(self.re_rel_emb.weight.data)
-        xavier_uniform_(self.im_rel_emb.weight.data)
+        self.re_ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.im_ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.re_rel_emb = init_embedding(self.n_rel, self.emb_dim)
+        self.im_rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the real part of the Hermitian product
         :math:`\\Re(h^T \\cdot diag(r) \\cdot \\bar{t})` for each sample of
-        the batch.
-
-        Parameters
-        ----------
-        h_idx:
-        t_idx:
-        r_idx:
-
-        Returns
-        -------
-        product: `torch.Tensor`, shape: (b_size), dtype: `torch.float`
-            Tensor containing the scoring function.
+        the batch. See referenced paper for more details on the score. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
 
@@ -380,9 +394,17 @@ class ComplExModel(BilinearModel):
                     re_r * im_t - im_r * re_t)).sum(dim=1)
 
     def normalize_parameters(self):
-        pass  # TODO
+        """According to original paper, the embeddings should not be
+        normalized.
+
+        """
+        pass
 
     def lp_batch_scoring_function(self, h, t, r):
+        """Link prediction evaluation helper function. See
+        torchkge.models.interfaces.Models for more details one the API.
+
+        """
         re_h, im_h = h[0], h[1]
         re_t, im_t = t[0], t[1]
         re_r, im_r = r[0], r[1]
@@ -407,23 +429,10 @@ class ComplExModel(BilinearModel):
                         b_size, self.emb_dim, 1)).sum(dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        """
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size,), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        h:
-        t:
-        candidates:
-        r:
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -479,27 +488,27 @@ class AnalogyModel(BilinearModel):
         to the original paper.
     complex_dim: int
         Number of 2x2 matrices on the diagonals of relation-specific matrices.
-    sc_ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    sc_ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Part of the entities embeddings associated to the scalar part of the
         relation specific matrices. Initialized with Xavier uniform
         distribution.
-    re_ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    re_ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Real part of the entities complex embeddings. Initialized with Xavier
         uniform distribution. As explained in the authors' paper, almost
         diagonal matrices can be seen as complex matrices.
-    im_ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
+    im_ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
         Imaginary part of the entities complex embeddings. Initialized with
         Xavier uniform distribution. As explained in the authors' paper, almost
         diagonal matrices can be seen as complex matrices.
-    sc_rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    sc_rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Part of the entities embeddings associated to the scalar part of the
         relation specific matrices. Initialized with Xavier uniform
         distribution.
-    re_rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    re_rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Real part of the relations complex embeddings. Initialized with Xavier
         uniform distribution. As explained in the authors' paper, almost
         diagonal matrices can be seen as complex matrices.
-    im_rel_emb: `torch.nn.Embedding`, shape: (n_rel, emb_dim)
+    im_rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
         Imaginary part of the relations complex embeddings. Initialized with
         Xavier uniform distribution. As explained in the authors' paper, almost
         diagonal matrices can be seen as complex matrices.
@@ -511,22 +520,22 @@ class AnalogyModel(BilinearModel):
         self.scalar_dim = int(self.emb_dim * scalar_share)
         self.complex_dim = int((self.emb_dim - self.scalar_dim))
 
-        self.sc_ent_emb = Embedding(self.n_ent, self.scalar_dim)
-        self.re_ent_emb = Embedding(self.n_ent, self.complex_dim)
-        self.im_ent_emb = Embedding(self.n_ent, self.complex_dim)
+        self.sc_ent_emb = init_embedding(self.n_ent, self.scalar_dim)
+        self.re_ent_emb = init_embedding(self.n_ent, self.complex_dim)
+        self.im_ent_emb = init_embedding(self.n_ent, self.complex_dim)
 
-        self.sc_rel_emb = Embedding(self.n_rel, self.scalar_dim)
-        self.re_rel_emb = Embedding(self.n_rel, self.complex_dim)
-        self.im_rel_emb = Embedding(self.n_rel, self.complex_dim)
-
-        xavier_uniform_(self.sc_ent_emb.weight.data)
-        xavier_uniform_(self.re_ent_emb.weight.data)
-        xavier_uniform_(self.im_ent_emb.weight.data)
-        xavier_uniform_(self.sc_rel_emb.weight.data)
-        xavier_uniform_(self.re_rel_emb.weight.data)
-        xavier_uniform_(self.im_rel_emb.weight.data)
+        self.sc_rel_emb = init_embedding(self.n_rel, self.scalar_dim)
+        self.re_rel_emb = init_embedding(self.n_rel, self.complex_dim)
+        self.im_rel_emb = init_embedding(self.n_rel, self.complex_dim)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
+        """Compute the scoring function for the triplets given as argument:
+        :math:`h_{sc}^T \\cdot diag(r_{sc}) \\cdot t_{sc} + \\Re(h_{compl}
+        \\cdot diag(r_{compl} \\cdot t_{compl}))`. See referenced paper for
+        more details on the score. See torchkge.models.interfaces.Models for
+        more details on the API.
+        """
+
         sc_h, re_h, im_h = self.sc_ent_emb(h_idx), self.re_ent_emb(
             h_idx), self.im_ent_emb(h_idx)
         sc_t, re_t, im_t = self.sc_ent_emb(t_idx), self.re_ent_emb(
@@ -538,13 +547,17 @@ class AnalogyModel(BilinearModel):
                 (re_h * (re_r * re_t + im_r * im_t) + im_h * (
                             re_r * im_t - im_r * re_t)).sum(dim=1))
 
-    def normalize_parameters(self):  # TODO
-        """According to original paper, no normalization should be done on
-        the parameters.
+    def normalize_parameters(self):
+        """According to original paper, the embeddings should not be
+        normalized.
         """
         pass
 
     def lp_batch_scoring_function(self, h, t, r):
+        """Link prediction evaluation helper function. See
+        torchkge.models.interfaces.Models for more details one the API.
+
+        """
         sc_h, re_h, im_h = h[0], h[1], h[2]
         sc_t, re_t, im_t = t[0], t[1], t[2]
         sc_r, re_r, im_r = r[0], r[1], r[2]
@@ -581,6 +594,12 @@ class AnalogyModel(BilinearModel):
                     + sum2.sum(dim=1))
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
+
+        """
         b_size = h_idx.shape[0]
 
         sc_candidates = self.sc_ent_emb.weight.data

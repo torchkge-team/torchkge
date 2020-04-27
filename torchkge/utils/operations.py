@@ -8,8 +8,8 @@ from torch import zeros
 
 
 def get_mask(length, start, end):
-    """Create a mask of length `length` filled with 0s except between indices `start` (included)\
-    and `end` (excluded).
+    """Create a mask of length `length` filled with 0s except between indices
+    `start` (included) and `end` (excluded).
 
     Parameters
     ----------
@@ -23,8 +23,8 @@ def get_mask(length, start, end):
     Returns
     -------
     mask: `torch.Tensor`, shape: (length), dtype: `torch.bool`
-        Mask of length `length` filled with 0s except between indices `start` (included)\
-        and `end` (excluded).
+        Mask of length `length` filled with 0s except between indices `start`
+        (included) and `end` (excluded).
     """
     mask = zeros(length)
     mask[[i for i in range(start, end)]] = 1
@@ -32,8 +32,8 @@ def get_mask(length, start, end):
 
 
 def get_rank(data, true, low_values=False):
-    """Computes the rank of entity at index true[i]. If the rank is k then there are k-1 entities with better (higher \
-    or lower) value in data.
+    """Computes the rank of entity at index true[i]. If the rank is k then
+    there are k-1 entities with better (higher or lower) value in data.
 
     Parameters
     ----------
@@ -47,7 +47,8 @@ def get_rank(data, true, low_values=False):
     Returns
     -------
     ranks: `torch.Tensor`, dtype: `torch.int`, shape: (n_facts)
-        ranks[i] - 1 is the number of entities which have better scores in data than the one and index true[i]
+        ranks[i] - 1 is the number of entities which have better scores in data
+        than the one and index true[i]
     """
     true_data = data.gather(1, true.long().view(-1, 1))
 

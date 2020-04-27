@@ -69,8 +69,8 @@ def get_hpt(t):
 
 
 def get_bernoulli_probs(kg):
-    """Evaluate the Bernoulli probabilities for negative sampling as in the TransH original\
-    paper by Wang et al. (2014) https://www.aaai.org/ocs/index.php/AAAI/AAAI14/paper/view/8531.
+    """Evaluate the Bernoulli probabilities for negative sampling as in the
+    TransH original paper by Wang et al. (2014).
 
     Parameters
     ----------
@@ -79,10 +79,13 @@ def get_bernoulli_probs(kg):
     Returns
     -------
     tph: dict
-        keys: relations , values: sampling probabilities as described by Wang et al. in their paper.
+        keys: relations , values: sampling probabilities as described by
+        Wang et al. in their paper.
 
     """
-    t = cat((kg.head_idx.view(-1, 1), kg.tail_idx.view(-1, 1), kg.relations.view(-1, 1)), dim=1)
+    t = cat((kg.head_idx.view(-1, 1),
+             kg.tail_idx.view(-1, 1),
+             kg.relations.view(-1, 1)), dim=1)
 
     hpt = get_hpt(t)
     tph = get_tph(t)

@@ -6,14 +6,11 @@ Copyright TorchKGE developers
 
 from torch import empty, matmul, eye, tensor
 from torch.cuda import empty_cache
-from torch.nn import Parameter, Embedding
+from torch.nn import Parameter
 from torch.nn.functional import normalize
-from torch.nn.init import xavier_uniform_
 
 from ..models.interfaces import TranslationModel
 from ..utils import init_embedding
-from ..utils import l1_torus_dissimilarity, l2_torus_dissimilarity, \
-    el2_torus_dissimilarity
 
 from tqdm.autonotebook import tqdm
 
@@ -42,13 +39,11 @@ class TransEModel(TranslationModel):
         Number of entities in the current data set.
     n_relations: int
         Number of relations in the current data set.
-    dissimilarity_type: int
-        Either 1 or 2 for L1 or L2 dissimilarity.
+    dissimilarity_type: str
+        Either 'L1' or 'L2'.
 
     Attributes
     ----------
-    dissimilarity_type: int
-        Either 1 or 2 for L1 or L2 dissimilarity.
     emb_dim: int
         Dimension of the embedding.
     ent_emb: `torch.nn.Embedding`, shape: (n_ent, emb_dim)
@@ -64,73 +59,43 @@ class TransEModel(TranslationModel):
 
         super().__init__(n_entities, n_relations, dissimilarity_type)
 
-        self.dissimilarity_type = dissimilarity_type
         self.emb_dim = emb_dim
 
-        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
         self.normalize_parameters()
         self.rel_emb.weight.data = normalize(self.rel_emb.weight.data,
                                              p=2, dim=1)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
-        """Compute the scoring function for the triplets given as argument.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
-            Score function: opposite of dissimilarities between h+r and t.
+        """Compute the scoring function for the triplets given as argument:
+        :math:`||h + r - t||_p^p` with p being the `dissimilarity type (either
+        1 or 2)`. See referenced paper for more details
+        on the score. See torchkge.models.interfaces.Models for more details
+        on the API.
 
         """
-        h_emb = normalize(self.ent_emb(h_idx), p=2, dim=1)
-        t_emb = normalize(self.ent_emb(t_idx), p=2, dim=1)
-        r_emb = self.rel_emb(r_idx)
+        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
+        r = self.rel_emb(r_idx)
 
-        return - (h_emb + r_emb - t_emb).norm(p=self.dissimilarity_type, dim=1)
+        return - self.dissimilarity(h + r, t)
 
-    def normalize_parameters(self):  # TODO
-        """Normalize the parameters of the model using the L2 norm.
+    def normalize_parameters(self):
+        """Normalize the entity embeddings, as explained in original paper.
+        This methods should be called at the end of each training epoch and at
+        the end of training as well.
+
         """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data,
                                              p=2, dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        """Project current entities and candidates into relation-specific
-        sub-spaces.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        h_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Embeddings of current head entities.
-        t_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Embeddings of current tail entities.
-        candidates: `torch.Tensor`, shape: (b_size, n_ent, emb_dim), \
-            dtype: `torch.float`
-            All entities' embeddings duplicated along first axis.
-        r_emb: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Current relations embeddings.
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -186,15 +151,11 @@ class TransHModel(TranslationModel):
     """
 
     def __init__(self, emb_dim, n_entities, n_relations):
-        super().__init__(n_entities, n_relations, dissimilarity_type=2)
+        super().__init__(n_entities, n_relations, dissimilarity_type='L2')
         self.emb_dim = emb_dim
-        self.ent_emb = Embedding(self.n_ent, self.emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.emb_dim)
-        self.norm_vect = Embedding(self.n_rel, self.emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
-        xavier_uniform_(self.norm_vect.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
+        self.norm_vect = init_embedding(self.n_rel, self.emb_dim)
 
         self.normalize_parameters()
 
@@ -205,22 +166,10 @@ class TransHModel(TranslationModel):
                                             requires_grad=False)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
-        """Compute the scoring function for the triplets given as argument.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
-            Score function: opposite of dissimilarities between h+r and t after
-            projection.
+        """Compute the scoring function for the triplets given as argument:
+        :math:`||p_r(h) + r - p_r(t)||_2^2`. See referenced paper for
+        more details on the score. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         self.evaluated_projections = False
@@ -229,15 +178,19 @@ class TransHModel(TranslationModel):
         t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = self.rel_emb(r_idx)
         norm_vect = normalize(self.norm_vect(r_idx), p=2, dim=1)
-        hrt = self.project(h, norm_vect) + r - self.project(t, norm_vect)
-        return - hrt.norm(p=2, dim=1)
+
+        return - self.dissimilarity(self.project(h, norm_vect) + r,
+                                    self.project(t, norm_vect))
 
     @staticmethod
     def project(ent, norm_vect):
         return ent - (ent * norm_vect).sum(dim=1).view(-1, 1) * norm_vect
 
-    def normalize_parameters(self):  # TODO
-        """Normalize the parameters of the model using the L2 norm.
+    def normalize_parameters(self):
+        """Normalize the entity embeddings and relations normal vectors, as
+        explained in original paper. This methods should be called at the end
+        of each training epoch and at the end of training as well.
+
         """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data,
                                              p=2, dim=1)
@@ -245,32 +198,10 @@ class TransHModel(TranslationModel):
                                                p=2, dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        """Project current entities and candidates into relation-specific
-        sub-spaces.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        proj_h: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Embeddings of current head entities projected on relation
-            hyperplane.
-        proj_t: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Embeddings of current tail entities projected on relation
-            hyperplane.
-        proj_candidates: `torch.Tensor`, shape: (b_size, emb_dim, n_ent), \
-            dtype: `torch.float`
-            Tensor containing all entities projected on each relation-specific
-            hyperplane (relations corresponding to current batch's relations).
-        r: `torch.Tensor`, shape: (b_size, emb_dim), dtype: `torch.float`
-            Embeddings of current relations.
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
         if not self.evaluated_projections:
@@ -284,8 +215,12 @@ class TransHModel(TranslationModel):
         return proj_h, proj_t, proj_candidates, r
 
     def lp_evaluate_projections(self):
-        """Project all entities according to each relation.
-                """
+        """Link prediction evaluation helper function. Project all entities
+        according to each relation. Calling this method at the beginning of
+        link prediction makes the process faster by computing projections only
+        once.
+
+        """
         if self.evaluated_projections:
             return
 
@@ -360,18 +295,14 @@ class TransRModel(TranslationModel):
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(n_entities, n_relations, dissimilarity_type=2)
+        super().__init__(n_entities, n_relations, 'L2')
         self.ent_emb_dim = ent_emb_dim
         self.rel_emb_dim = rel_emb_dim
 
-        self.ent_emb = Embedding(self.n_ent, self.ent_emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.rel_emb_dim)
-        self.proj_mat = Embedding(self.n_rel,
-                                  self.rel_emb_dim * self.ent_emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
-        xavier_uniform_(self.proj_mat.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.ent_emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.rel_emb_dim)
+        self.proj_mat = init_embedding(self.n_rel,
+                                       self.rel_emb_dim * self.ent_emb_dim)
 
         self.normalize_parameters()
 
@@ -381,22 +312,10 @@ class TransRModel(TranslationModel):
                                             requires_grad=False)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
-        """Compute the scoring function for the triplets given as argument.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
-            Score function: opposite of dissimilarities between h+r and t
-            after projection.
+        """Compute the scoring function for the triplets given as argument:
+        :math:`||p_r(h) + r - p_r(t)||_2^2`. See referenced paper for
+        more details on the score. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         self.evaluated_projections = False
@@ -408,49 +327,29 @@ class TransRModel(TranslationModel):
         proj_mat = self.proj_mat(r_idx).view(b_size,
                                              self.rel_emb_dim,
                                              self.ent_emb_dim)
-        hrt = self.project(h, proj_mat) + r - self.project(t, proj_mat)
-        return - hrt.norm(p=2, dim=1)
+        return - self.dissimilarity(self.project(h, proj_mat) + r,
+                                    self.project(t, proj_mat))
 
     def project(self, ent, proj_mat):
         proj_e = matmul(proj_mat, ent.view(-1, self.ent_emb_dim, 1))
         return proj_e.view(-1, self.rel_emb_dim)
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using the L2 norm.
+        """Normalize the entity and relation embeddings, as explained in
+        original paper. This methods should be called at the end of each
+        training epoch and at the end of training as well.
+
         """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data,
                                              p=2, dim=1)
         self.rel_emb.weight.data = normalize(self.rel_emb.weight.data,
                                              p=2, dim=1)
-        # self.proj_mat.weight.data = normalize(self.proj_mat.weight.data,
-        # p=2, dim=1) #TODO fix this
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        """Project current entities and candidates into relation-specific
-        sub-spaces.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        proj_h: `torch.Tensor`, shape: (b_size, rel_emb_dim), \
-            dtype: `torch.float`
-            Embeddings of current head entities projected in relation space.
-        proj_t: `torch.Tensor`, shape: (b_size, rel_emb_dim), \
-            dtype: `torch.float`
-            Embeddings of current tail entities projected in relation space.
-        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_ent), \
-            dtype: `torch.float`
-            All entities projected in each of current batch's relation spaces.
-        r: `torch.Tensor`, shape: (b_size, rel_emb_dim), dtype: `torch.float`
-            Tensor containing current relations embeddings.
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
 
@@ -465,8 +364,12 @@ class TransRModel(TranslationModel):
         return proj_h, proj_t, proj_candidates, r
 
     def lp_evaluate_projections(self):
-        """Project all entities according to each relation.
-                """
+        """Link prediction evaluation helper function. Project all entities
+        according to each relation. Calling this method at the beginning of
+        link prediction makes the process faster by computing projections only
+        once.
+
+        """
         if self.evaluated_projections:
             return
 
@@ -523,7 +426,7 @@ class TransDModel(TranslationModel):
     Attributes
     ----------
     ent_emb_dim: int
-        Dimension nof the embedding of entities.
+        Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
     ent_emb: `torch.nn.Embedding`, shape: (n_ent, ent_emb_dim)
@@ -552,20 +455,15 @@ class TransDModel(TranslationModel):
 
     def __init__(self, ent_emb_dim, rel_emb_dim, n_entities, n_relations):
 
-        super().__init__(n_entities, n_relations, 2)
+        super().__init__(n_entities, n_relations, 'L2')
 
         self.ent_emb_dim = ent_emb_dim
         self.rel_emb_dim = rel_emb_dim
 
-        self.ent_emb = Embedding(self.n_ent, self.ent_emb_dim)
-        self.rel_emb = Embedding(self.n_rel, self.rel_emb_dim)
-        self.ent_proj_vect = Embedding(self.n_ent, self.ent_emb_dim)
-        self.rel_proj_vect = Embedding(self.n_rel, self.rel_emb_dim)
-
-        xavier_uniform_(self.ent_emb.weight.data)
-        xavier_uniform_(self.rel_emb.weight.data)
-        xavier_uniform_(self.ent_proj_vect.weight.data)
-        xavier_uniform_(self.rel_proj_vect.weight.data)
+        self.ent_emb = init_embedding(self.n_ent, self.ent_emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.rel_emb_dim)
+        self.ent_proj_vect = init_embedding(self.n_ent, self.ent_emb_dim)
+        self.rel_proj_vect = init_embedding(self.n_rel, self.rel_emb_dim)
 
         self.normalize_parameters()
 
@@ -576,26 +474,13 @@ class TransDModel(TranslationModel):
                                             requires_grad=False)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
-        """Compute the scoring function for the triplets given as argument.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
-            Score function: opposite of dissimilarities between h+r and t after
-            projection.
+        """Compute the scoring function for the triplets given as argument:
+        :math:`||p_r(h) + r - p_r(t)||_2^2`. See referenced paper for
+        more details on the score. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         self.evaluated_projections = False
-        # TODO: project all pairs of entities and relations only once
         h = normalize(self.ent_emb(h_idx), p=2, dim=1)
         t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = normalize(self.rel_emb(r_idx), p=2, dim=1)
@@ -603,10 +488,11 @@ class TransDModel(TranslationModel):
         h_proj_v = normalize(self.ent_proj_vect(h_idx), p=2, dim=1)
         t_proj_v = normalize(self.ent_proj_vect(t_idx), p=2, dim=1)
         r_proj_v = normalize(self.rel_proj_vect(r_idx), p=2, dim=1)
+
         proj_h = self.project(h, h_proj_v, r_proj_v)
         proj_t = self.project(t, t_proj_v, r_proj_v)
 
-        return - (proj_h + r - proj_t).norm(p=2, dim=1)
+        return - self.dissimilarity(proj_h + r, proj_t)
 
     def project(self, ent, e_proj_vect, r_proj_vect):
         b_size = ent.shape[0]
@@ -620,7 +506,10 @@ class TransDModel(TranslationModel):
         return proj_e.view(b_size, self.rel_emb_dim)
 
     def normalize_parameters(self):
-        """Normalize the parameters of the model using the L2 norm.
+        """Normalize the entity embeddings and relations normal vectors, as
+        explained in original paper. This methods should be called at the end
+        of each training epoch and at the end of training as well.
+
         """
         self.ent_emb.weight.data = normalize(
             self.ent_emb.weight.data, p=2, dim=1)
@@ -632,32 +521,10 @@ class TransDModel(TranslationModel):
             self.rel_proj_vect.weight.data, p=2, dim=1)
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
-        """Project current entities and candidates into relation-specific
-        sub-spaces.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: torch Tensor, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-        Returns
-        -------
-        proj_h_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), \
-            dtype: `torch.float`
-            Embeddings of current head entities projected in relation space.
-        proj_t_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), \
-            dtype: `torch.float`
-            Embeddings of current tail entities projected in relation space.
-        proj_candidates: `torch.Tensor`, shape: (b_size, rel_emb_dim, n_ent), \
-            dtype: `torch.float`
-            All entities projected in each relation spaces (relations\
-            corresponding to current batch's relations).
-        r_emb: `torch.Tensor`, shape: (b_size, rel_emb_dim), \
-            dtype: `torch.float`
-            Embeddings of the current relations.
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
         if not self.evaluated_projections:
@@ -671,7 +538,11 @@ class TransDModel(TranslationModel):
         return proj_h, proj_t, proj_candidates, r
 
     def lp_evaluate_projections(self):
-        """Project all entities according to each relation.
+        """Link prediction evaluation helper function. Project all entities
+        according to each relation. Calling this method at the beginning of
+        link prediction makes the process faster by computing projections only
+        once.
+
         """
         if self.evaluated_projections:
             return
@@ -708,118 +579,98 @@ class TransDModel(TranslationModel):
         self.evaluated_projections = True
 
 
-class TorusEModel(TransEModel):
-    """Implementation of TorusE model detailed in 2018 paper by Ebisu and Ichise. This class inherits from the
-    :class:`torchkge.models.TranslationalModels.TransEModel` class interpreted as an interface.
-    It then has its attributes as well.
+class TorusEModel(TranslationModel):
+    """Implementation of TorusE model detailed in 2018 paper by Ebisu and
+    Ichise. This class inherits from the
+    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then
+    has its attributes as well.
 
-        References
-        ----------
-        * Takuma Ebisu and Ryutaro Ichise
-        `TorusE: Knowledge Graph Embedding on a Lie Group.
-        <https://arxiv.org/abs/1711.05435>`_
-        In Proceedings of the 32nd AAAI Conference on Artificial Intelligence
-        (New Orleans, LA, USA, Feb. 2018), AAAI Press, pp. 1819–1826.
+    References
+    ----------
+    * Takuma Ebisu and Ryutaro Ichise
+    `TorusE: Knowledge Graph Embedding on a Lie Group.
+    <https://arxiv.org/abs/1711.05435>`_
+    In Proceedings of the 32nd AAAI Conference on Artificial Intelligence
+    (New Orleans, LA, USA, Feb. 2018), AAAI Press, pp. 1819–1826.
 
-        Parameters
-        ----------
-        ent_emb_dim: int
-            Dimension of the embedding of entities.
-        n_entities: int
-            Number of entities in the current data set.
-        n_relations: int
-            Number of relations in the current data set.
-        dissimilarity_type: function
-            Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
+    Parameters
+    ----------
+    emb_dim: int
+        Embedding dimension.
+    n_entities: int
+        Number of entities in the current data set.
+    n_relations: int
+        Number of relations in the current data set.
+    dissimilarity_type: str
+        One of 'torus_L1', 'torus_L2', 'torus_eL2'.
 
-        Attributes
-        ----------
-        dissimilarity_type: function
-            Used to compute dissimilarities (e.g. L1 or L2 dissimilarities).
-        relation_embeddings: torch Embedding, shape: (number_relations, emb_dim)
-            Contains the embeddings of the relations. It is initialized with Xavier uniform and\
-            then normalized.
+    Attributes
+    ----------
+    emb_dim: int
+        Embedding dimension.
+    ent_emb: torch.nn.Embedding, shape: (n_ent, emb_dim)
+        Embeddings of the entities, initialized with Xavier uniform
+        distribution and then normalized.
+    rel_emb: torch.nn.Embedding, shape: (n_rel, emb_dim)
+        Embeddings of the relations, initialized with Xavier uniform
+        distribution and then normalized.
 
-        """
+    """
 
-    def __init__(self, ent_emb_dim, n_entities, n_relations, dissimilarity_type):
+    def __init__(self, emb_dim, n_entities, n_relations, dissimilarity_type):
 
-        assert dissimilarity_type in ['L1', 'L2', 'eL2']
-        self.dissimilarity_type = dissimilarity_type
+        assert dissimilarity_type in ['torus_L1', 'torus_L2', 'torus_eL2']
+        super().__init__(n_entities, n_relations, self.dissimilarity_type)
 
-        super().__init__(ent_emb_dim, n_entities, n_relations, dissimilarity_type=None)
+        self.emb_dim = emb_dim
+        self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
+        self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
-        self.relation_embeddings = init_embedding(self.n_rel, self.ent_emb_dim)
-
-        if self.dissimilarity_type == 'L1':
-            self.dissimilarity = l1_torus_dissimilarity
-        if self.dissimilarity_type == 'L2':
-            self.dissimilarity = l2_torus_dissimilarity
-        if self.dissimilarity_type == 'eL2':
-            self.dissimilarity = el2_torus_dissimilarity
-
+        self.normalized = False
         self.normalize_parameters()
 
     def scoring_function(self, h_idx, t_idx, r_idx):
-        """Compute the scoring function for the triplets given as argument.
-
-        Parameters
-        ----------
-        h_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current head entities.
-        t_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current tail entities.
-        r_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current relations.
-
-        Returns
-        -------
-        score: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size)
-            Score function: opposite of dissimilarities between h+r and t.
+        """Compute the scoring function for the triplets given as argument:
+        See referenced paper for more details on the score. See
+        torchkge.models.interfaces.Models for more details on the API.
 
         """
+        self.normalized = False
 
-        # recover relations embeddings
-        rels_emb = self.relation_embeddings(r_idx)
+        h = self.ent_emb(h_idx)
+        t = self.ent_emb(t_idx)
 
-        # recover, project and normalize entity embeddings
-        h_emb = self.recover_project_normalize(h_idx, normalize_=False)
-        t_emb = self.recover_project_normalize(t_idx, normalize_=False)
+        h.data.frac_()
+        t.data.frac_()
 
-        if self.dissimilarity_type == 'L1':
-            return 2 * self.dissimilarity(h_emb + rels_emb, t_emb)
-        if self.dissimilarity_type == 'L2':
-            return 4 * self.dissimilarity(h_emb + rels_emb, t_emb)**2
-        else:
-            assert self.dissimilarity_type == 'eL2'
-            return self.dissimilarity(h_emb + rels_emb, t_emb)**2 / 4
+        r = self.rel_emb(r_idx)
 
-    def recover_project_normalize(self, ent_idx, rel_idx=None, normalize_=False):
-        """
-
-        Parameters
-        ----------
-        ent_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of current entities.
-        rel_idx: `torch.Tensor`, shape: (b_size), dtype: `torch.long`
-            Indices of relations.
-        normalize_: bool
-            Whether entities embeddings should be normalized or not.
-
-        Returns
-        -------
-        projections: `torch.Tensor`, dtype: `torch.float`, shape: (batch_size, emb_dim)
-            Embedded entities normalized.
-
-        """
-        # recover entity embeddings
-        ent_emb = self.entity_embeddings(ent_idx)
-        ent_emb.data.frac_()
-
-        return ent_emb
+        return - self.dissimilarity(h + r, t)
 
     def normalize_parameters(self):
         """Project embeddings on torus.
         """
         self.entity_embeddings.weight.data.frac_()
         self.relation_embeddings.weight.data.frac_()
+        self.normalized = True
+
+    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+        """Link prediction evaluation helper function. Get entities embeddings
+        and relations embeddings. The output will be fed to the
+        `lp_batch_scoring_function` method. See
+        torchkge.models.interfaces.Models for more details on the API.
+
+        """
+        b_size = h_idx.shape[0]
+
+        if not self.normalized:
+            self.normalize_parameters()
+
+        h = self.ent_emb(h_idx)
+        t = self.ent_emb(t_idx)
+        r = self.rel_emb(r_idx)
+
+        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+
+        return h, t, candidates, t

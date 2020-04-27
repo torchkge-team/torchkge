@@ -8,7 +8,8 @@ from collections import defaultdict
 
 
 def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
-    """Gets for each relation of the knowledge graph the possible heads and possible tails.
+    """Gets for each relation of the knowledge graph the possible heads and
+    possible tails.
 
     Parameters
     ----------
@@ -19,9 +20,11 @@ def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     Returns
     -------
     possible_heads: dict, optional (default=None)
-        keys: relation indices, values: set of possible heads for each relations
+        keys: relation indices, values: set of possible heads for each
+        relations.
     possible_tails: dict, optional (default=None)
-        keys: relation indices, values: set of possible tails for each relations
+        keys: relation indices, values: set of possible tails for each
+        relations.
 
     """
 
