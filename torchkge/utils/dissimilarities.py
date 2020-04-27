@@ -53,4 +53,4 @@ def el2_torus_dissimilarity(a, b):
     assert len(a.shape) == len(b.shape)
     tmp = min(a - b, 1 - (a - b))
     tmp = 2 * (1 - cos(2 * pi * tmp))
-    return tmp.sum(dim=len(a.shape) - 1) / 4
+    return tmp.sum(dim=-1) / 4
