@@ -5,7 +5,7 @@ Copyright TorchKGE developers
 """
 
 from torch import tensor, bernoulli, randint, ones, rand, cat
-from torch.utils.data import DataLoader
+# from torch.utils.data import DataLoader
 
 from ..exceptions import NotYetImplementedError
 from ..utils import DataLoader, get_bernoulli_probs, get_possible_heads_tails
