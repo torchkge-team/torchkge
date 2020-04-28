@@ -2,6 +2,14 @@
 History
 =======
 
+0.16.0 (2020-04-27)
+-------------------
+* Redefinition of the model API
+* Implementation of the new API for all models
+* Fixed implementation of TorusE model
+* Code reformatting
+* Docstrings update
+
 0.15.5 (2020-04-23)
 -------------------
 * Defined a new homemade and simpler DataLoader class.

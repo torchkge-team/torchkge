@@ -39,6 +39,11 @@ TransD
 .. autoclass:: torchkge.models.TranslationModels.TransDModel
    :members:
 
+TorusE
+------
+.. autoclass:: torchkge.models.TranslationModels.TorusEModel
+   :members:
+
 Bilinear Models
 ===============
 
