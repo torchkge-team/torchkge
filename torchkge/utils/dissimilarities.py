@@ -31,7 +31,6 @@ def l1_torus_dissimilarity(a, b):
 
     """
     assert len(a.shape) == len(b.shape)
-    a, b = a.frac(), b.frac()
     return 2 * min(abs(a - b), 1 - abs(a - b)).sum(dim=-1)
 
 
@@ -41,8 +40,7 @@ def l2_torus_dissimilarity(a, b):
 
     """
     assert len(a.shape) == len(b.shape)
-    a, b = a.frac(), b.frac()
-    return 4 * sqrt(min((a - b) ** 2, 1 - (a - b) ** 2).sum(dim=-1)) ** 2
+    return 4 * min((a - b) ** 2, 1 - (a - b) ** 2).sum(dim=-1)
 
 
 def el2_torus_dissimilarity(a, b):

@@ -619,8 +619,8 @@ class TorusEModel(TranslationModel):
 
     def __init__(self, emb_dim, n_entities, n_relations, dissimilarity_type):
 
-        assert dissimilarity_type in ['torus_L1', 'torus_L2', 'torus_eL2']
-        super().__init__(n_entities, n_relations, self.dissimilarity_type)
+        assert dissimilarity_type in ['L1', 'torus_L1', 'torus_L2', 'torus_eL2']
+        super().__init__(n_entities, n_relations, dissimilarity_type)
 
         self.emb_dim = emb_dim
         self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
@@ -639,19 +639,19 @@ class TorusEModel(TranslationModel):
 
         h = self.ent_emb(h_idx)
         t = self.ent_emb(t_idx)
+        r = self.rel_emb(r_idx)
 
         h.data.frac_()
         t.data.frac_()
-
-        r = self.rel_emb(r_idx)
+        r.data.frac_()
 
         return - self.dissimilarity(h + r, t)
 
     def normalize_parameters(self):
         """Project embeddings on torus.
         """
-        self.entity_embeddings.weight.data.frac_()
-        self.relation_embeddings.weight.data.frac_()
+        self.ent_emb.weight.data.frac_()
+        self.rel_emb.weight.data.frac_()
         self.normalized = True
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
@@ -673,4 +673,4 @@ class TorusEModel(TranslationModel):
         candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
         candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
 
-        return h, t, candidates, t
+        return h, t, candidates, r
