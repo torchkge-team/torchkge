@@ -91,6 +91,19 @@ class TransEModel(TranslationModel):
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data,
                                              p=2, dim=1)
 
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Embeddings of relations.
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data
+
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
@@ -196,6 +209,23 @@ class TransHModel(TranslationModel):
                                              p=2, dim=1)
         self.norm_vect.weight.data = normalize(self.norm_vect.weight.data,
                                                p=2, dim=1)
+
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations along with relation
+        normal vectors.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Embeddings of relations.
+        norm_vect: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Normal vectors defining relation-specific hyperplanes.
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data, \
+            self.norm_vect.weight.data
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
@@ -345,6 +375,26 @@ class TransRModel(TranslationModel):
         self.rel_emb.weight.data = normalize(self.rel_emb.weight.data,
                                              p=2, dim=1)
 
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations along with their
+        projection matrices.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, ent_emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, rel_emb_dim), dtype: torch.float
+            Embeddings of relations.
+        proj_mat: torch.Tensor, shape: (n_rel, rel_emb_dim, ent_emb_dim),
+        dtype: torch.float
+            Relation-specific projection matrices.
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data, \
+            self.proj_mat.weight.data.view(-1,
+                                           self.rel_emb_dim,
+                                           self.ent_emb_dim)
+
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
@@ -491,19 +541,19 @@ class TransDModel(TranslationModel):
 
         proj_h = self.project(h, h_proj_v, r_proj_v)
         proj_t = self.project(t, t_proj_v, r_proj_v)
-
         return - self.dissimilarity(proj_h + r, proj_t)
 
     def project(self, ent, e_proj_vect, r_proj_vect):
+        """We note that :math:`p_r(e)_i = e^p^Te \\times r^p_i + e_i` which is
+        more efficient to compute than the matrix formulation in the original
+        paper.
+
+        """
         b_size = ent.shape[0]
 
-        proj_mat = matmul(r_proj_vect.view((b_size, self.rel_emb_dim, 1)),
-                          e_proj_vect.view((b_size, 1, self.ent_emb_dim)))
-        proj_mat += eye(n=self.rel_emb_dim, m=self.ent_emb_dim,
-                        device=proj_mat.device)
-        proj_e = matmul(proj_mat, ent.view(b_size, self.ent_emb_dim, 1))
-
-        return proj_e.view(b_size, self.rel_emb_dim)
+        norm = (ent * e_proj_vect).sum(dim=1)
+        proj_e = (r_proj_vect * norm.view(b_size, 1))
+        return proj_e + ent[:, :self.rel_emb_dim]
 
     def normalize_parameters(self):
         """Normalize the entity embeddings and relations normal vectors, as
@@ -519,6 +569,28 @@ class TransDModel(TranslationModel):
             self.ent_proj_vect.weight.data, p=2, dim=1)
         self.rel_proj_vect.weight.data = normalize(
             self.rel_proj_vect.weight.data, p=2, dim=1)
+
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations along with their
+        projection vectors.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, ent_emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, rel_emb_dim), dtype: torch.float
+            Embeddings of relations.
+        ent_proj_vect: torch.Tensor, shape: (n_ent, ent_emb_dim),
+        dtype: torch.float
+            Entity projection vectors.
+        rel_proj_vect: torch.Tensor, shape: (n_ent, rel_emb_dim),
+        dtype: torch.float
+            Relation projection vectors.
+
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data, \
+            self.ent_proj_vect.weight.data, self.rel_proj_vect.weight.data
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
@@ -547,7 +619,7 @@ class TransDModel(TranslationModel):
         if self.evaluated_projections:
             return
 
-        for i in tqdm(range(self.n_ent), unit='entities',
+        for i in tqdm(range(self.n_ent), unit='entities',  # TODO change this
                       desc='Projecting entities'):
             ent_proj_vect = self.ent_proj_vect.weight[i]
             ent_proj_vect = ent_proj_vect.view(1, self.ent_emb_dim)
@@ -653,6 +725,20 @@ class TorusEModel(TranslationModel):
         self.ent_emb.weight.data.frac_()
         self.rel_emb.weight.data.frac_()
         self.normalized = True
+
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Embeddings of relations.
+
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data
 
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
