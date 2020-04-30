@@ -85,6 +85,19 @@ class ConvKBModel(Model):
     def normalize_parameters(self):
         raise NotImplementedError
 
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Embeddings of relations.
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data
+
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """Prepares current entities, relations and candidates into relation-specific sub-spaces.
 

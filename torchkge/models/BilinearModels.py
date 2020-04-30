@@ -80,6 +80,22 @@ class RESCALModel(BilinearModel):
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data,
                                              p=2, dim=1)
 
+    def get_embeddings(self):
+        """Return the embeddings of entities and matrices of relations.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_mat: torch.Tensor, shape: (n_rel, emb_dim, emb_dim),
+        dtype: torch.float
+            Matrices of relations.
+
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, \
+            self.rel_mat.weight.data.view(-1, self.emb_dim, self.emb_dim)
+
     def lp_batch_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details of the API.
@@ -180,6 +196,20 @@ class DistMultModel(BilinearModel):
         """
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2,
                                              dim=1)
+
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Embeddings of relations.
+
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data
 
     def lp_batch_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
@@ -297,6 +327,20 @@ class HolEModel(BilinearModel):
         self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2,
                                              dim=1)
 
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Embeddings of entities.
+        rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Embeddings of relations.
+
+        """
+        self.normalize_parameters()
+        return self.ent_emb.weight.data, self.rel_emb.weight.data
+
     def lp_batch_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details on the API.
@@ -399,6 +443,25 @@ class ComplExModel(BilinearModel):
 
         """
         pass
+
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        re_ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Real part of embeddings of entities.
+        im_ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Imaginary part of embeddings of entities.
+        re_rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Real part of embeddings of relations.
+        im_rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Imaginary part of embeddings of relations.
+
+        """
+        self.normalize_parameters()
+        return self.re_ent_emb.weight.data, self.im_ent_emb.weight.data,\
+            self.re_rel_emb.weight.data, self.im_rel_emb.weight.data
 
     def lp_batch_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
@@ -552,6 +615,30 @@ class AnalogyModel(BilinearModel):
         normalized.
         """
         pass
+
+    def get_embeddings(self):
+        """Return the embeddings of entities and relations.
+
+        Returns
+        -------
+        sc_ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Scalar part of embeddings of entities.
+        re_ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Real part of embeddings of entities.
+        im_ent_emb: torch.Tensor, shape: (n_ent, emb_dim), dtype: torch.float
+            Imaginary part of embeddings of entities.
+        sc_rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Scalar part of embeddings of relations.
+        re_rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Real part of embeddings of relations.
+        im_rel_emb: torch.Tensor, shape: (n_rel, emb_dim), dtype: torch.float
+            Imaginary part of embeddings of relations.
+
+        """
+        self.normalize_parameters()
+        return self.sc_ent_emb.weight.data, self.re_ent_emb.weight.data, \
+            self.im_ent_emb.weight.data, self.sc_rel_emb.weight.data, \
+            self.re_rel_emb.weight.data, self.im_rel_emb.weight.data
 
     def lp_batch_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See

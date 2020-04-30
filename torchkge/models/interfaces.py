@@ -91,6 +91,13 @@ class Model(Module):
         """
         raise NotImplementedError
 
+    def get_embeddings(self):
+        """Return the tensors representing entities and relations in current
+        model.
+
+        """
+        raise NotImplementedError
+
     def lp_batch_scoring_function(self, h, t, r):
         """ Link prediction evaluation helper function. Compute the scores of
         (h, r, c) or (c, r, t) for any candidate c. The arguments should
@@ -311,6 +318,12 @@ class TranslationModel(Model):
         """
         raise NotImplementedError
 
+    def get_embeddings(self):
+        """See torchkge.models.interfaces.Models.
+
+        """
+        raise NotImplementedError
+
     def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
         """See torchkge.models.interfaces.Models.
 
@@ -371,6 +384,12 @@ class BilinearModel(Model):
         raise NotImplementedError
 
     def normalize_parameters(self):
+        """See torchkge.models.interfaces.Models.
+
+        """
+        raise NotImplementedError
+
+    def get_embeddings(self):
         """See torchkge.models.interfaces.Models.
 
         """
