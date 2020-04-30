@@ -551,8 +551,8 @@ class TransDModel(TranslationModel):
         """
         b_size = ent.shape[0]
 
-        norm = (ent * e_proj_vect).sum(dim=1)
-        proj_e = (r_proj_vect * norm.view(b_size, 1))
+        scalar_product = (ent * e_proj_vect).sum(dim=1)
+        proj_e = (r_proj_vect * scalar_product.view(b_size, 1))
         return proj_e + ent[:, :self.rel_emb_dim]
 
     def normalize_parameters(self):
@@ -621,32 +621,17 @@ class TransDModel(TranslationModel):
 
         for i in tqdm(range(self.n_ent), unit='entities',  # TODO change this
                       desc='Projecting entities'):
-            ent_proj_vect = self.ent_proj_vect.weight[i]
-            ent_proj_vect = ent_proj_vect.view(1, self.ent_emb_dim)
+
             rel_proj_vects = self.rel_proj_vect.weight.data
-            rel_proj_vects = rel_proj_vects.view(self.n_rel,
-                                                 self.rel_emb_dim,
-                                                 1)
+            ent = self.ent_emb.weight[i]
+            ent_proj_vect = self.ent_proj_vect.weight[i]
 
-            projection_matrices = matmul(rel_proj_vects, ent_proj_vect)
-            id_mat = eye(n=self.rel_emb_dim, m=self.ent_emb_dim,
-                         device=projection_matrices.device)
-            projection_matrices += id_mat.view(1,
-                                               self.rel_emb_dim,
-                                               self.ent_emb_dim)
+            sc_prod = (ent_proj_vect * ent).sum(dim=0)
+            proj_e = sc_prod * rel_proj_vects + ent[:self.rel_emb_dim].view(1, -1)
 
-            mask = tensor([i], device=projection_matrices.device).long()
+            self.projected_entities[:, i, :] = proj_e
 
-            if projection_matrices.is_cuda:
-                empty_cache()
-
-            ent = self.ent_emb(mask)
-            proj_ent = matmul(projection_matrices, ent.view(self.ent_emb_dim))
-            proj_ent = proj_ent.view(self.n_rel, self.rel_emb_dim, 1)
-            self.projected_entities[:, i, :] = proj_ent.view(self.n_rel,
-                                                             self.rel_emb_dim)
-
-            del proj_ent
+            del proj_e
 
         self.evaluated_projections = True
 
