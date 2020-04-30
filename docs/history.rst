@@ -4,9 +4,11 @@ History
 
 0.16.0 (2020-04-27)
 -------------------
-* Redefinition of the model API
+* Redefinition of the models' API (simplified interfaces, renamed LP methods and added get_embeddings method)
 * Implementation of the new API for all models
-* Fixed implementation of TorusE model
+* TorusE implementation fixed
+* TransD reimplementation to avoid matmul usage (costly in back-propagation)
+* Progress bars now make the most of tqdm's possibilities
 * Code reformatting
 * Docstrings update
 
