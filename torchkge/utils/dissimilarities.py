@@ -26,8 +26,8 @@ def l2_dissimilarity(a, b):
 
 
 def l1_torus_dissimilarity(a, b):
-    """See paper by Ebisu et al. for details about the definition of this
-    dissimilarity_type function.
+    """See `paper by Ebisu et al. <https://www.semanticscholar.org/paper/TorusE%3A-Knowledge-Graph-Embedding-on-a-Lie-Group-Ebisu-Ichise/990334cf76845e2da64d3baa10b0a671e433d4b6>`_
+    for details about the definition of this dissimilarity function.
 
     """
     assert len(a.shape) == len(b.shape)
@@ -35,8 +35,8 @@ def l1_torus_dissimilarity(a, b):
 
 
 def l2_torus_dissimilarity(a, b):
-    """See paper by Ebisu et al. for details about the definition of this
-    dissimilarity_type function.
+    """See `paper by Ebisu et al. <https://www.semanticscholar.org/paper/TorusE%3A-Knowledge-Graph-Embedding-on-a-Lie-Group-Ebisu-Ichise/990334cf76845e2da64d3baa10b0a671e433d4b6>`_
+    for details about the definition of this dissimilarity function.
 
     """
     assert len(a.shape) == len(b.shape)
@@ -44,8 +44,8 @@ def l2_torus_dissimilarity(a, b):
 
 
 def el2_torus_dissimilarity(a, b):
-    """See paper by Ebisu et al. for details about the definition of this
-    dissimilarity_type function.
+    """See `paper by Ebisu et al. <https://www.semanticscholar.org/paper/TorusE%3A-Knowledge-Graph-Embedding-on-a-Lie-Group-Ebisu-Ichise/990334cf76845e2da64d3baa10b0a671e433d4b6>`_
+    for details about the definition of this dissimilarity function.
 
     """
     assert len(a.shape) == len(b.shape)
