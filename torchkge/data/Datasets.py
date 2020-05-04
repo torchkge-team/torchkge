@@ -46,9 +46,9 @@ def load_fb13(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph
+    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
 
     """
     if data_home is None:
@@ -89,9 +89,9 @@ def load_fb15k(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph
+    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
 
     """
     if data_home is None:
@@ -132,9 +132,9 @@ def load_fb15k237(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph
+    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
 
     """
     if data_home is None:
@@ -173,9 +173,9 @@ def load_wn18(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph
+    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
 
     """
     if data_home is None:
@@ -223,9 +223,9 @@ def load_wikidatasets(which, limit_=None, data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph
+    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
 
     """
     assert which in ['humans', 'companies', 'animals', 'countries', 'films']
