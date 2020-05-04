@@ -31,6 +31,13 @@ Losses
 .. autoclass:: torchkge.utils.losses.LogisticLoss
     :members:
 
+Training wrappers
+-----------------
+.. autoclass:: torchkge.utils.training.TrainDataLoader
+    :members:
+.. autoclass:: torchkge.utils.training.Trainer
+    :members:
+
 
 Operations
 ----------

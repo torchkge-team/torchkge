@@ -20,7 +20,7 @@ TorchKGE also provides simple utility wrappers for model training. Here is an ex
         lr = 0.0004
         margin = 0.5
         n_epochs = 1000
-        n_batches = 20
+        batch_size = 32768
 
         # Load dataset
         kg_train, kg_val, kg_test = load_fb15k()
@@ -31,10 +31,8 @@ TorchKGE also provides simple utility wrappers for model training. Here is an ex
         criterion = MarginLoss(margin)
         optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-5)
 
-        trainer = Trainer(model, criterion, kg_train, use_gpu=True, lr=lr,
-                          n_triples=len(kg_train), n_epochs=n_epochs,
-                          n_batches=n_batches, optimizer=optimizer,
-                          sampling_type='bern')
+        trainer = Trainer(model, criterion, kg_train, n_epochs, batch_size,
+                          optimizer=optimizer, sampling_type='bern', use_cuda='all',)
 
         trainer.run()
 
