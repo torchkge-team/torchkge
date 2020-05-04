@@ -1,4 +1,4 @@
-from .data import DataLoader
+from .data_utils import DataLoader
 from .dissimilarities import l1_dissimilarity, l2_dissimilarity
 from .dissimilarities import l1_torus_dissimilarity, l2_torus_dissimilarity, el2_torus_dissimilarity
 from .losses import MarginLoss, LogisticLoss
