@@ -2,22 +2,24 @@
 TransE
 ======
 
-To train TransE on FB15k::
+This is the python code to train TransE without any wrapper. This script shows how all parts of TorchKGE should be used
+togeter.::
 
-    from torch.optim import SGD
     from torch import cuda
-    from torch.utils.data import DataLoader
+    from torch.optim import Adam
 
-    from torchkge.data.DataLoader import load_fb15k
+    from torchkge.data.Datasets import load_fb15k
     from torchkge.models import TransEModel
-    from torchkge.utils import MarginLoss
     from torchkge.sampling import BernoulliNegativeSampler
+    from torchkge.utils import MarginLoss, DataLoader
+
+    from tqdm.autonotebook import tqdm
 
     # Load dataset
     kg_train, _, _ = load_fb15k()
 
     # Define some hyper-parameters for training
-    lr, nb_epochs, batch_size, margin = 0.01, 500, 1024, 1
+    lr, n_epochs, b_size, margin = 0.01, 500, 1024, 1
     n_ent, n_rel = kg_train.n_ent, kg_train.n_rel
     ent_emb_dim = 50
 
@@ -32,36 +34,31 @@ To train TransE on FB15k::
         criterion.cuda()
 
     # Define the torch optimizer to be used
-    optimizer = SGD(model.parameters(), lr=lr)
+    optimizer = Adam(model.parameters(), lr=lr)
 
     # Define the sampler useful for negative sampling during training
-    sampler = BernoulliNegativeSampler(kg_train, kg_test=kg_test)
+    sampler = BernoulliNegativeSampler(kg_train)
 
-    dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, 
-                            pin_memory=cuda.is_available())
+    dataloader = DataLoader(kg_train, batch_size=b_size, use_cuda='all')
 
-    for epoch in range(nb_epochs):
+    iterator = tqdm(range(n_epochs), unit='epoch')
+    for epoch in iterator:
         running_loss = 0.0
         for i, batch in enumerate(dataloader):
-            # get the input
-            heads, tails, rels = batch[0], batch[1], batch[2]
-            if heads.is_pinned():
-                heads, tails, rels = heads.cuda(), tails.cuda(), rels.cuda()
+            h, t, r = batch[0], batch[1], batch[2]
+            n_h, n_t = sampler.corrupt_batch(h, t, r)
 
-            # Create Negative Samples
-            neg_heads, neg_tails = sampler.corrupt_batch(heads, tails, rels)
-            # zero model gradient
-            model.zero_grad()
+            optimizer.zero_grad()
 
             # forward + backward + optimize
-            positive_triplets, negative_triplets = model(heads, tails, neg_heads, neg_tails, rels)
-
-            loss = criterion(positive_triplets, negative_triplets)
+            pos, neg = model(h, t, n_h, n_t, r)
+            loss = criterion(pos, neg)
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
-
-        print('[%d] loss: %.3f' % (epoch + 1, running_loss / (i + 1)))
+        iterator.set_description(
+            'Epoch {} | mean loss: {:.5f}'.format(epoch + 1,
+                                                  running_loss / len(dataloader)))
 
     model.normalize_parameters()
