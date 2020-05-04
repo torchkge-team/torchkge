@@ -645,10 +645,10 @@ class TorusEModel(TranslationModel):
     References
     ----------
     * Takuma Ebisu and Ryutaro Ichise
-    `TorusE: Knowledge Graph Embedding on a Lie Group.
-    <https://arxiv.org/abs/1711.05435>`_
-    In Proceedings of the 32nd AAAI Conference on Artificial Intelligence
-    (New Orleans, LA, USA, Feb. 2018), AAAI Press, pp. 1819–1826.
+      `TorusE: Knowledge Graph Embedding on a Lie Group.
+      <https://arxiv.org/abs/1711.05435>`_
+      In Proceedings of the 32nd AAAI Conference on Artificial Intelligence
+      (New Orleans, LA, USA, Feb. 2018), AAAI Press, pp. 1819–1826.
 
     Parameters
     ----------
