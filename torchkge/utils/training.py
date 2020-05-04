@@ -10,6 +10,25 @@ from tqdm.autonotebook import tqdm
 
 
 class TrainDataLoader:
+    """Dataloader providing the training process with batches of true and
+    negatively sampled facts.
+
+    Parameters
+    ----------
+    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        Dataset to be divided in batches.
+    batch_size: int
+        Size of the batches.
+    sampling_type: str
+        Either 'unif' (uniform negative sampling) or 'bern' (Bernoulli negative
+        sampling).
+    use_cuda: str (opt, default = None)
+        Can be either None (no use of cuda at all), 'all' to move all the
+        dataset to cuda and then split in batches or 'batch' to simply move
+        the batches to cuda before they are returned.
+
+    """
+
     def __init__(self, kg, batch_size, sampling_type, use_cuda=None):
         self.h = kg.head_idx
         self.t = kg.tail_idx
@@ -83,19 +102,47 @@ class TrainDataLoaderIter:
 
 
 class Trainer:
-    def __init__(self, model, criterion, kg_train, use_gpu, lr,
-                 n_triples, n_epochs, n_batches, optimizer,
-                 sampling_type='bern'):
+    """This class simply wraps a simple training procedure.
+
+    Parameters
+    ----------
+    model: torchkge.models.interfaces.Model
+        Model to be trained.
+    criterion:
+        Criteria which should differentiate positive and negative scores. Can
+        be an elements of torchkge.utils.losses
+    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        KG used for training.
+    n_epochs: int
+        Number of epochs in the training procedure.
+    n_batches: int
+        Number of batches to use.
+    sampling_type: str
+        Either 'unif' (uniform negative sampling) or 'bern' (Bernoulli negative
+        sampling).
+    use_cuda: str (opt, default = None)
+        Can be either None (no use of cuda at all), 'all' to move all the
+        dataset to cuda and then split in batches or 'batch' to simply move
+        the batches to cuda before they are returned.
+
+
+    Attributes
+    ----------
+
+    """
+    def __init__(self, model, criterion, kg_train, n_epochs, batch_size,
+                 optimizer, sampling_type='bern', use_cuda=None):
+
         self.model = model
         self.criterion = criterion
         self.kg_train = kg_train
-        self.use_gpu = use_gpu
-        self.lr = lr
-        self.n_triples = n_triples
+        self.use_cuda = use_cuda
         self.n_epochs = n_epochs
-        self.batch_size = int(len(kg_train) / n_batches) + 1
         self.optimizer = optimizer
         self.sampling_type = sampling_type
+
+        self.batch_size = batch_size
+        self.n_triples = len(kg_train)
 
     def process_batch(self, current_batch):
         self.optimizer.zero_grad()
@@ -111,7 +158,7 @@ class Trainer:
         return loss.detach().item()
 
     def run(self):
-        if self.use_gpu:
+        if self.use_cuda in ['all', 'batch']:
             self.model.cuda()
             self.criterion.cuda()
 
@@ -119,7 +166,7 @@ class Trainer:
         data_loader = TrainDataLoader(self.kg_train,
                                       batch_size=self.batch_size,
                                       sampling_type=self.sampling_type,
-                                      use_cuda='all')
+                                      use_cuda=self.use_cuda)
         for epoch in iterator:
             sum_ = 0
             for i, batch in enumerate(data_loader):
