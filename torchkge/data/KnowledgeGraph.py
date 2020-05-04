@@ -16,48 +16,48 @@ class KnowledgeGraph(Dataset):
     """Knowledge graph representation. At least one of `df` and `kg`
     parameters should be passed.
 
-        Parameters
-        ----------
-        df: pandas.DataFrame (optional)
-            Data frame containing three columns [from, to, rel].
-        kg: dict, optional
-            Dictionary with keys ('heads', 'tails', 'relations') and values
-            the corresponding torch long tensors.
-        ent2ix: dict, optional
-            Dictionary mapping entity labels to their integer key. This is
-            computed if not passed as argument.
-        rel2ix: dict, optional
-            Dictionary mapping relation labels to their integer key. This is
-            computed if not passed as argument.
-        dict_of_heads: dict, optional
-            Dictionary of possible heads :math:`h` so that the triple
-            :math:`(h,r,t)` gives a true fact. The keys are tuples (t, r).
-            This is computed if not passed as argument.
-        dict_of_tails: dict, optional
-            Dictionary of possible tails :math:`t` so that the triple
-            :math:`(h,r,t)` gives a true fact. The keys are tuples (h, r).
-            This is computed if not passed as argument.
+    Parameters
+    ----------
+    df: pandas.DataFrame (optional)
+        Data frame containing three columns [from, to, rel].
+    kg: dict, optional
+        Dictionary with keys ('heads', 'tails', 'relations') and values
+        the corresponding torch long tensors.
+    ent2ix: dict, optional
+        Dictionary mapping entity labels to their integer key. This is
+        computed if not passed as argument.
+    rel2ix: dict, optional
+        Dictionary mapping relation labels to their integer key. This is
+        computed if not passed as argument.
+    dict_of_heads: dict, optional
+        Dictionary of possible heads :math:`h` so that the triple
+        :math:`(h,r,t)` gives a true fact. The keys are tuples (t, r).
+        This is computed if not passed as argument.
+    dict_of_tails: dict, optional
+        Dictionary of possible tails :math:`t` so that the triple
+        :math:`(h,r,t)` gives a true fact. The keys are tuples (h, r).
+        This is computed if not passed as argument.
 
 
-        Attributes
-        ----------
-        ent2ix: dict
-            Dictionary mapping entity labels to their integer key.
-        rel2ix: dict
-            Dictionary mapping relation labels to their integer key.
-        n_ent: int
-            Number of distinct entities in the data set.
-        n_rel: int
-            Number of distinct entities in the data set.
-        n_facts: int
-            Number of samples in the data set. A sample is a fact: a triplet
-            (h, r, l).
-        head_idx: torch.Tensor, dtype = torch.long, shape: (n_facts)
-            List of the int key of heads for each fact.
-        tail_idx: torch.Tensor, dtype = torch.long, shape: (n_facts)
-            List of the int key of tails for each fact.
-        relations: torch.Tensor, dtype = torch.long, shape: (n_facts)
-            List of the int key of relations for each fact.
+    Attributes
+    ----------
+    ent2ix: dict
+        Dictionary mapping entity labels to their integer key.
+    rel2ix: dict
+        Dictionary mapping relation labels to their integer key.
+    n_ent: int
+        Number of distinct entities in the data set.
+    n_rel: int
+        Number of distinct entities in the data set.
+    n_facts: int
+        Number of samples in the data set. A sample is a fact: a triplet
+        (h, r, l).
+    head_idx: torch.Tensor, dtype = torch.long, shape: (n_facts)
+        List of the int key of heads for each fact.
+    tail_idx: torch.Tensor, dtype = torch.long, shape: (n_facts)
+        List of the int key of tails for each fact.
+    relations: torch.Tensor, dtype = torch.long, shape: (n_facts)
+        List of the int key of relations for each fact.
 
     """
 
@@ -161,9 +161,11 @@ class KnowledgeGraph(Dataset):
             Percentage to allocate to train set.
         sizes: tuple
             Tuple of ints of length 2 or 3.
+
             * If len(sizes) == 2, then the first sizes[0] values of the
               knowledge graph will be used as training set and the rest as
               test set.
+
             * If len(sizes) == 3, then the first sizes[0] values of the
               knowledge graph will be used as training set, the following
               sizes[1] as validation set and the last sizes[2] as testing set.

@@ -495,7 +495,7 @@ class ComplExModel(BilinearModel):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-         more details on the API.
+        more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -513,7 +513,7 @@ class ComplExModel(BilinearModel):
         re_r, im_r = self.re_rel_emb(r_idx), self.im_rel_emb(r_idx)
 
         return (re_h, im_h), (re_t, im_t), (re_candidates, im_candidates), (
-        re_r, im_r)
+            re_r, im_r)
 
 
 class AnalogyModel(BilinearModel):
@@ -684,7 +684,7 @@ class AnalogyModel(BilinearModel):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-         more details on the API.
+        more details on the API.
 
         """
         b_size = h_idx.shape[0]
