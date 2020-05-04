@@ -13,7 +13,7 @@ Model
 
 TranslationalModels
 -------------------
-.. autoclass:: torchkge.models.interfaces.TranslationalModel
+.. autoclass:: torchkge.models.interfaces.TranslationModel
    :members:
 
 Translational Models
