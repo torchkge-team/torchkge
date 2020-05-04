@@ -62,3 +62,4 @@ together::
                                                   running_loss / len(dataloader)))
 
     model.normalize_parameters()
+

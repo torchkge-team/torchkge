@@ -43,3 +43,4 @@ TorchKGE also provides simple utility wrappers for model training. Here is an ex
 
     if __name__ == "__main__":
         main()
+
