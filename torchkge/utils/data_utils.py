@@ -4,6 +4,26 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
+import shutil
+
+from os import environ, makedirs
+from os.path import exists, expanduser, join
+
+
+def get_data_home(data_home=None):
+    if data_home is None:
+        data_home = environ.get('TORCHKGE_DATA',
+                                join('~', 'torchkge_data'))
+    data_home = expanduser(data_home)
+    if not exists(data_home):
+        makedirs(data_home)
+    return data_home
+
+
+def clear_data_home(data_home=None):
+    data_home = get_data_home(data_home)
+    shutil.rmtree(data_home)
+
 
 def get_n_batches(n, b_size):
     n_batch = n // b_size

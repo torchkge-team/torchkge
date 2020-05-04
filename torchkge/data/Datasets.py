@@ -11,27 +11,14 @@ import shutil
 import tarfile
 import zipfile
 
-from os import environ, makedirs, remove
-from os.path import exists, expanduser, join
+from os import makedirs, remove
+from os.path import exists
 from pandas import concat, DataFrame, merge, read_csv
 from urllib.request import urlretrieve
 
 from .KnowledgeGraph import KnowledgeGraph
 
-
-def get_data_home(data_home=None):
-    if data_home is None:
-        data_home = environ.get('TORCHKGE_DATA',
-                                join('~', 'torchkge_data'))
-    data_home = expanduser(data_home)
-    if not exists(data_home):
-        makedirs(data_home)
-    return data_home
-
-
-def clear_data_home(data_home=None):
-    data_home = get_data_home(data_home)
-    shutil.rmtree(data_home)
+from ..utils import get_data_home
 
 
 def load_fb13(data_home=None):
