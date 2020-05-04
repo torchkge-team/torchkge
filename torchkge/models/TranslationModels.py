@@ -4,13 +4,13 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import empty, matmul, eye, tensor
+from torch import empty, matmul, tensor
 from torch.cuda import empty_cache
 from torch.nn import Parameter
 from torch.nn.functional import normalize
 
 from ..models.interfaces import TranslationModel
-from ..utils import init_embedding
+from ..utils import init_embedding, load_embeddings
 
 from tqdm.autonotebook import tqdm
 
@@ -41,6 +41,11 @@ class TransEModel(TranslationModel):
         Number of relations in the current data set.
     dissimilarity_type: str
         Either 'L1' or 'L2'.
+    pre_trained: str (opt, default None)
+        One of {'fb15k'} to design the pre-trained model to be loaded.
+    data_home: str (opt, default None)
+        Path to the `torchkge_data` directory (containing data folders). Useful
+        for pre-trained model loading.
 
     Attributes
     ----------
@@ -55,11 +60,19 @@ class TransEModel(TranslationModel):
 
     """
 
-    def __init__(self, emb_dim, n_entities, n_relations, dissimilarity_type):
+    def __init__(self, emb_dim, n_entities=0, n_relations=0,
+                 dissimilarity_type='L2', pre_trained=None, data_home=None):
 
         super().__init__(n_entities, n_relations, dissimilarity_type)
 
         self.emb_dim = emb_dim
+
+        if pre_trained is not None:
+            if pre_trained == 'fb15k':
+                state_dict = load_embeddings('transe', emb_dim,
+                                             'fb15k', data_home)
+                self.n_rel = state_dict['rel_emb.weight'].shape[0]
+                self.n_ent = state_dict['ent_emb.weight'].shape[0]
 
         self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
         self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
@@ -67,6 +80,12 @@ class TransEModel(TranslationModel):
         self.normalize_parameters()
         self.rel_emb.weight.data = normalize(self.rel_emb.weight.data,
                                              p=2, dim=1)
+
+        if pre_trained is not None:
+            if pre_trained == 'fb15k':
+                self.load_state_dict(state_dict)
+            else:
+                print('No pre-trained model could be loaded.')
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument:

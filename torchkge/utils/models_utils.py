@@ -8,6 +8,15 @@ from torch import tensor
 from torch.nn import Embedding
 from torch.nn.init import xavier_uniform_
 
+import pickle
+import tarfile
+
+from .data_utils import get_data_home
+
+from os import makedirs, remove
+from os.path import exists
+from urllib.request import urlretrieve
+
 
 def init_embedding(n_vectors, dim):
     """Create a torch.nn.Embedding object with `n_vectors` samples and `dim`
@@ -17,6 +26,27 @@ def init_embedding(n_vectors, dim):
     xavier_uniform_(entity_embeddings.weight.data)
 
     return entity_embeddings
+
+
+def load_embeddings(model, dim, dataset, data_home=None):
+
+    if data_home is None:
+        data_home = get_data_home()
+    data_path = data_home + '/models/'
+    targz_file = data_path + '{}_{}_{}.tar.gz'.format(model, dataset, dim)
+    if not exists(targz_file):
+        if not exists(data_path):
+            makedirs(data_path, exist_ok=True)
+        urlretrieve("https://graphs.telecom-paristech.fr/torchkgemodels/transe_fb15k_100.tar.gz",
+                    targz_file)
+        with tarfile.open(targz_file, 'r') as tf:
+            tf.extractall(data_path)
+        remove(targz_file)
+
+    with open(data_path + '{}_{}_{}.pkl'.format(model, dataset, dim), 'rb') as f:
+        state_dict = pickle.load(f)
+
+    return state_dict
 
 
 def get_true_targets(dictionary, e_idx, r_idx, true_idx, i):
