@@ -6,3 +6,4 @@ from .models_utils import init_embedding, get_true_targets
 from .negative_sampling import get_possible_heads_tails
 from .operations import get_rank, get_mask
 from .preprocessing import get_dictionaries, get_bernoulli_probs
+from .training import Trainer, TrainDataLoader
