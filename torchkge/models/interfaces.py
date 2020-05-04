@@ -15,7 +15,7 @@ class Model(Module):
     """Model interface to be used by any other class implementing a knowledge
     graph embedding model. It is only
     required to implement the methods `scoring_function`,
-    `normalize_parameters`, `lp_get_emb_cand` and `lp_batch_scoring_function`.
+    `normalize_parameters`, `lp_prep_cands` and `lp_scoring_function`.
 
     Parameters
     ----------
@@ -98,10 +98,10 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """ Link prediction evaluation helper function. Compute the scores of
         (h, r, c) or (c, r, t) for any candidate c. The arguments should
-        match the ones of `lp_get_emb_cand`.
+        match the ones of `lp_prep_cands`.
 
         Parameters
         ----------
@@ -118,10 +118,10 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities and
         relations embeddings, along with entity candidates ready for (projected
-        if needed). The output will be fed to the `lp_batch_scoring_function`
+        if needed). The output will be fed to the `lp_scoring_function`
         method of the model at hand.
 
         Parameters
@@ -136,11 +136,11 @@ class Model(Module):
         Returns
         -------
         h: torch.Tensor, shape: (b_size, rel_emb_dim), dtype: torch.float
-            Head vectors fed to `lp_batch_scoring_function`. For translation
+            Head vectors fed to `lp_scoring_function`. For translation
             models it is the entities embeddings projected in relation space,
             for example.
         t: torch.Tensor, shape: (b_size, rel_emb_dim), dtype: torch.float
-            Tail vectors fed to `lp_batch_scoring_function`. For translation
+            Tail vectors fed to `lp_scoring_function`. For translation
             models it is the entities embeddings projected in relation space,
             for example.
         candidates: torch.Tensor, shape: (b_size, rel_emb_dim, n_ent),
@@ -163,15 +163,15 @@ class Model(Module):
         ----------
         e_emb: torch.Tensor, shape: (b_size, rel_emb_dim), dtype: torch.float
             Embeddings of current entities ready for
-            `lp_batch_scoring_function`.
+            `lp_scoring_function`.
         candidates: torch.Tensor, shape: (b_size, n_ent, emb_dim), dtype:
             torch.float
             Embeddings of all entities ready for
-            `lp_batch_scoring_function`.
+            `lp_scoring_function`.
         r: torch.Tensor, shape: (b_size, emb_dim, emb_dim) or (b_size,
             emb_dim), dtype: torch.float
             Embeddings or matrices of current relations ready for
-            `lp_batch_scoring_function`.
+            `lp_scoring_function`.
         e_idx: torch.Tensor, shape: (b_size), dtype: torch.long
             List of entities indices.
         r_idx: torch.Tensor, shape: (b_size), dtype: torch.long
@@ -202,18 +202,18 @@ class Model(Module):
         b_size = r_idx.shape[0]
 
         if heads == 1:
-            scores = self.lp_batch_scoring_function(e_emb, candidates, r)
+            scores = self.lp_scoring_function(e_emb, candidates, r)
         else:
-            scores = self.lp_batch_scoring_function(candidates, e_emb, r)
+            scores = self.lp_scoring_function(candidates, e_emb, r)
 
-        # filter out the true negative samples by assigning negative score
+        # filter out the true negative samples by assigning - inf score.
         filt_scores = scores.clone()
         for i in range(b_size):
             true_targets = get_true_targets(dictionary, e_idx, r_idx,
                                             true_idx, i)
             if true_targets is None:
                 continue
-            filt_scores[i][true_targets] = float(-1)
+            filt_scores[i][true_targets] = - float('Inf')
 
         # from dissimilarities, extract the rank of the true entity.
         rank_true_entities = get_rank(scores, true_idx)
@@ -254,7 +254,7 @@ class Model(Module):
             sorted by decreasing order of scoring function.
 
         """
-        h_emb, t_emb, candidates, r = self.lp_get_emb_cand(h_idx, t_idx, r_idx)
+        h_emb, t_emb, candidates, r = self.lp_prep_cands(h_idx, t_idx, r_idx)
 
         rank_true_tails, filt_rank_true_tails = self.lp_compute_ranks(
             h_emb, candidates, r, h_idx, r_idx, t_idx, kg.dict_of_tails,
@@ -272,7 +272,7 @@ class TranslationModel(Model):
     translation knowledge graph embedding model. This interface inherits from
     the interface :class:`torchkge.models.interfaces.Model`. It is only
     required to implement the methods `scoring_function`,
-    `normalize_parameters` and `lp_get_emb_cand`.
+    `normalize_parameters` and `lp_prep_cands`.
 
     Parameters
     ----------
@@ -324,13 +324,13 @@ class TranslationModel(Model):
         """
         raise NotImplementedError
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """See torchkge.models.interfaces.Models.
 
         """
         raise NotImplementedError
 
-    def lp_batch_scoring_function(self, proj_h, proj_t, r):
+    def lp_scoring_function(self, proj_h, proj_t, r):
         """This overwrites the method declared in
         torchkge.models.interfaces.Models. For translation models, the computed
         score is the dissimilarity of between projected heads + relations and
@@ -355,7 +355,7 @@ class BilinearModel(Model):
     bilinear knowledge graph embedding model. This interface inherits from
     the interface :class:`torchkge.models.interfaces.Model`. It is only
     required to implement the methods `scoring_function`,
-    `normalize_parameters`, `lp_get_emb_cand` and `lp_batch_scoring_function`.
+    `normalize_parameters`, `lp_prep_cands` and `lp_scoring_function`.
 
     Parameters
     ----------
@@ -395,13 +395,13 @@ class BilinearModel(Model):
         """
         raise NotImplementedError
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """See torchkge.models.interfaces.Models.
 
         """
         raise NotImplementedError
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """See torchkge.models.interfaces.Models.
 
         """

@@ -96,7 +96,7 @@ class RESCALModel(BilinearModel):
         return self.ent_emb.weight.data, \
             self.rel_mat.weight.data.view(-1, self.emb_dim, self.emb_dim)
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details of the API.
 
@@ -113,11 +113,11 @@ class RESCALModel(BilinearModel):
             t = t.view(b_size, self.emb_dim, 1)
             return (h.transpose(1, 2) * matmul(r, t)).sum(dim=1)
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -211,7 +211,7 @@ class DistMultModel(BilinearModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details on the API.
 
@@ -227,11 +227,11 @@ class DistMultModel(BilinearModel):
             rt = (r * t).view(b_size, self.emb_dim, 1)
             return (h.transpose(1, 2) * rt).sum(dim=1)
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -341,7 +341,7 @@ class HolEModel(BilinearModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details on the API.
 
@@ -358,11 +358,11 @@ class HolEModel(BilinearModel):
             t = t.view(b_size, self.emb_dim, 1)
             return (h.transpose(1, 2) * matmul(r, t)).sum(dim=1)
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models
+        for more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -463,7 +463,7 @@ class ComplExModel(BilinearModel):
         return self.re_ent_emb.weight.data, self.im_ent_emb.weight.data,\
             self.re_rel_emb.weight.data, self.im_rel_emb.weight.data
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details one the API.
 
@@ -491,11 +491,11 @@ class ComplExModel(BilinearModel):
                     + im_h.transpose(1, 2) * (re_r * im_t - im_r * re_t).view(
                         b_size, self.emb_dim, 1)).sum(dim=1)
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+         more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -640,7 +640,7 @@ class AnalogyModel(BilinearModel):
             self.im_ent_emb.weight.data, self.sc_rel_emb.weight.data, \
             self.re_rel_emb.weight.data, self.im_rel_emb.weight.data
 
-    def lp_batch_scoring_function(self, h, t, r):
+    def lp_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details one the API.
 
@@ -680,11 +680,11 @@ class AnalogyModel(BilinearModel):
                     + sum1.sum(dim=1)
                     + sum2.sum(dim=1))
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+         more details on the API.
 
         """
         b_size = h_idx.shape[0]

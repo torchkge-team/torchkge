@@ -104,11 +104,11 @@ class TransEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         b_size = h_idx.shape[0]
@@ -227,11 +227,11 @@ class TransHModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.norm_vect.weight.data
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         if not self.evaluated_projections:
@@ -395,11 +395,11 @@ class TransRModel(TranslationModel):
                                            self.rel_emb_dim,
                                            self.ent_emb_dim)
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
 
@@ -592,11 +592,11 @@ class TransDModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.ent_proj_vect.weight.data, self.rel_proj_vect.weight.data
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         if not self.evaluated_projections:
@@ -725,11 +725,11 @@ class TorusEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_get_emb_cand(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_batch_scoring_function` method. See
-        torchkge.models.interfaces.Models for more details on the API.
+        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        more details on the API.
 
         """
         b_size = h_idx.shape[0]
