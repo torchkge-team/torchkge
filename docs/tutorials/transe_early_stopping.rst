@@ -63,7 +63,7 @@ stopping on evaluation MRR::
 
     device = torch.device('cuda')
 
-    eval_epoch = 20  # do link prediction evaluation each 5 epochs
+    eval_epoch = 20  # do link prediction evaluation each 20 epochs
     max_epochs = 1000
     patience = 40
     batch_size = 32768
