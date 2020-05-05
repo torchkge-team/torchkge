@@ -2,6 +2,19 @@
 History
 =======
 
+0.16.0 (2020-04-27)
+-------------------
+* Redefinition of the models' API (simplified interfaces, renamed LP methods and added get_embeddings method)
+* Implementation of the new API for all models
+* TorusE implementation fixed
+* TransD reimplementation to avoid matmul usage (costly in back-propagation)
+* Added feature to negative samplers to generate several negative samples from each fact. Those can be fed directly to
+  the models.
+* Added some wrappers for training to utils module.
+* Progress bars now make the most of tqdm's possibilities
+* Code reformatting
+* Docstrings update
+
 0.15.5 (2020-04-23)
 -------------------
 * Defined a new homemade and simpler DataLoader class.

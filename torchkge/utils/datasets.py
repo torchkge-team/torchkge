@@ -3,34 +3,22 @@
 Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 
-This module's code is freely adapted from Scikit-Learn's sklearn.datasets.base.py code.
+This module's code is freely adapted from Scikit-Learn's
+sklearn.datasets.base.py code.
 """
-
-from .KnowledgeGraph import KnowledgeGraph
-
-from os import environ, makedirs, remove
-from os.path import exists, expanduser, join
-from pandas import read_csv, concat, merge, DataFrame
-from urllib.request import urlretrieve
 
 import shutil
 import tarfile
 import zipfile
 
+from os import makedirs, remove
+from os.path import exists
+from pandas import concat, DataFrame, merge, read_csv
+from urllib.request import urlretrieve
 
-def get_data_home(data_home=None):
-    if data_home is None:
-        data_home = environ.get('TORCHKGE_DATA',
-                                join('~', 'torchkge_data'))
-    data_home = expanduser(data_home)
-    if not exists(data_home):
-        makedirs(data_home)
-    return data_home
+from torchkge.data_structures import KnowledgeGraph
 
-
-def clear_data_home(data_home=None):
-    data_home = get_data_home(data_home)
-    shutil.rmtree(data_home)
+from torchkge.utils import get_data_home
 
 
 def load_fb13(data_home=None):
@@ -39,14 +27,15 @@ def load_fb13(data_home=None):
     Parameters
     ----------
     data_home: str, optional
-        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
-        directory, they are downloaded and then placed in the right place.
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
 
     Returns
     -------
-    kg_train: `torchkge.data.KnowledgeGraph`
-    kg_val: `torchkge.data.KnowledgeGraph`
-    kg_test: `torchkge.data.KnowledgeGraph`
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -81,14 +70,15 @@ def load_fb15k(data_home=None):
     Parameters
     ----------
     data_home: str, optional
-        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
-        directory, they are downloaded and then placed in the right place.
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
 
     Returns
     -------
-    kg_train: `torchkge.data.KnowledgeGraph`
-    kg_val: `torchkge.data.KnowledgeGraph`
-    kg_test: `torchkge.data.KnowledgeGraph`
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -117,19 +107,21 @@ def load_fb15k(data_home=None):
 
 def load_fb15k237(data_home=None):
     """Load fb15k237 dataset. See `here
-    <https://www.aclweb.org/anthology/D15-1174/>`__ for paper by Toutanova et al. originally presenting the dataset.
+    <https://www.aclweb.org/anthology/D15-1174/>`__ for paper by Toutanova et
+    al. originally presenting the dataset.
 
     Parameters
     ----------
     data_home: str, optional
-        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
-        directory, they are downloaded and then placed in the right place.
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
 
     Returns
     -------
-    kg_train: `torchkge.data.KnowledgeGraph`
-    kg_val: `torchkge.data.KnowledgeGraph`
-    kg_test: `torchkge.data.KnowledgeGraph`
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -162,14 +154,15 @@ def load_wn18(data_home=None):
     Parameters
     ----------
     data_home: str, optional
-        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
-        directory, they are downloaded and then placed in the right place.
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
 
     Returns
     -------
-    kg_train: `torchkge.data.KnowledgeGraph`
-    kg_val: `torchkge.data.KnowledgeGraph`
-    kg_test: `torchkge.data.KnowledgeGraph`
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -198,24 +191,28 @@ def load_wn18(data_home=None):
 
 def load_wikidatasets(which, limit_=None, data_home=None):
     """Load WikiDataSets dataset. See `here
-    <https://arxiv.org/abs/1906.04536>`__ for paper by Boschin et al. originally presenting the dataset.
+    <https://arxiv.org/abs/1906.04536>`__ for paper by Boschin et al.
+    originally presenting the dataset.
 
     Parameters
     ----------
     which: str
-        String indicating which subset of Wikidata should be loaded. Available ones are `humans`, `companies`,
-        `animals`, `countries` and `films`.
+        String indicating which subset of Wikidata should be loaded.
+        Available ones are `humans`, `companies`, `animals`, `countries` and
+        `films`.
     limit_: int, optional (default=0)
-        This indicates a lower limit on the number of neighbors an entity should have in the graph to be kept.
+        This indicates a lower limit on the number of neighbors an entity
+        should have in the graph to be kept.
     data_home: str, optional
-        Path to the `torchkge_data` directory (containing data folders). If files are not present on disk in this
-        directory, they are downloaded and then placed in the right place.
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
 
     Returns
     -------
-    kg_train: `torchkge.data.KnowledgeGraph`
-    kg_val: `torchkge.data.KnowledgeGraph`
-    kg_test: `torchkge.data.KnowledgeGraph`
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     assert which in ['humans', 'companies', 'animals', 'countries', 'films']

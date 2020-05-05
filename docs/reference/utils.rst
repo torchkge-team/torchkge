@@ -6,6 +6,16 @@ Utils
 
 .. currentmodule:: torchkge.utils
 
+Datasets loaders
+----------------
+
+.. autofunction:: torchkge.utils.datasets.load_fb13
+.. autofunction:: torchkge.utils.datasets.load_fb15k
+.. autofunction:: torchkge.utils.datasets.load_fb15k237
+.. autofunction:: torchkge.utils.datasets.load_wn18
+.. autofunction:: torchkge.utils.datasets.load_wikidatasets
+
+
 Dissimilarities
 ---------------
 .. autofunction:: torchkge.utils.dissimilarities.l1_dissimilarity
@@ -21,10 +31,9 @@ Losses
 .. autoclass:: torchkge.utils.losses.LogisticLoss
     :members:
 
-
-Operations
-----------
-
-.. autofunction:: torchkge.utils.operations.get_mask
-.. autofunction:: torchkge.utils.operations.get_rolling_matrix
-.. autofunction:: torchkge.utils.operations.get_rank
+Training wrappers
+-----------------
+.. autoclass:: torchkge.utils.training.TrainDataLoader
+    :members:
+.. autoclass:: torchkge.utils.training.Trainer
+    :members:

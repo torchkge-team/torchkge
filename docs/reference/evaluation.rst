@@ -6,10 +6,10 @@ Evaluation
 
 Link Prediction
 ---------------
-.. autoclass:: torchkge.evaluation.LinkPrediction.LinkPredictionEvaluator
+.. autoclass:: torchkge.evaluation.link_prediction.LinkPredictionEvaluator
     :members:
 
 Triplet Classification
 ----------------------
-.. autoclass:: torchkge.evaluation.TripletClassification.TripletClassificationEvaluator
+.. autoclass:: torchkge.evaluation.triplet_classification.TripletClassificationEvaluator
     :members:

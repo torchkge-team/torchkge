@@ -5,10 +5,10 @@ Copyright TorchKGE developers
 """
 
 from torch import empty
-from torchkge.exceptions import NotYetEvaluatedError
-from torchkge.utils import DataLoader
-
 from tqdm.autonotebook import tqdm
+
+from ..exceptions import NotYetEvaluatedError
+from ..utils import DataLoader
 
 
 class LinkPredictionEvaluator(object):
@@ -16,38 +16,44 @@ class LinkPredictionEvaluator(object):
 
     Parameters
     ----------
-    model: torchkge model
-    knowledge_graph: torchkge.data.KnowledgeGraph.KnowledgeGraph
-        Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
+    model: torchkge.models.interfaces.Model
+        Embedding model inheriting from the right interface.
+    knowledge_graph: torchkge.data_structures.KnowledgeGraph
+        Knowledge graph on which the evaluation will be done.
 
     Attributes
     ----------
-    model: torchkge.models.Model
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
-        Knowledge graph in the form of an object implemented in torchkge.data.KnowledgeGraph.
-    rank_true_heads: torch tensor, shape: (n_facts), dtype: `torch.int`
-        Rank of the true head when all possible entities are ranked in term of dissimilarity_type\
-        with tail - relation.
-    rank_true_tails: torch tensor, shape: (n_facts), dtype: `torch.int`
-        Rank of the true tail when all possible entities are ranked in term of dissimilarity_type\
-        with head + relation.
-    filt_rank_true_heads: torch tensor, shape: (n_facts), dtype: `torch.int`
-        Filtered rank of the true tail when all possible entities are ranked in term of\
-        dissimilarity_type with head + relation.
-    filt_rank_true_tails: torch tensor, shape: (n_facts), dtype: `torch.int`
-        Filtered rank of the true tail when all possible entities are ranked in term of\
-        dissimilarity_type with head + relation.
+    model: torchkge.models.interfaces.Model
+        Embedding model inheriting from the right interface.
+    kg: torchkge.data_structures.KnowledgeGraph
+        Knowledge graph on which the evaluation will be done.
+    rank_true_heads: torch.Tensor, shape: (n_facts), dtype: `torch.int`
+        For each fact, this is the rank of the true head when all entities
+        are ranked as possible replacement of the head entity. They are
+        ranked in decreasing order of scoring function :math:`f_r(h,t)`.
+    rank_true_tails: torch.Tensor, shape: (n_facts), dtype: `torch.int`
+        For each fact, this is the rank of the true tail when all entities
+        are ranked as possible replacement of the tail entity. They are
+        ranked in decreasing order of scoring function :math:`f_r(h,t)`.
+    filt_rank_true_heads: torch.Tensor, shape: (n_facts), dtype: `torch.int`
+        This is the same as the `rank_of_true_heads` when is the filtered
+        case. See referenced paper by Bordes et al. for more information.
+    filt_rank_true_tails: torch.Tensor, shape: (n_facts), dtype: `torch.int`
+        This is the same as the `rank_of_true_tails` when is the filtered
+        case. See referenced paper by Bordes et al. for more information.
     evaluated: bool
-        Indicates if the method LinkPredictionEvaluator.evaluate() has been called on\
-        current object
+        Indicates if the method LinkPredictionEvaluator.evaluate has already
+        been called.
     k_max: bool, default = 10
         Max value to be used to compute the hit@k score.
 
     References
     ----------
-    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston, and Oksana Yakhnenko.
+    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston,
+      and Oksana Yakhnenko.
       Translating Embeddings for Modeling Multi-relational Data.
-      In Advances in Neural Information Processing Systems 26, pages 2787–2795, 2013.
+      In Advances in Neural Information Processing Systems 26, pages 2787–2795,
+      2013.
       https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
 
     """
@@ -58,49 +64,57 @@ class LinkPredictionEvaluator(object):
 
         self.rank_true_heads = empty(size=(knowledge_graph.n_facts,)).long()
         self.rank_true_tails = empty(size=(knowledge_graph.n_facts,)).long()
-        self.filt_rank_true_heads = empty(size=(knowledge_graph.n_facts,)).long()
-        self.filt_rank_true_tails = empty(size=(knowledge_graph.n_facts,)).long()
+        self.filt_rank_true_heads = empty(size=(knowledge_graph.n_facts,)
+                                          ).long()
+        self.filt_rank_true_tails = empty(size=(knowledge_graph.n_facts,)
+                                          ).long()
 
         self.evaluated = False
         self.k_max = 10
 
-    def evaluate(self, batch_size, k_max, verbose=True):
+    def evaluate(self, b_size, k_max, verbose=True):
         """
 
         Parameters
         ----------
-        batch_size: int
+        b_size: int
             Size of the current batch.
         k_max: int
-            Maximal k value we plan to use for Hit@k. This is used to truncate tensor so that it\
-            fits in memory.
+            Maximal k value we plan to use for Hit@k. This is used to
+            truncate tensor so that it fits in memory.
         verbose: bool
-            Indicates whether a progress bar should be displayed during evaluation.
+            Indicates whether a progress bar should be displayed during
+            evaluation.
 
         """
         self.k_max = k_max
         use_cuda = next(self.model.parameters()).is_cuda
 
         if use_cuda:
-            dataloader = DataLoader(self.kg, batch_size=batch_size, use_cuda='batch')
+            dataloader = DataLoader(self.kg, batch_size=b_size,
+                                    use_cuda='batch')
             self.rank_true_heads = self.rank_true_heads.cuda()
             self.rank_true_tails = self.rank_true_tails.cuda()
             self.filt_rank_true_heads = self.filt_rank_true_heads.cuda()
             self.filt_rank_true_tails = self.filt_rank_true_tails.cuda()
         else:
-            dataloader = DataLoader(self.kg, batch_size=batch_size)
+            dataloader = DataLoader(self.kg, batch_size=b_size)
 
-        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader), unit='batch', disable=(not verbose)):
+        for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
+                             unit='batch', disable=(not verbose),
+                             desc='Link prediction evaluation'):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
-            rank_true_tails, filt_rank_true_tails, rank_true_heads, filt_rank_true_heads \
-                = self.model.evaluate_candidates(h_idx, t_idx, r_idx, self.kg)
+            rk_true_t, f_rk_true_t, rk_true_h, f_rk_true_h = \
+                self.model.lp_helper(h_idx, t_idx, r_idx, self.kg)
 
-            self.rank_true_heads[i * batch_size: (i + 1) * batch_size] = rank_true_heads
-            self.rank_true_tails[i * batch_size: (i + 1) * batch_size] = rank_true_tails
+            self.rank_true_heads[i * b_size: (i + 1) * b_size] = rk_true_h
+            self.rank_true_tails[i * b_size: (i + 1) * b_size] = rk_true_t
 
-            self.filt_rank_true_heads[i * batch_size: (i + 1) * batch_size] = filt_rank_true_heads
-            self.filt_rank_true_tails[i * batch_size: (i + 1) * batch_size] = filt_rank_true_tails
+            self.filt_rank_true_heads[i * b_size:
+                                      (i + 1) * b_size] = f_rk_true_h
+            self.filt_rank_true_tails[i * b_size:
+                                      (i + 1) * b_size] = f_rk_true_t
 
         self.evaluated = True
 
@@ -116,11 +130,11 @@ class LinkPredictionEvaluator(object):
         Returns
         -------
         mean_rank: float
-            Mean rank of the true entity when replacing alternatively head and tail in\
-            any fact of the dataset.
+            Mean rank of the true entity when replacing alternatively head
+            and tail in any fact of the dataset.
         filt_mean_rank: float
-            Filtered mean rank of the true entity when replacing alternatively head and tail in\
-            any fact of the dataset.
+            Filtered mean rank of the true entity when replacing
+            alternatively head and tail in any fact of the dataset.
 
         """
         if not self.evaluated:
@@ -156,17 +170,15 @@ class LinkPredictionEvaluator(object):
         Parameters
         ----------
         k: int
-            Hit@k is the number of entities that show up in the top k that give facts present\
-            in the dataset.
+            Hit@k is the number of entities that show up in the top k that
+            give facts present in the dataset.
 
         Returns
         -------
         avg_hitatk: float
-            Average of hit@k for head and tail replacement. Computation is done in a\
-            vectorized way.
+            Average of hit@k for head and tail replacement.
         filt_avg_hitatk: float
-            Filtered Average of hit@k for head and tail replacement. Computation is done in a\
-            vectorized way.
+            Filtered average of hit@k for head and tail replacement.
 
         """
         if not self.evaluated:
@@ -184,11 +196,10 @@ class LinkPredictionEvaluator(object):
         Returns
         -------
         avg_mrr: float
-            Average of mean recovery rank for head and tail replacement. Computation is done in a\
-            vectorized way.
+            Average of mean recovery rank for head and tail replacement.
         filt_avg_mrr: float
-            Filtered Average of mean recovery rank for head and tail replacement. Computation is\
-            done in a vectorized way.
+            Filtered average of mean recovery rank for head and tail
+            replacement.
 
         """
         if not self.evaluated:
@@ -199,7 +210,8 @@ class LinkPredictionEvaluator(object):
         filt_head_mrr = (self.filt_rank_true_heads.float()**(-1)).mean()
         filt_tail_mrr = (self.filt_rank_true_tails.float()**(-1)).mean()
 
-        return (head_mrr + tail_mrr).item() / 2, (filt_head_mrr + filt_tail_mrr).item() / 2
+        return ((head_mrr + tail_mrr).item() / 2,
+                (filt_head_mrr + filt_tail_mrr).item() / 2)
 
     def print_results(self, k=None, n_digits=3):
         """
@@ -215,12 +227,16 @@ class LinkPredictionEvaluator(object):
             k = 10
 
         if k is not None and type(k) == int:
-            print('Hit@{} : {} \t\t Filt. Hit@{} : {}'.format(k, round(self.hit_at_k(k=k)[0], n_digits),
-                                                              k, round(self.hit_at_k(k=k)[1], n_digits)))
+            print('Hit@{} : {} \t\t Filt. Hit@{} : {}'.format(
+                k, round(self.hit_at_k(k=k)[0], n_digits),
+                k, round(self.hit_at_k(k=k)[1], n_digits)))
         if k is not None and type(k) == list:
             for i in k:
-                print('Hit@{} : {} \t\t Filt. Hit@{} : {}'.format(i, round(self.hit_at_k(k=i)[0], n_digits),
-                                                                  i, round(self.hit_at_k(k=i)[1], n_digits)))
+                print('Hit@{} : {} \t\t Filt. Hit@{} : {}'.format(
+                    i, round(self.hit_at_k(k=i)[0], n_digits),
+                    i, round(self.hit_at_k(k=i)[1], n_digits)))
 
-        print('Mean Rank : {} \t Filt. Mean Rank : {}'.format(int(self.mean_rank()[0]), int(self.mean_rank()[1])))
-        print('MRR : {} \t\t Filt. MRR : {}'.format(round(self.mrr()[0], n_digits), round(self.mrr()[1], n_digits)))
+        print('Mean Rank : {} \t Filt. Mean Rank : {}'.format(
+            int(self.mean_rank()[0]), int(self.mean_rank()[1])))
+        print('MRR : {} \t\t Filt. MRR : {}'.format(
+            round(self.mrr()[0], n_digits), round(self.mrr()[1], n_digits)))

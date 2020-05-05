@@ -1,15 +1,15 @@
-from .interfaces import Model, TranslationalModel
+from .interfaces import Model, TranslationModel, BilinearModel
 
-from .TranslationModels import TransEModel
-from .TranslationModels import TransHModel
-from .TranslationModels import TransRModel
-from .TranslationModels import TransDModel
-from .TranslationModels import TorusEModel
+from .translation import TransEModel
+from .translation import TransHModel
+from .translation import TransRModel
+from .translation import TransDModel
+from .translation import TorusEModel
 
-from .BilinearModels import RESCALModel
-from .BilinearModels import DistMultModel
-from .BilinearModels import HolEModel
-from .BilinearModels import ComplExModel
-from .BilinearModels import AnalogyModel
+from .bilinear import RESCALModel
+from .bilinear import DistMultModel
+from .bilinear import HolEModel
+from .bilinear import ComplExModel
+from .bilinear import AnalogyModel
 
-from .DeepModels import ConvKBModel
+from .deep import ConvKBModel

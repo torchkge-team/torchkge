@@ -15,10 +15,9 @@ Welcome to TorchKGE' s documentation!
    :caption: Reference:
 
    reference/models
-   reference/sampling
    reference/evaluation
+   reference/sampling
    reference/data
-   reference/dataloader
    reference/utils
 
 

@@ -3,7 +3,7 @@ import unittest
 
 from torch import long
 
-from torchkge.data import KnowledgeGraph
+from torchkge.data_structures import KnowledgeGraph
 from torchkge.evaluation import LinkPredictionEvaluator, TripletClassificationEvaluator
 from torchkge.models import TransEModel
 
@@ -32,7 +32,7 @@ class TestUtils(unittest.TestCase):
         evaluator = LinkPredictionEvaluator(model, self.kg)
         self.checkSanityLinkPrediction(evaluator)
 
-        evaluator.evaluate(batch_size=len(self.kg), k_max=10)
+        evaluator.evaluate(b_size=len(self.kg), k_max=10)
         self.checkSanityLinkPrediction(evaluator)
 
     def test_TripletClassificationEvaluator(self):
@@ -43,7 +43,7 @@ class TestUtils(unittest.TestCase):
         assert evaluator.thresholds is None
         assert not evaluator.evaluated
 
-        evaluator.evaluate(batch_size=len(self.kg))
+        evaluator.evaluate(b_size=len(self.kg))
         assert evaluator.evaluated
         assert evaluator.thresholds is not None
         assert (len(evaluator.thresholds.shape) == 1) & (evaluator.thresholds.shape[0] == self.kg.n_rel)
