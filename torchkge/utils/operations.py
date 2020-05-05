@@ -59,6 +59,7 @@ def get_rank(data, true, low_values=False):
     else:
         return (data > true_data).sum(dim=1) + 1
 
+
 def get_dictionaries(df, ent=True):
     """Build entities or relations dictionaries.
 
