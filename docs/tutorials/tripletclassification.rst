@@ -5,9 +5,9 @@ Triplet Classification
 To evaluate a model on triplet classification::
 
     from torch import cuda
-    from torchkge.data.DataLoader import load_fb15k
     from torchkge.evaluation import TripletClassificationEvaluator
     from torchkge.models import TransEModel
+    from torchkge.utils.datasets import load_fb15k
 
     _, kg_val, kg_test = load_fb15k()
 

@@ -21,27 +21,27 @@ Translational Models
 
 TransE
 ------
-.. autoclass:: torchkge.models.TranslationModels.TransEModel
+.. autoclass:: torchkge.models.translation.TransEModel
    :members:
 
 TransH
 ------
-.. autoclass:: torchkge.models.TranslationModels.TransHModel
+.. autoclass:: torchkge.models.translation.TransHModel
    :members:
 
 TransR
 ------
-.. autoclass:: torchkge.models.TranslationModels.TransRModel
+.. autoclass:: torchkge.models.translation.TransRModel
    :members:
 
 TransD
 ------
-.. autoclass:: torchkge.models.TranslationModels.TransDModel
+.. autoclass:: torchkge.models.translation.TransDModel
    :members:
 
 TorusE
 ------
-.. autoclass:: torchkge.models.TranslationModels.TorusEModel
+.. autoclass:: torchkge.models.translation.TorusEModel
    :members:
 
 Bilinear Models
@@ -49,27 +49,27 @@ Bilinear Models
 
 RESCAL
 ------
-.. autoclass:: torchkge.models.BilinearModels.RESCALModel
+.. autoclass:: torchkge.models.bilinear.RESCALModel
    :members:
 
 DistMult
 --------
-.. autoclass:: torchkge.models.BilinearModels.DistMultModel
+.. autoclass:: torchkge.models.bilinear.DistMultModel
    :members:
 
 HolE
 ----
-.. autoclass:: torchkge.models.BilinearModels.HolEModel
+.. autoclass:: torchkge.models.bilinear.HolEModel
    :members:
 
 ComplEx
 -------
-.. autoclass:: torchkge.models.BilinearModels.ComplExModel
+.. autoclass:: torchkge.models.bilinear.ComplExModel
    :members:
 
 ANALOGY
 -------
-.. autoclass:: torchkge.models.BilinearModels.AnalogyModel
+.. autoclass:: torchkge.models.bilinear.AnalogyModel
    :members:
 
 Deep Models
@@ -77,5 +77,5 @@ Deep Models
 
 ConvKB
 ------
-.. autoclass:: torchkge.models.DeepModels.ConvKBModel
+.. autoclass:: torchkge.models.deep.ConvKBModel
    :members:

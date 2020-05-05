@@ -4,14 +4,14 @@
 Data Structure
 *******************
 
-.. currentmodule:: torchkge.data
+.. currentmodule:: torchkge.data_structures
 
 Knowledge Graph
 ---------------
-.. autoclass:: torchkge.data.KnowledgeGraph.KnowledgeGraph
+.. autoclass:: torchkge.data_structures.KnowledgeGraph
     :members:
 
 Small KG
 --------
-.. autoclass:: torchkge.data.KnowledgeGraph.SmallKG
+.. autoclass:: torchkge.data_structures.SmallKG
     :members:

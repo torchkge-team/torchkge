@@ -6,7 +6,7 @@ To evaluate a model on link prediction::
 
     from torch import cuda
     from torchkge.models import TransEModel
-    from torchkge.data.DataLoader import load_fb15k
+    from torchkge.utils.datasets import load_fb15k
     from torchkge.evaluation import LinkPredictionEvaluator
 
     _, _, kg_test = load_fb15k()

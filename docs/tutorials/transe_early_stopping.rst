@@ -12,11 +12,11 @@ stopping on evaluation MRR::
     from ignite.metrics import RunningAverage
     from torch.optim import Adam
 
-    from torchkge.data import load_fb15k
     from torchkge.evaluation import LinkPredictionEvaluator
     from torchkge.models import TransEModel
     from torchkge.sampling import BernoulliNegativeSampler
     from torchkge.utils import MarginLoss, DataLoader
+    from torchkge.utils.datasets import load_fb15k
 
 
     def process_batch(engine, batch):

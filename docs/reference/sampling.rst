@@ -7,15 +7,15 @@ Negative Sampling
 
 Uniform negative sampler
 ------------------------
-.. autoclass:: torchkge.sampling.NegativeSampling.UniformNegativeSampler
+.. autoclass:: torchkge.sampling.UniformNegativeSampler
    :members:
 
 Bernoulli negative sampler
 --------------------------
-.. autoclass:: torchkge.sampling.NegativeSampling.BernoulliNegativeSampler
+.. autoclass:: torchkge.sampling.BernoulliNegativeSampler
    :members:
 
 Positional negative sampler
 ---------------------------
-.. autoclass:: torchkge.sampling.NegativeSampling.PositionalNegativeSampler
+.. autoclass:: torchkge.sampling.PositionalNegativeSampler
    :members:

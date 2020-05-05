@@ -9,11 +9,11 @@ Utils
 Datasets loaders
 ----------------
 
-.. autofunction:: torchkge.data.Datasets.load_fb13
-.. autofunction:: torchkge.data.Datasets.load_fb15k
-.. autofunction:: torchkge.data.Datasets.load_fb15k237
-.. autofunction:: torchkge.data.Datasets.load_wn18
-.. autofunction:: torchkge.data.Datasets.load_wikidatasets
+.. autofunction:: torchkge.utils.datasets.load_fb13
+.. autofunction:: torchkge.utils.datasets.load_fb15k
+.. autofunction:: torchkge.utils.datasets.load_fb15k237
+.. autofunction:: torchkge.utils.datasets.load_wn18
+.. autofunction:: torchkge.utils.datasets.load_wikidatasets
 
 
 Dissimilarities
@@ -37,10 +37,3 @@ Training wrappers
     :members:
 .. autoclass:: torchkge.utils.training.Trainer
     :members:
-
-
-Operations
-----------
-
-.. autofunction:: torchkge.utils.operations.get_mask
-.. autofunction:: torchkge.utils.operations.get_rank

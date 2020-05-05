@@ -6,12 +6,10 @@ TorchKGE also provides simple utility wrappers for model training. Here is an ex
 
     from torch.optim import Adam
 
-    from torchkge.data.Datasets import load_fb15k
     from torchkge.evaluation import LinkPredictionEvaluator
     from torchkge.models import TransEModel
-
-    from torchkge.utils import Trainer
-    from torchkge.utils import MarginLoss
+    from torchkge.utils.datasets import load_fb15k
+    from torchkge.utils import Trainer, MarginLoss
 
 
     def main():
