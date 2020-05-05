@@ -3,7 +3,7 @@ import unittest
 
 from torch import long
 
-from torchkge.data import KnowledgeGraph
+from torchkge.data_structures import KnowledgeGraph
 from torchkge.evaluation import LinkPredictionEvaluator, TripletClassificationEvaluator
 from torchkge.models import TransEModel
 

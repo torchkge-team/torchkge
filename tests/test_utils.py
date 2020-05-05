@@ -5,13 +5,13 @@ from collections import defaultdict
 from torch import tensor, cat, eq, bool
 from torch.nn import Embedding
 
-from torchkge.data import KnowledgeGraph
+from torchkge.data_structures import KnowledgeGraph
 from torchkge.utils.dissimilarities import l1_dissimilarity, l2_dissimilarity, \
     l1_torus_dissimilarity, l2_torus_dissimilarity, el2_torus_dissimilarity
-from torchkge.utils.models_utils import init_embedding, get_true_targets
-from torchkge.utils.negative_sampling import get_possible_heads_tails
+from torchkge.utils.modelling import init_embedding, get_true_targets
+from torchkge.sampling import get_possible_heads_tails
 from torchkge.utils.operations import get_mask, get_rank
-from torchkge.utils.preprocessing import get_dictionaries, get_tph, get_hpt, \
+from torchkge.utils.operations import get_dictionaries, get_tph, get_hpt, \
     get_bernoulli_probs
 
 

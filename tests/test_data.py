@@ -3,7 +3,7 @@ import unittest
 
 from torch import Tensor, int64
 
-from torchkge.data import KnowledgeGraph
+from torchkge.data_structures import KnowledgeGraph
 from torchkge.exceptions import WrongArgumentsError, SanityError, SizeMismatchError
 
 
