@@ -8,6 +8,9 @@ History
 * Implementation of the new API for all models
 * TorusE implementation fixed
 * TransD reimplementation to avoid matmul usage (costly in back-propagation)
+* Added feature to negative samplers to generate several negative samples from each fact. Those can be fed directly to
+  the models.
+* Added some wrappers for training to utils module.
 * Progress bars now make the most of tqdm's possibilities
 * Code reformatting
 * Docstrings update
