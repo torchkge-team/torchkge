@@ -8,10 +8,10 @@ together::
     from torch import cuda
     from torch.optim import Adam
 
-    from torchkge.utils.datasets import load_fb15k
     from torchkge.models import TransEModel
     from torchkge.sampling import BernoulliNegativeSampler
     from torchkge.utils import MarginLoss, DataLoader
+    from torchkge.utils.datasets import load_fb15k
 
     from tqdm.autonotebook import tqdm
 
