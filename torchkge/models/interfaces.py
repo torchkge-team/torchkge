@@ -61,8 +61,20 @@ class Model(Module):
             Scoring function evaluated on negatively sampled triples.
 
         """
-        return self.scoring_function(heads, tails, relations), \
-            self.scoring_function(negative_heads, negative_tails, relations)
+        pos = self.scoring_function(heads, tails, relations)
+        if negative_heads.shape[0] > relations.shape[0]:
+            # in that case, several negative samples are sampled from each fact
+            n_neg = int(negative_heads.shape[0] / relations.shape[0])
+            pos = pos.repeat(n_neg)
+            neg = self.scoring_function(negative_heads,
+                                        negative_tails,
+                                        relations.repeat(n_neg))
+        else:
+            neg = self.scoring_function(negative_heads,
+                                        negative_tails,
+                                        relations)
+
+        return pos, neg
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument.
