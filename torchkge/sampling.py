@@ -23,6 +23,8 @@ class NegativeSampler:
         Validation knowledge graph.
     kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
+    n_neg: int
+        Number of negative sample to create from each fact.
 
     Attributes
     ----------
@@ -41,16 +43,19 @@ class NegativeSampler:
         Number of triplets in `kg_val`.
     n_facts_test: int
         Number of triples in `kg_test`.
-
+    n_neg: int
+        Number of negative sample to create from each fact.
     """
 
-    def __init__(self, kg, kg_val=None, kg_test=None):
+    def __init__(self, kg, kg_val=None, kg_test=None, n_neg=1):
         self.kg = kg
         self.n_ent = kg.n_ent
         self.n_facts = kg.n_facts
 
         self.kg_val = kg_val
         self.kg_test = kg_test
+
+        self.n_neg = n_neg
 
         if kg_val is None:
             self.n_facts_val = 0
@@ -62,7 +67,7 @@ class NegativeSampler:
         else:
             self.n_facts_test = kg_test.n_facts
 
-    def corrupt_batch(self, heads, tails, relations):
+    def corrupt_batch(self, heads, tails, relations, n_neg):
         raise NotYetImplementedError('NegativeSampler is just an interface, '
                                      'please consider using a child class '
                                      'where this is implemented.')
@@ -120,7 +125,8 @@ class NegativeSampler:
 
         for i, batch in enumerate(dataloader):
             heads, tails, rels = batch[0], batch[1], batch[2]
-            neg_heads, neg_tails = self.corrupt_batch(heads, tails, rels)
+            neg_heads, neg_tails = self.corrupt_batch(heads, tails, rels,
+                                                      n_neg=1)
 
             corr_heads.append(neg_heads)
             corr_tails.append(neg_tails)
@@ -155,13 +161,14 @@ class UniformNegativeSampler(NegativeSampler):
         Validation knowledge graph.
     kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
-
+    n_neg: int
+        Number of negative sample to create from each fact.
     """
 
-    def __init__(self, kg, kg_val=None, kg_test=None):
-        super().__init__(kg, kg_val, kg_test)
+    def __init__(self, kg, kg_val=None, kg_test=None, n_neg=1):
+        super().__init__(kg, kg_val, kg_test, n_neg)
 
-    def corrupt_batch(self, heads, tails, relations=None):
+    def corrupt_batch(self, heads, tails, relations=None, n_neg=None):
         """For each true triplet, produce a corrupted one not different from
         any other true triplet. If `heads` and `tails` are cuda objects ,
         then the returned tensors are on the GPU.
@@ -178,7 +185,9 @@ class UniformNegativeSampler(NegativeSampler):
             Tensor containing the integer key of relations in the current
             batch. This is optional here and mainly present because of the
             interface with other NegativeSampler objects.
-
+        n_neg: int (opt)
+            Number of negative sample to create from each fact. It overwrites
+            the value set at the construction of the sampler.
         Returns
         -------
         neg_heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
@@ -188,24 +197,26 @@ class UniformNegativeSampler(NegativeSampler):
             Tensor containing the integer key of negatively sampled tails of
             the relations in the current batch.
         """
-        use_cuda = heads.is_cuda
-        assert (use_cuda == tails.is_cuda)
-        if use_cuda:
-            device = 'cuda'
-        else:
-            device = 'cpu'
+        if n_neg is None:
+            n_neg = self.n_neg
+
+        device = heads.device
+        assert (device == tails.device)
 
         batch_size = heads.shape[0]
-        neg_heads, neg_tails = heads.clone(), tails.clone()
+        neg_heads = heads.repeat(n_neg)
+        neg_tails = tails.repeat(n_neg)
 
         # Randomly choose which samples will have head/tail corrupted
-        mask = bernoulli(ones(size=(batch_size,), device=device) / 2).double()
-        n_heads_corrupted = int(mask.sum().item())
+        mask = bernoulli(ones(size=(batch_size * n_neg,),
+                              device=device) / 2).double()
+
+        n_h_cor = int(mask.sum().item())
         neg_heads[mask == 1] = randint(1, self.n_ent,
-                                       (n_heads_corrupted,),
+                                       (n_h_cor,),
                                        device=device)
         neg_tails[mask == 0] = randint(1, self.n_ent,
-                                       (batch_size - n_heads_corrupted,),
+                                       (batch_size * n_neg - n_h_cor,),
                                        device=device)
 
         return neg_heads.long(), neg_tails.long()
@@ -235,7 +246,8 @@ class BernoulliNegativeSampler(NegativeSampler):
         Validation knowledge graph.
     kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
-
+    n_neg: int
+        Number of negative sample to create from each fact.
     Attributes
     ----------
     bern_probs: torch.Tensor, dtype: torch.float, shape: (kg.n_rel)
@@ -243,8 +255,8 @@ class BernoulliNegativeSampler(NegativeSampler):
 
     """
 
-    def __init__(self, kg, kg_val=None, kg_test=None):
-        super().__init__(kg, kg_val, kg_test)
+    def __init__(self, kg, kg_val=None, kg_test=None, n_neg=1):
+        super().__init__(kg, kg_val, kg_test, n_neg)
         self.bern_probs = self.evaluate_probabilities()
 
     def evaluate_probabilities(self):
@@ -262,7 +274,7 @@ class BernoulliNegativeSampler(NegativeSampler):
 
         return tensor(tmp).float()
 
-    def corrupt_batch(self, heads, tails, relations):
+    def corrupt_batch(self, heads, tails, relations, n_neg=None):
         """For each true triplet, produce a corrupted one different from any
         other true triplet. If `heads` and `tails` are cuda objects , then the
         returned tensors are on the GPU.
@@ -278,7 +290,9 @@ class BernoulliNegativeSampler(NegativeSampler):
         relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
             Tensor containing the integer key of relations in the current
             batch.
-
+        n_neg: int (opt)
+            Number of negative sample to create from each fact. It overwrites
+            the value set at the construction of the sampler.
         Returns
         -------
         neg_heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
@@ -288,20 +302,24 @@ class BernoulliNegativeSampler(NegativeSampler):
             Tensor containing the integer key of negatively sampled tails of
             the relations in the current batch.
         """
+        if n_neg is None:
+            n_neg = self.n_neg
+
         device = heads.device
         assert (device == tails.device)
 
         batch_size = heads.shape[0]
-        neg_heads, neg_tails = heads.clone(), tails.clone()
+        neg_heads = heads.repeat(n_neg)
+        neg_tails = tails.repeat(n_neg)
 
         # Randomly choose which samples will have head/tail corrupted
-        mask = bernoulli(self.bern_probs[relations]).double()
-        n_heads_corrupted = int(mask.sum().item())
+        mask = bernoulli(self.bern_probs[relations].repeat(n_neg)).double()
+        n_h_cor = int(mask.sum().item())
         neg_heads[mask == 1] = randint(1, self.n_ent,
-                                       (n_heads_corrupted,),
+                                       (n_h_cor,),
                                        device=device)
         neg_tails[mask == 0] = randint(1, self.n_ent,
-                                       (batch_size - n_heads_corrupted,),
+                                       (batch_size * n_neg - n_h_cor,),
                                        device=device)
 
         return neg_heads.long(), neg_tails.long()
@@ -353,7 +371,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
     """
 
     def __init__(self, kg, kg_val=None, kg_test=None):
-        super().__init__(kg, kg_val, kg_test)
+        super().__init__(kg, kg_val, kg_test, 1)
         self.possible_heads, self.possible_tails, \
         self.n_poss_heads, self.n_poss_tails = self.find_possibilities()
 
@@ -405,7 +423,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
         return possible_heads, possible_tails, n_poss_heads, n_poss_tails
 
-    def corrupt_batch(self, heads, tails, relations):
+    def corrupt_batch(self, heads, tails, relations, n_neg=None):
         """For each true triplet, produce a corrupted one not different from
         any other golden triplet. If `heads` and `tails` are cuda objects,
         then the returned tensors are on the GPU.
