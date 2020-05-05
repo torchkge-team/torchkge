@@ -9,7 +9,8 @@ from collections import defaultdict
 from torch import tensor, bernoulli, randint, ones, rand, cat
 
 from torchkge.exceptions import NotYetImplementedError
-from torchkge.utils import DataLoader, get_bernoulli_probs
+from torchkge.utils.data import DataLoader
+from torchkge.utils.operations import get_bernoulli_probs
 
 
 class NegativeSampler:
