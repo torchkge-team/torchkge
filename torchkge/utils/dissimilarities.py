@@ -5,7 +5,7 @@ Copyright TorchKGE developers
 """
 
 from math import pi
-from torch import abs, cos, min, sqrt
+from torch import abs, cos, min
 
 
 def l1_dissimilarity(a, b):

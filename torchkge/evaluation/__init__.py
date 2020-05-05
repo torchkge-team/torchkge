@@ -1,2 +1,2 @@
-from .LinkPrediction import LinkPredictionEvaluator
-from .TripletClassification import TripletClassificationEvaluator
+from .link_prediction import LinkPredictionEvaluator
+from .triplet_classification import TripletClassificationEvaluator

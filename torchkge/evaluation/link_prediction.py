@@ -18,14 +18,14 @@ class LinkPredictionEvaluator(object):
     ----------
     model: torchkge.models.interfaces.Model
         Embedding model inheriting from the right interface.
-    knowledge_graph: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    knowledge_graph: torchkge.data_structures.KnowledgeGraph
         Knowledge graph on which the evaluation will be done.
 
     Attributes
     ----------
     model: torchkge.models.interfaces.Model
         Embedding model inheriting from the right interface.
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Knowledge graph on which the evaluation will be done.
     rank_true_heads: torch.Tensor, shape: (n_facts), dtype: `torch.int`
         For each fact, this is the rank of the true head when all entities

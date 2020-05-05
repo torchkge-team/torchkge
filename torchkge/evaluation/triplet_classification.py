@@ -6,7 +6,7 @@ Copyright TorchKGE developers
 
 from torch import zeros, cat
 
-from ..data import SmallKG
+from ..data_structures import SmallKG
 from ..sampling import PositionalNegativeSampler
 from ..utils import DataLoader
 
@@ -27,18 +27,18 @@ class TripletClassificationEvaluator(object):
     ----------
     model: torchkge.models.interfaces.Model
         Embedding model inheriting from the right interface.
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
         Knowledge graph on which the validation thresholds will be computed.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
         Knowledge graph on which the testing evaluation will be done.
 
     Attributes
     ----------
     model: torchkge.models.interfaces.Model
         Embedding model inheriting from the right interface.
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
         Knowledge graph on which the validation thresholds will be computed.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
         Knowledge graph on which the evaluation will be done.
     evaluated: bool
         Indicate whether the `evaluate` function has been called.

@@ -42,9 +42,9 @@ class DataLoader:
 
         Parameters
         ----------
-        kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        kg: torchkge.data_structures.KnowledgeGraph
             Knowledge graph in the form of an object implemented in
-            torchkge.data.KnowledgeGraph.
+            torchkge.data_structures.
         batch_size: int
             Size of the required batches.
         use_cuda: str (opt, default = None)

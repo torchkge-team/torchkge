@@ -11,7 +11,7 @@ from torch.nn.init import xavier_uniform_
 import pickle
 import tarfile
 
-from .data_utils import get_data_home
+from .data import get_data_home
 
 from os import makedirs, remove
 from os.path import exists

@@ -8,8 +8,8 @@ from collections import defaultdict
 from torch import cat, eq, int64, long, randperm, tensor, Tensor, zeros_like
 from torch.utils.data import Dataset
 
-from ..exceptions import SizeMismatchError, WrongArgumentsError, SanityError
-from ..utils import get_dictionaries
+from torchkge.exceptions import SizeMismatchError, WrongArgumentsError, SanityError
+from torchkge.utils import get_dictionaries
 
 
 class KnowledgeGraph(Dataset):
@@ -175,9 +175,9 @@ class KnowledgeGraph(Dataset):
 
         Returns
         -------
-        train_kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
-        val_kg: torchkge.data.KnowledgeGraph.KnowledgeGraph, optional
-        test_kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        train_kg: torchkge.data_structures.KnowledgeGraph
+        val_kg: torchkge.data_structures.KnowledgeGraph, optional
+        test_kg: torchkge.data_structures.KnowledgeGraph
 
         """
         if sizes is not None:

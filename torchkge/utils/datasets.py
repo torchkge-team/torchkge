@@ -16,9 +16,9 @@ from os.path import exists
 from pandas import concat, DataFrame, merge, read_csv
 from urllib.request import urlretrieve
 
-from .KnowledgeGraph import KnowledgeGraph
+from torchkge.data_structures import KnowledgeGraph
 
-from ..utils import get_data_home
+from torchkge.utils import get_data_home
 
 
 def load_fb13(data_home=None):
@@ -33,9 +33,9 @@ def load_fb13(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -76,9 +76,9 @@ def load_fb15k(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -119,9 +119,9 @@ def load_fb15k237(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -160,9 +160,9 @@ def load_wn18(data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     if data_home is None:
@@ -210,9 +210,9 @@ def load_wikidatasets(which, limit_=None, data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
 
     """
     assert which in ['humans', 'companies', 'animals', 'countries', 'films']

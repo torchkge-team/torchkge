@@ -7,9 +7,8 @@ Copyright TorchKGE developers
 from torch import matmul, cat
 from torch.nn.functional import normalize
 
-from ..utils import init_embedding
-
 from ..models import BilinearModel
+from ..utils import init_embedding
 
 
 class RESCALModel(BilinearModel):

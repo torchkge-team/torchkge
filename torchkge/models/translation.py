@@ -18,7 +18,7 @@ from tqdm.autonotebook import tqdm
 class TransEModel(TranslationModel):
     """Implementation of TransE model detailed in 2013 paper by Bordes et al..
     This class inherits from the
-    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then
+    :class:`torchkge.models.interfaces.TranslationModel` interface. It then
     has its attributes as well.
 
 
@@ -145,7 +145,7 @@ class TransEModel(TranslationModel):
 class TransHModel(TranslationModel):
     """Implementation of TransH model detailed in 2014 paper by Wang et al..
     This class inherits from the
-    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then
+    :class:`torchkge.models.interfaces.TranslationModel` interface. It then
     has its attributes as well.
 
     References
@@ -298,7 +298,7 @@ class TransHModel(TranslationModel):
 class TransRModel(TranslationModel):
     """Implementation of TransR model detailed in 2015 paper by Lin et al..
     This class inherits from the
-    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then
+    :class:`torchkge.models.interfaces.TranslationModel` interface. It then
     has its attributes as well.
 
     References
@@ -468,7 +468,7 @@ class TransRModel(TranslationModel):
 class TransDModel(TranslationModel):
     """Implementation of TransD model detailed in 2015 paper by Ji et al..
     This class inherits from the
-    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then
+    :class:`torchkge.models.interfaces.TranslationModel` interface. It then
     has its attributes as well.
 
     References
@@ -658,7 +658,7 @@ class TransDModel(TranslationModel):
 class TorusEModel(TranslationModel):
     """Implementation of TorusE model detailed in 2018 paper by Ebisu and
     Ichise. This class inherits from the
-    :class:`torchkge.models.interfaces.TranslationalModel` interface. It then
+    :class:`torchkge.models.interfaces.TranslationModel` interface. It then
     has its attributes as well.
 
     References

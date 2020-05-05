@@ -3,8 +3,8 @@
 Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
-from ..utils.data_utils import get_n_batches
-from ..sampling import UniformNegativeSampler, BernoulliNegativeSampler
+from ..sampling import BernoulliNegativeSampler, UniformNegativeSampler
+from ..utils.data import get_n_batches
 
 from tqdm.autonotebook import tqdm
 
@@ -15,7 +15,7 @@ class TrainDataLoader:
 
     Parameters
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Dataset to be divided in batches.
     batch_size: int
         Size of the batches.
@@ -111,7 +111,7 @@ class Trainer:
     criterion:
         Criteria which should differentiate positive and negative scores. Can
         be an elements of torchkge.utils.losses
-    kg_train: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg_train: torchkge.data_structures.KnowledgeGraph
         KG used for training.
     n_epochs: int
         Number of epochs in the training procedure.

@@ -4,11 +4,12 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import tensor, bernoulli, randint, ones, rand, cat
-# from torch.utils.data import DataLoader
+from collections import defaultdict
 
-from ..exceptions import NotYetImplementedError
-from ..utils import DataLoader, get_bernoulli_probs, get_possible_heads_tails
+from torch import tensor, bernoulli, randint, ones, rand, cat
+
+from torchkge.exceptions import NotYetImplementedError
+from torchkge.utils import DataLoader, get_bernoulli_probs
 
 
 class NegativeSampler:
@@ -16,20 +17,20 @@ class NegativeSampler:
 
     Parameters
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_val: torchkge.data_structures.KnowledgeGraph (optional)
         Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
 
     Attributes
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_val: torchkge.data_structures.KnowledgeGraph (optional)
         Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
     n_ent: int
         Number of entities in the entire knowledge graph. This is the same in
@@ -42,6 +43,7 @@ class NegativeSampler:
         Number of triples in `kg_test`.
 
     """
+
     def __init__(self, kg, kg_val=None, kg_test=None):
         self.kg = kg
         self.n_ent = kg.n_ent
@@ -133,7 +135,7 @@ class UniformNegativeSampler(NegativeSampler):
     """Uniform negative sampler as presented in 2013 paper by Bordes et al..
     Either the head or the tail of a triplet is replaced by another entity at
     random. The choice of head/tail is uniform. This class inherits from the
-    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface. It
+    :class:`torchkge.sampling.NegativeSampler` interface. It
     then has its attributes as well.
 
     References
@@ -147,14 +149,15 @@ class UniformNegativeSampler(NegativeSampler):
 
     Parameters
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_val: torchkge.data_structures.KnowledgeGraph (optional)
         Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
 
     """
+
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
 
@@ -214,7 +217,7 @@ class BernoulliNegativeSampler(NegativeSampler):
     random. The choice of head/tail is done using probabilities taking into
     account profiles of the relations. See the paper for more details. This
     class inherits from the
-    :class:`torchkge.sampling.NegativeSampling.NegativeSampler` interface.
+    :class:`torchkge.sampling.NegativeSampler` interface.
     It then has its attributes as well.
 
     References
@@ -226,11 +229,11 @@ class BernoulliNegativeSampler(NegativeSampler):
 
     Parameters
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_val: torchkge.data_structures.KnowledgeGraph (optional)
         Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
 
     Attributes
@@ -239,6 +242,7 @@ class BernoulliNegativeSampler(NegativeSampler):
         Bernoulli sampling probabilities. See paper for more details.
 
     """
+
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
         self.bern_probs = self.evaluate_probabilities()
@@ -311,7 +315,7 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
     choice of head/tail is done. We chose to use Bernoulli sampling as in 2014
     paper by Wang et al. as we believe it serves the same purpose as the
     original paper. This class inherits from the
-    :class:`torchkge.sampling.NegativeSampling.BernouilliNegativeSampler` class
+    :class:`torchkge.sampling.BernouilliNegativeSampler` class
     seen as an interface. It then has its attributes as well.
 
     References
@@ -328,11 +332,11 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
     Parameters
     ----------
-    kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
         Main knowledge graph (usually training one).
-    kg_val: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_val: torchkge.data_structures.KnowledgeGraph (optional)
         Validation knowledge graph.
-    kg_test: torchkge.data.KnowledgeGraph.KnowledgeGraph (optional)
+    kg_test: torchkge.data_structures.KnowledgeGraph (optional)
         Test knowledge graph.
 
     Attributes
@@ -347,10 +351,11 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         List of number of possible tails for each relation.
 
     """
+
     def __init__(self, kg, kg_val=None, kg_test=None):
         super().__init__(kg, kg_val, kg_test)
         self.possible_heads, self.possible_tails, \
-            self.n_poss_heads, self.n_poss_tails = self.find_possibilities()
+        self.n_poss_heads, self.n_poss_tails = self.find_possibilities()
 
     def find_possibilities(self):
         """For each relation of the knowledge graph (and possibly the
@@ -477,3 +482,42 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         neg_tails[mask == 0] = tensor(corr, device=device).long()
 
         return neg_heads.long(), neg_tails.long()
+
+
+def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
+    """Gets for each relation of the knowledge graph the possible heads and
+    possible tails.
+
+    Parameters
+    ----------
+    kg: `torchkge.data_structures.KnowledgeGraph`
+    possible_heads: dict, optional (default=None)
+    possible_tails: dict, optional (default=None)
+
+    Returns
+    -------
+    possible_heads: dict, optional (default=None)
+        keys: relation indices, values: set of possible heads for each
+        relations.
+    possible_tails: dict, optional (default=None)
+        keys: relation indices, values: set of possible tails for each
+        relations.
+
+    """
+
+    if possible_heads is None:
+        possible_heads = defaultdict(set)
+    else:
+        assert type(possible_heads) == dict
+        possible_heads = defaultdict(set, possible_heads)
+    if possible_tails is None:
+        possible_tails = defaultdict(set)
+    else:
+        assert type(possible_tails) == dict
+        possible_tails = defaultdict(set, possible_tails)
+
+    for i in range(kg.n_facts):
+        possible_heads[kg.relations[i].item()].add(kg.head_idx[i].item())
+        possible_tails[kg.relations[i].item()].add(kg.tail_idx[i].item())
+
+    return dict(possible_heads), dict(possible_tails)

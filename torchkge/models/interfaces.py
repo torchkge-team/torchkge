@@ -233,7 +233,7 @@ class Model(Module):
             List of tails indices.
         r_idx: torch.Tensor, shape: (b_size), dtype: torch.long
             List of relations indices.
-        kg: torchkge.data.KnowledgeGraph.KnowledgeGraph
+        kg: torchkge.data_structures.KnowledgeGraph
             Knowledge graph on which the model was trained. This is used to
             access the `dict_of_heads` and `dict_of_tails` attributes in order
             to compute the filtered metrics.
