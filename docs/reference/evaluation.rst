@@ -7,7 +7,7 @@ Evaluation
 Link Prediction
 ---------------
 To assess the performance of the link prediction evaluation module of TorchKGE, it was compared with the ones of
-`AmpliGraph <https://docs.ampligraph.org/>`_ (v1.3.1) and `OpenKE <https://github.com/thunlp/OpenKE>`_(version of
+`AmpliGraph <https://docs.ampligraph.org/>`_ (v1.3.1) and `OpenKE <https://github.com/thunlp/OpenKE>`_ (version of
 April, 9). The computation times (in seconds) reported in the following table are averaged over 5 independent evaluation
 processes. Experiments were done using PyTorch 1.5, TensorFlow 1.15 and a Tesla K80 GPU. Missing values for AmpliGraph
 are due to missing models in the library.
