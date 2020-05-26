@@ -5,7 +5,7 @@ numpydoc==1.0.0
 
 # Tests
 flake8==3.8.2
-tox==3.15.0
+tox==3.15.1
 pytest-runner==5.2
 pytest==5.4.1
 
