@@ -1,5 +1,5 @@
 # Documentation
-sphinx==3.0.3
+sphinx==3.0.4
 sphinx_rtd_theme==0.4.3
 numpydoc==1.0.0
 
