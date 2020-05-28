@@ -2,6 +2,11 @@
 History
 =======
 
+0.16.1 (2020-05-28)
+-------------------
+* Patch an awkward import
+* Add dataset loaders for WN18RR and YAGO3-10  
+
 0.16.0 (2020-04-27)
 -------------------
 * Redefinition of the models' API (simplified interfaces, renamed LP methods and added get_embeddings method)
