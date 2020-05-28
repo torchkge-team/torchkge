@@ -22,7 +22,7 @@ from torchkge.utils import get_data_home
 
 
 def load_fb13(data_home=None):
-    """Load fb13 dataset.
+    """Load FB13 dataset.
 
     Parameters
     ----------
@@ -63,7 +63,7 @@ def load_fb13(data_home=None):
 
 
 def load_fb15k(data_home=None):
-    """Load fb15k dataset. See `here
+    """Load FB15k dataset. See `here
     <https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data>`__
     for paper by Bordes et al. originally presenting the dataset.
 
@@ -106,7 +106,7 @@ def load_fb15k(data_home=None):
 
 
 def load_fb15k237(data_home=None):
-    """Load fb15k237 dataset. See `here
+    """Load FB15k237 dataset. See `here
     <https://www.aclweb.org/anthology/D15-1174/>`__ for paper by Toutanova et
     al. originally presenting the dataset.
 
@@ -149,7 +149,7 @@ def load_fb15k237(data_home=None):
 
 
 def load_wn18(data_home=None):
-    """Load wn18 dataset.
+    """Load WN18 dataset.
 
     Parameters
     ----------
@@ -182,6 +182,92 @@ def load_wn18(data_home=None):
     df2 = read_csv(data_path + '/wordnet-mlj12-valid.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
     df3 = read_csv(data_path + '/wordnet-mlj12-test.txt',
+                   sep='\t', header=None, names=['from', 'rel', 'to'])
+    df = concat([df1, df2, df3])
+    kg = KnowledgeGraph(df)
+
+    return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
+
+
+def load_wn18rr(data_home=None):
+    """Load WN18RR dataset. See `here
+    <https://arxiv.org/abs/1707.01476>`__ for paper by Dettmers et
+    al. originally presenting the dataset.
+
+    Parameters
+    ----------
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
+
+    """
+    if data_home is None:
+        data_home = get_data_home()
+    data_path = data_home + '/WN18RR'
+    if not exists(data_path):
+        makedirs(data_path, exist_ok=True)
+        urlretrieve("https://graphs.telecom-paristech.fr/datasets/WN18RR.zip",
+                    data_home + '/WN18RR.zip')
+        with zipfile.ZipFile(data_home + '/WN18RR.zip', 'r') as zip_ref:
+            zip_ref.extractall(data_home)
+        remove(data_home + '/WN18RR.zip')
+        shutil.rmtree(data_home + '/__MACOSX')
+
+    df1 = read_csv(data_path + '/train.txt',
+                   sep='\t', header=None, names=['from', 'rel', 'to'])
+    df2 = read_csv(data_path + '/valid.txt',
+                   sep='\t', header=None, names=['from', 'rel', 'to'])
+    df3 = read_csv(data_path + '/test.txt',
+                   sep='\t', header=None, names=['from', 'rel', 'to'])
+    df = concat([df1, df2, df3])
+    kg = KnowledgeGraph(df)
+
+    return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
+
+
+def load_yago3_10(data_home=None):
+    """Load YAGO3-10 dataset. See `here
+    <https://arxiv.org/abs/1707.01476>`__ for paper by Dettmers et
+    al. originally presenting the dataset.
+
+    Parameters
+    ----------
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
+
+    Returns
+    -------
+    kg_train: torchkge.data_structures.KnowledgeGraph
+    kg_val: torchkge.data_structures.KnowledgeGraph
+    kg_test: torchkge.data_structures.KnowledgeGraph
+
+    """
+    if data_home is None:
+        data_home = get_data_home()
+    data_path = data_home + '/YAGO3-10'
+    if not exists(data_path):
+        makedirs(data_path, exist_ok=True)
+        urlretrieve("https://graphs.telecom-paristech.fr/datasets/YAGO3-10.zip",
+                    data_home + '/YAGO3-10.zip')
+        with zipfile.ZipFile(data_home + '/YAGO3-10.zip', 'r') as zip_ref:
+            zip_ref.extractall(data_home)
+        remove(data_home + '/YAGO3-10.zip')
+        shutil.rmtree(data_home + '/__MACOSX')
+
+    df1 = read_csv(data_path + '/train.txt',
+                   sep='\t', header=None, names=['from', 'rel', 'to'])
+    df2 = read_csv(data_path + '/valid.txt',
+                   sep='\t', header=None, names=['from', 'rel', 'to'])
+    df3 = read_csv(data_path + '/test.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
     df = concat([df1, df2, df3])
     kg = KnowledgeGraph(df)
