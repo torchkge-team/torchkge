@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.3 (2020-05-29)
+-------------------
+* Release patch
+
 0.16.2 (2020-05-29)
 -------------------
 * Add methods to compute data redundancy in knowledge graphs as in 2020
