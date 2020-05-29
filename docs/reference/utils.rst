@@ -17,6 +17,11 @@ Datasets loaders
 .. autofunction:: torchkge.utils.datasets.load_yago3_10
 .. autofunction:: torchkge.utils.datasets.load_wikidatasets
 
+Data redundancy
+---------------
+.. autofunction:: torchkge.utils.data_redundancy.duplicates
+.. autofunction:: torchkge.utils.data_redundancy.count_triplets
+.. autofunction:: torchkge.utils.data_redundancy.cartesian_product_relations
 
 Dissimilarities
 ---------------
