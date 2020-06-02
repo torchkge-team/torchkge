@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.5 (2020-06-02)
+-------------------
+* Release patch
+
 0.16.4 (2020-06-02)
 -------------------
 * Add parameter in data redundancy to exclude know reverse triplets from
