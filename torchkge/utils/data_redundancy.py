@@ -80,7 +80,7 @@ def count_triplets(kg1, kg2, duplicates, rev_duplicates):
 
 
 def duplicates(kg_tr, kg_val, kg_te, theta1=0.8, theta2=0.8,
-               verbose=False, counts=False):
+               verbose=False, counts=False, reverses=[]):
     """Return the duplicate and reverse duplicate relations as explained
     in paper by Akrami et al.
 
@@ -107,6 +107,8 @@ def duplicates(kg_tr, kg_val, kg_te, theta1=0.8, theta2=0.8,
     counts: bool
         Should the triplets involving (reverse) duplicate relations be
         counted in all sets.
+    reverses: list
+        List of known reverse relations.
 
     Returns
     -------
@@ -148,11 +150,12 @@ def duplicates(kg_tr, kg_val, kg_te, theta1=0.8, theta2=0.8,
         if a > theta1 and b > theta2:
             duplicates.append((r1, r2))
 
-        a = len(T[r1].intersection(T_inv[r2])) / lengths[r1]
-        b = len(T[r1].intersection(T_inv[r2])) / lengths[r2]
+        if (r1, r2) not in reverses:
+            a = len(T[r1].intersection(T_inv[r2])) / lengths[r1]
+            b = len(T[r1].intersection(T_inv[r2])) / lengths[r2]
 
-        if a > theta1 and b > theta2:
-            rev_duplicates.append((r1, r2))
+            if a > theta1 and b > theta2:
+                rev_duplicates.append((r1, r2))
 
     if verbose:
         print('Duplicate relations: {}'.format(len(duplicates)))
