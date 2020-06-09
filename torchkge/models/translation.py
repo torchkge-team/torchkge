@@ -68,11 +68,11 @@ class TransEModel(TranslationModel):
         self.emb_dim = emb_dim
 
         if pre_trained is not None:
-            if pre_trained == 'fb15k':
-                state_dict = load_embeddings('transe', emb_dim,
-                                             'fb15k', data_home)
-                self.n_rel = state_dict['rel_emb.weight'].shape[0]
-                self.n_ent = state_dict['ent_emb.weight'].shape[0]
+            assert pre_trained in {'fb15k', 'fb15k237'} and emb_dim == 100
+            state_dict = load_embeddings('transe', emb_dim,
+                                         pre_trained, data_home)
+            self.n_rel = state_dict['rel_emb.weight'].shape[0]
+            self.n_ent = state_dict['ent_emb.weight'].shape[0]
 
         self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
         self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
@@ -82,10 +82,7 @@ class TransEModel(TranslationModel):
                                              p=2, dim=1)
 
         if pre_trained is not None:
-            if pre_trained == 'fb15k':
-                self.load_state_dict(state_dict)
-            else:
-                print('No pre-trained model could be loaded.')
+            self.load_state_dict(state_dict)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument:
