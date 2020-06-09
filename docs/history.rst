@@ -2,6 +2,11 @@
 History
 =======
 
+0.16.6 (2020-06-09)
+-------------------
+* Patch in pre-trained model loading
+* Added pre-train loading for TransE on FB15k237 in dimension 100.
+
 0.16.5 (2020-06-02)
 -------------------
 * Release patch
