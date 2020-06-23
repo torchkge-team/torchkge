@@ -17,6 +17,10 @@ Datasets loaders
 .. autofunction:: torchkge.utils.datasets.load_yago3_10
 .. autofunction:: torchkge.utils.datasets.load_wikidatasets
 
+Pre-trained models
+------------------
+.. autofunction:: torchkge.utils.pretrained_models.load_pretrained_transe
+
 Data redundancy
 ---------------
 .. autofunction:: torchkge.utils.data_redundancy.duplicates
