@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.7 (2020-06-23)
+-------------------
+* Change API for pre-trained models
+
 0.16.6 (2020-06-09)
 -------------------
 * Patch in pre-trained model loading
