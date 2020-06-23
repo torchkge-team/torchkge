@@ -34,7 +34,7 @@ to five times faster than `AmpliGraph <https://docs.ampligraph.org/>`_ and twent
 attention has been paid to code efficiency and simplicity, documentation and API consistency. It is distributed using
 PyPI under BSD license.
 
-Paper accepted at `IWKG - KDD 2020`<https://suitclub.ischool.utexas.edu/IWKG_KDD2020/index.html>_. Reference coming soon.
+Paper accepted at `IWKG - KDD 2020<https://suitclub.ischool.utexas.edu/IWKG_KDD2020/index.html>_. Reference coming soon.
 
 * Free software: BSD license
 * Documentation: https://torchkge.readthedocs.io.
