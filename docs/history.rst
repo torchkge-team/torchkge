@@ -2,6 +2,28 @@
 History
 =======
 
+0.16.7 (2020-06-23)
+-------------------
+* Change API for pre-trained models
+
+0.16.6 (2020-06-09)
+-------------------
+* Patch in pre-trained model loading
+* Added pre-train loading for TransE on FB15k237 in dimension 100.
+
+0.16.5 (2020-06-02)
+-------------------
+* Release patch
+
+0.16.4 (2020-06-02)
+-------------------
+* Add parameter in data redundancy to exclude know reverse triplets from
+  duplicate search.
+
+0.16.3 (2020-05-29)
+-------------------
+* Release patch
+
 0.16.2 (2020-05-29)
 -------------------
 * Add methods to compute data redundancy in knowledge graphs as in 2020
