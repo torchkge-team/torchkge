@@ -55,7 +55,7 @@ class TransEModel(TranslationModel):
 
     """
 
-    def __init__(self, emb_dim, n_entities=0, n_relations=0,
+    def __init__(self, emb_dim, n_entities, n_relations,
                  dissimilarity_type='L2'):
 
         super().__init__(n_entities, n_relations, dissimilarity_type)
