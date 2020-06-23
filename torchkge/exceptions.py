@@ -38,3 +38,8 @@ class SanityError(Exception):
 class SplitabilityError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class NoPreTrainedVersionError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
