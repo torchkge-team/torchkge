@@ -104,24 +104,6 @@ class TransEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
-        """Link prediction evaluation helper function. Get entities embeddings
-        and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-        more details on the API.
-
-        """
-        b_size = h_idx.shape[0]
-
-        h_emb = self.ent_emb(h_idx)
-        t_emb = self.ent_emb(t_idx)
-        r_emb = self.rel_emb(r_idx)
-
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
-
-        return h_emb, t_emb, candidates, r_emb
-
 
 class TransHModel(TranslationModel):
     """Implementation of TransH model detailed in 2014 paper by Wang et al..
@@ -172,7 +154,6 @@ class TransHModel(TranslationModel):
 
         self.normalize_parameters()
 
-        self.evaluated_projections = False
         self.projected_entities = Parameter(empty(size=(self.n_rel,
                                                         self.n_ent,
                                                         self.emb_dim)),
@@ -185,15 +166,19 @@ class TransHModel(TranslationModel):
         more details on the API.
 
         """
-        self.evaluated_projections = False
-
-        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
-        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = self.rel_emb(r_idx)
-        norm_vect = normalize(self.norm_vect(r_idx), p=2, dim=1)
+        if self.training:
+            h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+            t = normalize(self.ent_emb(t_idx), p=2, dim=1)
+            norm_vect = normalize(self.norm_vect(r_idx), p=2, dim=1)
+            proj_h = self.project(h, norm_vect)
+            proj_t = self.project(t, norm_vect)
+        else:
+            # if in eval mode, then projections have been evaluated
+            proj_h = self.projected_entities[r_idx, h_idx]
+            proj_t = self.projected_entities[r_idx, t_idx]
 
-        return - self.dissimilarity(self.project(h, norm_vect) + r,
-                                    self.project(t, norm_vect))
+        return - self.dissimilarity(proj_h + r, proj_t)
 
     @staticmethod
     def project(ent, norm_vect):
@@ -227,32 +212,17 @@ class TransHModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.norm_vect.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
-        """Link prediction evaluation helper function. Get entities embeddings
-        and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-        more details on the API.
-
-        """
-        if not self.evaluated_projections:
-            self.lp_evaluate_projections()
-
-        r = self.rel_emb(r_idx)
-        proj_h = self.projected_entities[r_idx, h_idx]
-        proj_t = self.projected_entities[r_idx, t_idx]
-        proj_candidates = self.projected_entities[r_idx]
-
-        return proj_h, proj_t, proj_candidates, r
-
-    def lp_evaluate_projections(self):
+    def eval(self):
         """Link prediction evaluation helper function. Project all entities
         according to each relation. Calling this method at the beginning of
         link prediction makes the process faster by computing projections only
         once.
 
         """
-        if self.evaluated_projections:
-            return
+        print('In evaluation mode, parameters are normalized and entities '
+              'projections are evaluated.')
+        super().eval()
+        self.normalize_parameters()
 
         for i in tqdm(range(self.n_ent), unit='entities',
                       desc='Projecting entities'):
@@ -272,8 +242,7 @@ class TransHModel(TranslationModel):
                                                 norm_vect)
 
             del norm_components
-
-        self.evaluated_projections = True
+        return self
 
 
 class TransRModel(TranslationModel):
@@ -336,7 +305,6 @@ class TransRModel(TranslationModel):
 
         self.normalize_parameters()
 
-        self.evaluated_projections = False
         self.projected_entities = Parameter(empty(size=(self.n_rel, self.n_ent,
                                                         self.rel_emb_dim)),
                                             requires_grad=False)
@@ -348,17 +316,21 @@ class TransRModel(TranslationModel):
         more details on the API.
 
         """
-        self.evaluated_projections = False
-
         b_size = h_idx.shape[0]
-        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
-        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = self.rel_emb(r_idx)
-        proj_mat = self.proj_mat(r_idx).view(b_size,
-                                             self.rel_emb_dim,
-                                             self.ent_emb_dim)
-        return - self.dissimilarity(self.project(h, proj_mat) + r,
-                                    self.project(t, proj_mat))
+        if self.training:
+            h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+            t = normalize(self.ent_emb(t_idx), p=2, dim=1)
+            proj_mat = self.proj_mat(r_idx).view(b_size,
+                                                 self.rel_emb_dim,
+                                                 self.ent_emb_dim)
+            proj_h = self.project(h, proj_mat)
+            proj_t = self.project(t, proj_mat)
+        else:
+            proj_h = self.projected_entities[r_idx, h_idx]
+            proj_t = self.projected_entities[r_idx, t_idx]
+
+        return - self.dissimilarity(proj_h + r, proj_t)
 
     def project(self, ent, proj_mat):
         proj_e = matmul(proj_mat, ent.view(-1, self.ent_emb_dim, 1))
@@ -395,33 +367,17 @@ class TransRModel(TranslationModel):
                                            self.rel_emb_dim,
                                            self.ent_emb_dim)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
-        """Link prediction evaluation helper function. Get entities embeddings
-        and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-        more details on the API.
-
-        """
-
-        if not self.evaluated_projections:
-            self.lp_evaluate_projections()
-
-        r = self.rel_emb(r_idx)  # shape = (b_size, rel_emb_dim)
-        proj_h = self.projected_entities[r_idx, h_idx]
-        proj_t = self.projected_entities[r_idx, t_idx]
-        proj_candidates = self.projected_entities[r_idx]
-
-        return proj_h, proj_t, proj_candidates, r
-
-    def lp_evaluate_projections(self):
+    def eval(self):
         """Link prediction evaluation helper function. Project all entities
         according to each relation. Calling this method at the beginning of
         link prediction makes the process faster by computing projections only
         once.
 
         """
-        if self.evaluated_projections:
-            return
+        print('In evaluation mode, parameters are normalized and entities '
+              'projections are evaluated.')
+        super().eval()
+        self.normalize_parameters()
 
         for i in tqdm(range(self.n_ent), unit='entities',
                       desc='Projecting entities'):
@@ -443,7 +399,7 @@ class TransRModel(TranslationModel):
 
             del proj_ent
 
-        self.evaluated_projections = True
+        return self
 
 
 class TransDModel(TranslationModel):
@@ -517,7 +473,6 @@ class TransDModel(TranslationModel):
 
         self.normalize_parameters()
 
-        self.evaluated_projections = False
         self.projected_entities = Parameter(empty(size=(self.n_rel,
                                                         self.n_ent,
                                                         self.rel_emb_dim)),
@@ -530,17 +485,21 @@ class TransDModel(TranslationModel):
         more details on the API.
 
         """
-        self.evaluated_projections = False
-        h = normalize(self.ent_emb(h_idx), p=2, dim=1)
-        t = normalize(self.ent_emb(t_idx), p=2, dim=1)
         r = normalize(self.rel_emb(r_idx), p=2, dim=1)
+        if self.training:
+            h = normalize(self.ent_emb(h_idx), p=2, dim=1)
+            t = normalize(self.ent_emb(t_idx), p=2, dim=1)
 
-        h_proj_v = normalize(self.ent_proj_vect(h_idx), p=2, dim=1)
-        t_proj_v = normalize(self.ent_proj_vect(t_idx), p=2, dim=1)
-        r_proj_v = normalize(self.rel_proj_vect(r_idx), p=2, dim=1)
+            h_proj_v = normalize(self.ent_proj_vect(h_idx), p=2, dim=1)
+            t_proj_v = normalize(self.ent_proj_vect(t_idx), p=2, dim=1)
+            r_proj_v = normalize(self.rel_proj_vect(r_idx), p=2, dim=1)
 
-        proj_h = self.project(h, h_proj_v, r_proj_v)
-        proj_t = self.project(t, t_proj_v, r_proj_v)
+            proj_h = self.project(h, h_proj_v, r_proj_v)
+            proj_t = self.project(t, t_proj_v, r_proj_v)
+        else:
+            proj_h = self.projected_entities[r_idx, h_idx]
+            proj_t = self.projected_entities[r_idx, t_idx]
+
         return - self.dissimilarity(proj_h + r, proj_t)
 
     def project(self, ent, e_proj_vect, r_proj_vect):
@@ -592,34 +551,19 @@ class TransDModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.ent_proj_vect.weight.data, self.rel_proj_vect.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
-        """Link prediction evaluation helper function. Get entities embeddings
-        and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-        more details on the API.
-
-        """
-        if not self.evaluated_projections:
-            self.lp_evaluate_projections()
-
-        r = self.rel_emb(r_idx)
-        proj_h = self.projected_entities[r_idx, h_idx]
-        proj_t = self.projected_entities[r_idx, t_idx]
-        proj_candidates = self.projected_entities[r_idx]
-
-        return proj_h, proj_t, proj_candidates, r
-
-    def lp_evaluate_projections(self):
+    def eval(self):
         """Link prediction evaluation helper function. Project all entities
         according to each relation. Calling this method at the beginning of
         link prediction makes the process faster by computing projections only
         once.
 
         """
-        if self.evaluated_projections:
-            return
+        print('In evaluation mode, parameters are normalized and entities '
+              'projections are evaluated.')
+        super().eval()
+        self.normalize_parameters()
 
-        for i in tqdm(range(self.n_ent), unit='entities',  # TODO change this
+        for i in tqdm(range(self.n_ent), unit='entities',
                       desc='Projecting entities'):
 
             rel_proj_vects = self.rel_proj_vect.weight.data
@@ -633,7 +577,7 @@ class TransDModel(TranslationModel):
 
             del proj_e
 
-        self.evaluated_projections = True
+        return self
 
 
 class TorusEModel(TranslationModel):
@@ -683,7 +627,6 @@ class TorusEModel(TranslationModel):
         self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
         self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
-        self.normalized = False
         self.normalize_parameters()
 
     def scoring_function(self, h_idx, t_idx, r_idx):
@@ -692,15 +635,14 @@ class TorusEModel(TranslationModel):
         torchkge.models.interfaces.Models for more details on the API.
 
         """
-        self.normalized = False
-
         h = self.ent_emb(h_idx)
         t = self.ent_emb(t_idx)
         r = self.rel_emb(r_idx)
 
-        h.data.frac_()
-        t.data.frac_()
-        r.data.frac_()
+        if self.training:
+            h.data.frac_()
+            t.data.frac_()
+            r.data.frac_()
 
         return - self.dissimilarity(h + r, t)
 
@@ -709,7 +651,6 @@ class TorusEModel(TranslationModel):
         """
         self.ent_emb.weight.data.frac_()
         self.rel_emb.weight.data.frac_()
-        self.normalized = True
 
     def get_embeddings(self):
         """Return the embeddings of entities and relations.
@@ -725,23 +666,9 @@ class TorusEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
-        """Link prediction evaluation helper function. Get entities embeddings
-        and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
-        more details on the API.
-
-        """
-        b_size = h_idx.shape[0]
-
-        if not self.normalized:
-            self.normalize_parameters()
-
-        h = self.ent_emb(h_idx)
-        t = self.ent_emb(t_idx)
-        r = self.rel_emb(r_idx)
-
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
-
-        return h, t, candidates, r
+    def eval(self):
+        print('In evaluation mode, entities and relations are projected '
+              'on the torus.')
+        super().eval()
+        self.normalize_parameters()
+        return self
