@@ -4,11 +4,11 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
-from torch import empty
+from torch import empty, arange
 from tqdm.autonotebook import tqdm
 
 from ..exceptions import NotYetEvaluatedError
-from ..utils import DataLoader
+from ..utils import DataLoader, get_true_targets, get_rank
 
 
 class LinkPredictionEvaluator(object):
@@ -61,6 +61,8 @@ class LinkPredictionEvaluator(object):
     def __init__(self, model, knowledge_graph):
         self.model = model
         self.kg = knowledge_graph
+        self.n_ent = model.n_ent
+        self.n_rel = model.n_rel
 
         self.rank_true_heads = empty(size=(knowledge_graph.n_facts,)).long()
         self.rank_true_tails = empty(size=(knowledge_graph.n_facts,)).long()
@@ -69,8 +71,75 @@ class LinkPredictionEvaluator(object):
         self.filt_rank_true_tails = empty(size=(knowledge_graph.n_facts,)
                                           ).long()
 
+        self.model.eval()
         self.evaluated = False
         self.k_max = 10
+
+    def compute_ranks(self, e_idx, r_idx, true_idx, dictionary, heads=1):
+        """Link prediction evaluation helper function. Compute the ranks and
+        the filtered ranks of true entities when doing link prediction. Note
+        that the best rank possible is 1.
+
+        Parameters
+        ----------
+        e_idx: torch.Tensor, shape: (b_size), dtype: torch.long
+            List of entities indices.
+        r_idx: torch.Tensor, shape: (b_size), dtype: torch.long
+            List of relations indices.
+        true_idx: torch.Tensor, shape: (b_size), dtype: torch.long
+            List of the indices of the true entity for each sample.
+        dictionary: defaultdict
+            Dictionary of keys (int, int) and values list of ints giving all
+            possible entities for the (entity, relation) pair.
+        heads: integer
+            1 ou -1 (must be 1 if entities are heads and -1 if entities are
+            tails). The computed score is either :math:`f_r(e, candidate)` (if
+            `heads` is 1) or :math:`f_r(candidate, e)` (if `heads` is -1).
+
+
+        Returns
+        -------
+        rank_true_entities: torch.Tensor, shape: (b_size), dtype: torch.int
+            List of the ranks of true entities when all candidates are sorted
+            by decreasing order of scoring function.
+        filt_rank_true_entities: torch.Tensor, shape: (b_size), dtype:
+            torch.int
+            List of the ranks of true entities when only candidates which are
+            not known to lead to a true fact are sorted by decreasing order
+            of scoring function.
+
+        """
+        b_size = r_idx.shape[0]
+        device = next(self.model.parameters()).device
+        mask = arange(0, self.n_ent, device=device).long()
+        mask = mask.view(-1, 1).expand(self.n_ent, b_size).reshape(-1)
+
+        if heads == 1:
+            # e_idx are heads of the batch
+            scores = self.model.scoring_function(e_idx.repeat(self.n_ent),
+                                                 mask,
+                                                 r_idx.repeat(self.n_ent))
+        else:
+            # e_idx are tails of the batch
+            scores = self.model.scoring_function(mask,
+                                                 e_idx.repeat(self.n_ent),
+                                                 r_idx.repeat(self.n_ent))
+        scores = scores.view(self.n_ent, -1).transpose(0, 1)
+
+        # filter out the true negative samples by assigning - inf score.
+        filt_scores = scores.clone()
+        for i in range(b_size):
+            true_targets = get_true_targets(dictionary, e_idx, r_idx,
+                                            true_idx, i)
+            if true_targets is None:
+                continue
+            filt_scores[i][true_targets] = - float('Inf')
+
+        # from dissimilarities, extract the rank of the true entity.
+        rank_true_entities = get_rank(scores, true_idx)
+        filtered_rank_true_entities = get_rank(filt_scores, true_idx)
+
+        return rank_true_entities, filtered_rank_true_entities
 
     def evaluate(self, b_size, k_max, verbose=True):
         """
@@ -103,10 +172,14 @@ class LinkPredictionEvaluator(object):
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader),
                              unit='batch', disable=(not verbose),
                              desc='Link prediction evaluation'):
-            h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
 
-            rk_true_t, f_rk_true_t, rk_true_h, f_rk_true_h = \
-                self.model.lp_helper(h_idx, t_idx, r_idx, self.kg)
+            h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
+            rk_true_t, f_rk_true_t = self.compute_ranks(h_idx, r_idx, t_idx,
+                                                        self.kg.dict_of_tails,
+                                                        heads=1)
+            rk_true_h, f_rk_true_h = self.compute_ranks(t_idx, r_idx, h_idx,
+                                                        self.kg.dict_of_heads,
+                                                        heads=-1)
 
             self.rank_true_heads[i * b_size: (i + 1) * b_size] = rk_true_h
             self.rank_true_tails[i * b_size: (i + 1) * b_size] = rk_true_t
