@@ -5,7 +5,8 @@ Copyright TorchKGE developers
 """
 
 from torch import ones_like, zeros_like
-from torch.nn import MarginRankingLoss, Module, SoftMarginLoss, BCELoss
+from torch.nn import Module, Sigmoid
+from torch.nn import MarginRankingLoss, SoftMarginLoss, BCELoss
 
 
 class MarginLoss(Module):
@@ -83,6 +84,7 @@ class BinaryCrossEntropyLoss(Module):
 
     def __init__(self):
         super().__init__()
+        self.sig = Sigmoid()
         self.loss = BCELoss()
 
     def forward(self, positive_triplets, negative_triplets):
@@ -99,9 +101,12 @@ class BinaryCrossEntropyLoss(Module):
         Returns
         -------
         loss: torch.Tensor, shape: (n_facts, dim), dtype: torch.float
-            Loss of the form :math:`-\\eta \\cdot \\log(f(h,r,t)) + (1-\\eta) \\cdot \\log(1 - f(h,r,t))`
-            where :math:`f(h,r,t)` is the score of the fact and :math:`\\eta`
-            is either 1 or -1 if the fact is true or false.
+            Loss of the form :math:`-\\eta \\cdot \\log(f(h,r,t)) +
+            (1-\\eta) \\cdot \\log(1 - f(h,r,t))` where :math:`f(h,r,t)`
+            is the score of the fact and :math:`\\eta` is either 1 or
+            0 if the fact is true or false.
         """
-        return self.loss(positive_triplets, ones_like(positive_triplets)) + \
-            self.loss(negative_triplets, zeros_like(negative_triplets))
+        return self.loss(self.sig(positive_triplets),
+                         ones_like(positive_triplets)) + \
+            self.loss(self.sig(negative_triplets),
+                      zeros_like(negative_triplets))
