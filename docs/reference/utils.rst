@@ -41,6 +41,8 @@ Losses
     :members:
 .. autoclass:: torchkge.utils.losses.LogisticLoss
     :members:
+.. autoclass:: torchkge.utils.losses.BinaryCrossEntropyLoss
+    :members:
 
 Training wrappers
 -----------------
