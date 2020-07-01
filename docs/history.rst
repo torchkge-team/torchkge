@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.7 (2020-07-01)
+-------------------
+* Add binary cross-entropy loss
+
 0.16.7 (2020-06-23)
 -------------------
 * Change API for pre-trained models
