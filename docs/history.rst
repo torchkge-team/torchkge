@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.10 (2020-07-02)
+-------------------
+* Minor bug patch
+
 0.16.9 (2020-07-02)
 -------------------
 * Update urls to retrieve datasets and pre-trained models.
