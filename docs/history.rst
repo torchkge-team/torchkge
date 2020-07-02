@@ -2,11 +2,11 @@
 History
 =======
 
-0.16.8 (2020-07-02)
+0.16.9 (2020-07-02)
 -------------------
 * Update urls to retrieve datasets and pre-trained models.
 
-0.16.7 (2020-07-01)
+0.16.8 (2020-07-01)
 -------------------
 * Add binary cross-entropy loss
 
