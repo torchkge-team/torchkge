@@ -43,7 +43,7 @@ def load_fb13(data_home=None):
     data_path = data_home + '/FB13'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/datasets/FB13.zip",
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/FB13.zip",
                     data_home + '/FB13.zip')
         with zipfile.ZipFile(data_home + '/FB13.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
@@ -86,7 +86,7 @@ def load_fb15k(data_home=None):
     data_path = data_home + '/FB15k'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/datasets/FB15k.zip",
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/FB15k.zip",
                     data_home + '/FB15k.zip')
         with zipfile.ZipFile(data_home + '/FB15k.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
@@ -129,7 +129,7 @@ def load_fb15k237(data_home=None):
     data_path = data_home + '/FB15k237'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/datasets/FB15k237.zip",
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/FB15k237.zip",
                     data_home + '/FB15k237.zip')
         with zipfile.ZipFile(data_home + '/FB15k237.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
@@ -170,7 +170,7 @@ def load_wn18(data_home=None):
     data_path = data_home + '/WN18'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/datasets/WN18.zip",
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/WN18.zip",
                     data_home + '/WN18.zip')
         with zipfile.ZipFile(data_home + '/WN18.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
@@ -213,7 +213,7 @@ def load_wn18rr(data_home=None):
     data_path = data_home + '/WN18RR'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/datasets/WN18RR.zip",
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/WN18RR.zip",
                     data_home + '/WN18RR.zip')
         with zipfile.ZipFile(data_home + '/WN18RR.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
@@ -256,7 +256,7 @@ def load_yago3_10(data_home=None):
     data_path = data_home + '/YAGO3-10'
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/datasets/YAGO3-10.zip",
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/YAGO3-10.zip",
                     data_home + '/YAGO3-10.zip')
         with zipfile.ZipFile(data_home + '/YAGO3-10.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
