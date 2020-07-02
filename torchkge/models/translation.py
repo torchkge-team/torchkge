@@ -35,9 +35,9 @@ class TransEModel(TranslationModel):
     ----------
     emb_dim: int
         Dimension of the embedding.
-    n_entities: int
+    n_ent: int
         Number of entities in the current data set.
-    n_relations: int
+    n_rel: int
         Number of relations in the current data set.
     dissimilarity_type: str
         Either 'L1' or 'L2'.
@@ -140,9 +140,9 @@ class TransHModel(TranslationModel):
     ----------
     emb_dim: int
         Dimension of the embedding space.
-    n_entities: int
+    n_ent: int
         Number of entities in the current data set.
-    n_relations: int
+    n_rel: int
         Number of relations in the current data set.
 
     Attributes
@@ -295,9 +295,9 @@ class TransRModel(TranslationModel):
         Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
-    n_entities: int
+    n_ent: int
         Number of entities in the current data set.
-    n_relations: int
+    n_rel: int
         Number of relations in the current data set.
 
     Attributes
@@ -468,9 +468,9 @@ class TransDModel(TranslationModel):
         Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
-    n_entities: int
+    n_ent: int
         Number of entities in the current data set.
-    n_relations: int
+    n_rel: int
         Number of relations in the current data set.
 
     Attributes
@@ -654,9 +654,9 @@ class TorusEModel(TranslationModel):
     ----------
     emb_dim: int
         Embedding dimension.
-    n_entities: int
+    n_ent: int
         Number of entities in the current data set.
-    n_relations: int
+    n_rel: int
         Number of relations in the current data set.
     dissimilarity_type: str
         One of 'torus_L1', 'torus_L2', 'torus_eL2'.
