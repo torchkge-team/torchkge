@@ -34,7 +34,8 @@ def load_embeddings(model, dim, dataset, data_home=None):
         data_home = get_data_home()
     data_path = data_home + '/models/'
     targz_file = data_path + '{}_{}_{}.tar.gz'.format(model, dataset, dim)
-    if not exists(targz_file):
+    pkl_file = data_path + '{}_{}_{}.pkl'.format(model, dataset, dim)
+    if not exists(pkl_file):
         if not exists(data_path):
             makedirs(data_path, exist_ok=True)
         urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/models/{}_{}_{}.tar.gz".format(model, dataset, dim),
@@ -43,7 +44,7 @@ def load_embeddings(model, dim, dataset, data_home=None):
             tf.extractall(data_path)
         remove(targz_file)
 
-    with open(data_path + '{}_{}_{}.pkl'.format(model, dataset, dim), 'rb') as f:
+    with open(pkl_file, 'rb') as f:
         state_dict = pickle.load(f)
 
     return state_dict

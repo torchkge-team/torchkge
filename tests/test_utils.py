@@ -8,7 +8,7 @@ from torch.nn import Embedding
 from torchkge.data_structures import KnowledgeGraph
 from torchkge.utils.dissimilarities import l1_dissimilarity, l2_dissimilarity, \
     l1_torus_dissimilarity, l2_torus_dissimilarity, el2_torus_dissimilarity
-from torchkge.utils.modelling import init_embedding, get_true_targets
+from torchkge.utils.modeling import init_embedding, get_true_targets
 from torchkge.sampling import get_possible_heads_tails
 from torchkge.utils.operations import get_mask, get_rank
 from torchkge.utils.operations import get_dictionaries, get_tph, get_hpt, \
