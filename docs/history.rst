@@ -2,7 +2,11 @@
 History
 =======
 
-0.16.10 (2020-07-07)
+0.16.11 (2020-07-07)
+--------------------
+* Release patch
+
+0.16.11 (2020-07-07)
 -------------------
 * Fix bug in pre-trained models loading that made all models being redownloaded every time
 
