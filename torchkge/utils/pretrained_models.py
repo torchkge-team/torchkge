@@ -27,7 +27,7 @@ def load_pretrained_transe(dataset, emb_dim, data_home=None):
         Pretrained version of TransE model.
     """
     try:
-        assert (dataset in {'fb15k', 'fb15k237'} and emb_dim == 100) \
+        assert (dataset in {'fb15k', 'fb15k237', 'wn18rr'} and emb_dim == 100) \
             or (dataset == 'fb15k237' and emb_dim == 150)
     except AssertionError:
         raise NoPreTrainedVersionError('No pre-trained version of TransE for '
