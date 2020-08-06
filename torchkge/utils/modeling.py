@@ -38,7 +38,7 @@ def load_embeddings(model, dim, dataset, data_home=None):
     if not exists(pkl_file):
         if not exists(data_path):
             makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/models/{}_{}_{}.tar.gz".format(model, dataset, dim),
+        urlretrieve("https://graphs.telecom-paris.fr/data/torchkge/models/{}_{}_{}.tar.gz".format(model, dataset, dim),
                     targz_file)
         with tarfile.open(targz_file, 'r') as tf:
             tf.extractall(data_path)
