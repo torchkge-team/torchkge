@@ -85,7 +85,7 @@ class BinaryCrossEntropyLoss(Module):
     def __init__(self):
         super().__init__()
         self.sig = Sigmoid()
-        self.loss = BCELoss()
+        self.loss = BCELoss(reduction='sum')
 
     def forward(self, positive_triplets, negative_triplets):
         """
