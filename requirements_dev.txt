@@ -7,7 +7,7 @@ numpydoc==1.1.0
 flake8==3.8.3
 tox==3.17.1
 pytest-runner==5.2
-pytest==5.4.3
+pytest==6.0.1
 
 # Deployement
 pip==20.2.1
