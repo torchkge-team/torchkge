@@ -310,7 +310,7 @@ def load_wikidatasets(which, limit_=None, data_home=None):
     data_path = data_home + '/' + which
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
-        urlretrieve("https://graphs.telecom-paristech.fr/WikiDataSets/{}.tar.gz".format(which),
+        urlretrieve("https://graphs.telecom-paristech.fr/data/WikiDataSets/{}.tar.gz".format(which),
                     data_home + '/{}.tar.gz'.format(which))
 
         with tarfile.open(data_home + '/{}.tar.gz'.format(which), 'r') as tf:

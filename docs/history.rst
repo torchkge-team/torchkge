@@ -2,11 +2,23 @@
 History
 =======
 
-0.16.8 (2020-07-02)
+0.16.12 (2020-07-07)
+--------------------
+* Release patch
+
+0.16.11 (2020-07-07)
+-------------------
+* Fix bug in pre-trained models loading that made all models being redownloaded every time
+
+0.16.10 (2020-07-02)
+-------------------
+* Minor bug patch
+
+0.16.9 (2020-07-02)
 -------------------
 * Update urls to retrieve datasets and pre-trained models.
 
-0.16.7 (2020-07-01)
+0.16.8 (2020-07-01)
 -------------------
 * Add binary cross-entropy loss
 
