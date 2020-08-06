@@ -2,6 +2,11 @@
 History
 =======
 
+0.16.13 (2020-08-06)
+--------------------
+* Fix reduction in BCE loss
+* Add pretrained models
+
 0.16.12 (2020-07-07)
 --------------------
 * Release patch
@@ -29,7 +34,7 @@ History
 0.16.6 (2020-06-09)
 -------------------
 * Patch in pre-trained model loading
-* Added pre-train loading for TransE on FB15k237 in dimension 100.
+* Added pre-trained loading for TransE on FB15k237 in dimension 100.
 
 0.16.5 (2020-06-02)
 -------------------
