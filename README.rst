@@ -47,7 +47,6 @@ If you find this code useful in your research, please consider citing our `paper
     eprint={2009.02963},
     archivePrefix={arXiv},
     primaryClass={cs.CL}
-}
 
 * Free software: BSD license
 * Documentation: https://torchkge.readthedocs.io.
