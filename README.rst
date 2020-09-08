@@ -40,13 +40,13 @@ If you find this code useful in your research, please consider citing our `paper
 
 .. code-block::
 
-    @misc{arm2020torchkge,
+    @inproceedings{arm2020torchkge,
     title={TorchKGE: Knowledge Graph Embedding in Python and PyTorch},
     author={Armand Boschin},
     year={2020},
-    eprint={2009.02963},
-    archivePrefix={arXiv},
-    primaryClass={cs.CL}
+    month={Aug},
+    booktitle={International Workshop on Knowledge Graph: Mining Knowledge Graph for Deep Insights},
+    }
 
 * Free software: BSD license
 * Documentation: https://torchkge.readthedocs.io.
