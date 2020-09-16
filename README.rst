@@ -10,8 +10,8 @@ TorchKGE
 .. image:: https://img.shields.io/pypi/v/torchkge.svg
         :target: https://pypi.python.org/pypi/torchkge
 
-.. image:: https://travis-ci.org/torchkge-team/torchkge.svg?branch=master
-    :target: https://travis-ci.org/torchkge-team/torchkge
+.. image:: https://travis-ci.com/torchkge-team/torchkge.svg?branch=master
+    :target: https://travis-ci.com/torchkge-team/torchkge
 
 .. image:: https://readthedocs.org/projects/torchkge/badge/?version=latest
     :target: https://torchkge.readthedocs.io/en/latest/?badge=latest
