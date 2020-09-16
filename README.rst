@@ -34,7 +34,19 @@ to five times faster than `AmpliGraph <https://docs.ampligraph.org/>`_ and twent
 attention has been paid to code efficiency and simplicity, documentation and API consistency. It is distributed using
 PyPI under BSD license.
 
-Paper accepted at `IWKG-KDD <https://suitclub.ischool.utexas.edu/IWKG_KDD2020/index.html>`_ 2020. Reference coming soon.
+Citations
+---------
+If you find this code useful in your research, please consider citing our `paper <https://arxiv.org/abs/2009.02963>`_ (presented at `IWKG-KDD <https://suitclub.ischool.utexas.edu/IWKG_KDD2020/index.html>`_ 2020):
+
+.. code-block::
+
+    @inproceedings{arm2020torchkge,
+        title={TorchKGE: Knowledge Graph Embedding in Python and PyTorch},
+        author={Armand Boschin},
+        year={2020},
+        month={Aug},
+        booktitle={International Workshop on Knowledge Graph: Mining Knowledge Graph for Deep Insights},
+    }
 
 * Free software: BSD license
 * Documentation: https://torchkge.readthedocs.io.
