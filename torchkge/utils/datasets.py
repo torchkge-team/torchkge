@@ -317,7 +317,7 @@ def load_wikidatasets(which, limit_=None, data_home=None):
             tf.extractall(data_home)
         remove(data_home + '/{}.tar.gz'.format(which))
 
-    df = read_csv(data_path + '/edges.txt'.format(which), sep='\t', header=1,
+    df = read_csv(data_path + '/edges.tsv'.format(which), sep='\t',
                   names=['from', 'to', 'rel'])
 
     a = df.groupby('from').count()['rel']
