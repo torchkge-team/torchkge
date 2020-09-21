@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.14 (2020-09-21)
+--------------------
+* Fix WikiDataSets loader
+
 0.16.13 (2020-08-06)
 --------------------
 * Fix reduction in BCE loss
