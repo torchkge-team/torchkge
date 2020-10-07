@@ -2,6 +2,19 @@
 History
 =======
 
+0.16.15 (2020-10-07)
+--------------------
+* Fix WikiDataSets loader (again)
+
+0.16.14 (2020-09-21)
+--------------------
+* Fix WikiDataSets loader
+
+0.16.13 (2020-08-06)
+--------------------
+* Fix reduction in BCE loss
+* Add pretrained models
+
 0.16.12 (2020-07-07)
 --------------------
 * Release patch
