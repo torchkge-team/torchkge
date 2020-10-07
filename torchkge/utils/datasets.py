@@ -275,7 +275,7 @@ def load_yago3_10(data_home=None):
     return kg.split_kg(sizes=(len(df1), len(df2), len(df3)))
 
 
-def load_wikidatasets(which, limit_=None, data_home=None):
+def load_wikidatasets(which, limit_=0, data_home=None):
     """Load WikiDataSets dataset. See `here
     <https://arxiv.org/abs/1906.04536>`__ for paper by Boschin et al.
     originally presenting the dataset.
@@ -318,7 +318,7 @@ def load_wikidatasets(which, limit_=None, data_home=None):
         remove(data_home + '/{}.tar.gz'.format(which))
 
     df = read_csv(data_path + '/edges.tsv'.format(which), sep='\t',
-                  names=['from', 'to', 'rel'])
+                  names=['from', 'to', 'rel'], skiprows=1)
 
     a = df.groupby('from').count()['rel']
     b = df.groupby('to').count()['rel']

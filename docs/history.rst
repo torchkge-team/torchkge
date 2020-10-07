@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.15 (2020-10-07)
+--------------------
+* Fix WikiDataSets loader (again)
+
 0.16.14 (2020-09-21)
 --------------------
 * Fix WikiDataSets loader
