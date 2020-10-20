@@ -304,14 +304,14 @@ class KnowledgeGraph(Dataset):
             assert len(sub_mask) == counts_r[i].item()
 
             if validation:
-                train_size, val_size, test_size = self.get_sizes(counts_r[i],
+                train_size, val_size, test_size = self.get_sizes(counts_r[i].item(),
                                                                  share=share,
                                                                  validation=True)
                 mask[sub_mask[rand[:train_size]]] = True
                 mask_val[sub_mask[rand[train_size:train_size + val_size]]] = True
 
             else:
-                train_size, test_size = self.get_sizes(counts_r[i],
+                train_size, test_size = self.get_sizes(counts_r[i].item(),
                                                        share=share,
                                                        validation=False)
                 mask[sub_mask[rand[:train_size]]] = True
