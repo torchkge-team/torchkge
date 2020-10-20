@@ -4,7 +4,7 @@
 
 __author__ = """Armand Boschin"""
 __email__ = 'aboschin@enst.fr'
-__version__ = '0.16.15'
+__version__ = '0.16.16'
 
 from torchkge.exceptions import NotYetEvaluatedError
 from torchkge.utils import MarginLoss, LogisticLoss
