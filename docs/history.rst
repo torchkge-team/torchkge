@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.16 (2020-10-07)
+--------------------
+* Bug fix in KG split method
+
 0.16.15 (2020-10-07)
 --------------------
 * Fix WikiDataSets loader (again)
