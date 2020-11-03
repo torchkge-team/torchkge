@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.17 (2020-11-03)
+--------------------
+* Bug fix get_ranks method
+
 0.16.16 (2020-10-07)
 --------------------
 * Bug fix in KG split method
