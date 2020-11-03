@@ -10,7 +10,7 @@ from torch.nn import MarginRankingLoss, SoftMarginLoss, BCELoss
 
 
 class MarginLoss(Module):
-    """Margin loss as it was defined in `TansE paper
+    """Margin loss as it was defined in `TransE paper
     <https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data>`_
     by Bordes et al. in 2013. This class implements :class:`torch.nn.Module`
     interface.
@@ -45,7 +45,7 @@ class MarginLoss(Module):
 
 
 class LogisticLoss(Module):
-    """Logistic loss as it was defined in `TansE paper
+    """Logistic loss as it was defined in `TransE paper
     <https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data>`_
     by Bordes et al. in 2013. This class implements :class:`torch.nn.Module`
     interface.
