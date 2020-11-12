@@ -70,7 +70,6 @@ def load_pretrained_complex(dataset, emb_dim, data_home=None):
                                                                    emb_dim))
 
     state_dict = load_embeddings('complex', emb_dim, dataset, data_home)
-    print(state_dict.keys())
     model = ComplExModel(emb_dim,
                          n_entities=state_dict['re_ent_emb.weight'].shape[0],
                          n_relations=state_dict['re_rel_emb.weight'].shape[0])
