@@ -16,6 +16,8 @@ Datasets loaders
 .. autofunction:: torchkge.utils.datasets.load_wn18rr
 .. autofunction:: torchkge.utils.datasets.load_yago3_10
 .. autofunction:: torchkge.utils.datasets.load_wikidatasets
+.. autofunction:: torchkge.utils.datasets.load_wikidata_vitals
+
 
 Pre-trained models
 ------------------
