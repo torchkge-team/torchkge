@@ -317,7 +317,7 @@ def load_wikidatasets(which, limit_=0, data_home=None):
             tf.extractall(data_home)
         remove(data_home + '/{}.tar.gz'.format(which))
 
-    df = read_csv(data_path + '/edges.tsv'.format(which), sep='\t',
+    df = read_csv(data_path + '/edges.tsv', sep='\t',
                   names=['from', 'to', 'rel'], skiprows=1)
 
     a = df.groupby('from').count()['rel']
@@ -338,3 +338,91 @@ def load_wikidatasets(which, limit_=0, data_home=None):
     kg_train, kg_val, kg_test = kg.split_kg(share=0.8, validation=True)
 
     return kg_train, kg_val, kg_test
+
+
+def load_wikidata_vitals(level=5, data_home=None):
+    """Load knowledge graph extracted from Wikidata using the entities
+    corresponding to Wikipedia pages contained in Wikivitals. See `here
+    <https://netset.telecom-paris.fr/>`__ for details on Wikivitals and
+    Wikivitals+ datasets.
+
+    Parameters
+    ----------
+    level: int (default=5)
+        Either 4 or 5.
+    data_home: str, optional
+        Path to the `torchkge_data` directory (containing data folders). If
+        files are not present on disk in this directory, they are downloaded
+        and then placed in the right place.
+
+    Returns
+    -------
+    kg: torchkge.data_structures.KnowledgeGraph
+    kg_attr: torchkge.data_structures.KnowledgeGraph
+    """
+    assert level in [4, 5]
+
+    if data_home is None:
+        data_home = get_data_home()
+
+    data_path = data_home + '/wikidatavitals-level{}'.format(level)
+
+    if not exists(data_path):
+        makedirs(data_path, exist_ok=True)
+        urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/wikidatavitals-level{}.zip".format(level),
+                    data_home + '/wikidatavitals-level{}.zip'.format(level))
+
+        with zipfile.ZipFile(data_home + '/wikidatavitals-level{}.zip'.format(level), 'r') as zip_ref:
+            zip_ref.extractall(data_home)
+        remove(data_home + '/wikidatavitals-level{}.zip'.format(level))
+
+    df = read_csv(data_path + '/edges.tsv', sep='\t',
+                  names=['from', 'to', 'rel'], skiprows=1)
+    attributes = read_csv(data_path + '/attributes.tsv', sep='\t',
+                  names=['from', 'to', 'rel'], skiprows=1)
+
+    entities = read_csv(data_path + '/entities.tsv', sep='\t')
+    relations = read_csv(data_path + '/relations.tsv', sep='\t')
+    nodes = read_csv(data_path + '/nodes.tsv', sep='\t')
+
+    df = enrich(df, entities, relations)
+    attributes = enrich(attributes, entities, relations)
+
+    relid2label = {relations.loc[i, 'wikidataID']: relations.loc[i, 'label']
+                   for i in relations.index}
+    entid2label = {entities.loc[i, 'wikidataID']: entities.loc[i, 'label'] for
+                   i in entities.index}
+    entid2pagename = {nodes.loc[i, 'wikidataID']: nodes.loc[i, 'pageName'] for
+                      i in nodes.index}
+
+    kg = KnowledgeGraph(df)
+    kg_attr = KnowledgeGraph(attributes)
+
+    kg.relid2label = relid2label
+    kg_attr.relid2label = relid2label
+    kg.entid2label = entid2label
+    kg_attr.entid2label = entid2label
+    kg.entid2pagename = entid2pagename
+    kg_attr.entid2pagename = entid2pagename
+
+    return kg, kg_attr
+
+
+def enrich(df, entities, relations):
+    df = merge(left=df, right=entities[['entityID', 'wikidataID']],
+               left_on='from', right_on='entityID')[
+        ['to', 'rel', 'wikidataID']]
+    df.columns = ['to', 'rel', 'from']
+
+    df = merge(left=df, right=entities[['entityID', 'wikidataID']],
+               left_on='to', right_on='entityID')[
+        ['from', 'rel', 'wikidataID']]
+
+    df.columns = ['from', 'rel', 'to']
+
+    df = merge(left=df, right=relations[['relationID', 'wikidataID']],
+               left_on='rel', right_on='relationID')[
+        ['from', 'to', 'wikidataID']]
+
+    df.columns = ['from', 'to', 'rel']
+    return df
