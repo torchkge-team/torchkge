@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.18 (2021-01-20)
+--------------------
+* Add data loader for wikidata vitals knowledge graphs
+
 0.16.17 (2020-11-03)
 --------------------
 * Bug fix get_ranks method
