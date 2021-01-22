@@ -3,6 +3,7 @@ language: python
 python:
 - 3.7
 - 3.6
+- 3.8
 install: pip install -U tox-travis
 script: tox
 deploy:
@@ -14,4 +15,4 @@ deploy:
   on:
     tags: true
     repo: torchkge-team/torchkge
-    python: 3.7
+    python: 3.8
