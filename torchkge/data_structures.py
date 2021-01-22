@@ -299,7 +299,7 @@ class KnowledgeGraph(Dataset):
             rand = randperm(counts_r[i].item())
 
             # list of indices k such that relations[k] == r
-            sub_mask = eq(self.relations, r).nonzero()[:, 0]
+            sub_mask = eq(self.relations, r).nonzero(as_tuple=False)[:, 0]
 
             assert len(sub_mask) == counts_r[i].item()
 
@@ -323,7 +323,7 @@ class KnowledgeGraph(Dataset):
                                            set(u.tolist())), dtype=long)
             for e in missing_entities:
                 sub_mask = ((self.head_idx == e) |
-                            (self.tail_idx == e)).nonzero()[:, 0]
+                            (self.tail_idx == e)).nonzero(as_tuple=False)[:, 0]
                 rand = randperm(len(sub_mask))
                 sizes = self.get_sizes(mask.shape[0],
                                        share=share,
