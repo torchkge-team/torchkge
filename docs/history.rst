@@ -2,7 +2,7 @@
 History
 =======
 
-0.16.19 (2021-01-22)
+0.16.20 (2021-01-22)
 --------------------
 * Add support for Python 3.8
 * Clean up loading process for kgs
