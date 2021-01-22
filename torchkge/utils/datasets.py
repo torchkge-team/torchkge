@@ -48,7 +48,6 @@ def load_fb13(data_home=None):
         with zipfile.ZipFile(data_home + '/FB13.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
         remove(data_home + '/FB13.zip')
-        shutil.rmtree(data_home + '/__MACOSX')
 
     df1 = read_csv(data_path + '/train2id.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
@@ -91,7 +90,6 @@ def load_fb15k(data_home=None):
         with zipfile.ZipFile(data_home + '/FB15k.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
         remove(data_home + '/FB15k.zip')
-        shutil.rmtree(data_home + '/__MACOSX')
 
     df1 = read_csv(data_path + '/freebase_mtr100_mte100-train.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
@@ -134,7 +132,6 @@ def load_fb15k237(data_home=None):
         with zipfile.ZipFile(data_home + '/FB15k237.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
         remove(data_home + '/FB15k237.zip')
-        shutil.rmtree(data_home + '/__MACOSX')
 
     df1 = read_csv(data_path + '/train.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
@@ -175,7 +172,6 @@ def load_wn18(data_home=None):
         with zipfile.ZipFile(data_home + '/WN18.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
         remove(data_home + '/WN18.zip')
-        shutil.rmtree(data_home + '/__MACOSX')
 
     df1 = read_csv(data_path + '/wordnet-mlj12-train.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
@@ -218,7 +214,6 @@ def load_wn18rr(data_home=None):
         with zipfile.ZipFile(data_home + '/WN18RR.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
         remove(data_home + '/WN18RR.zip')
-        shutil.rmtree(data_home + '/__MACOSX')
 
     df1 = read_csv(data_path + '/train.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
@@ -261,7 +256,6 @@ def load_yago3_10(data_home=None):
         with zipfile.ZipFile(data_home + '/YAGO3-10.zip', 'r') as zip_ref:
             zip_ref.extractall(data_home)
         remove(data_home + '/YAGO3-10.zip')
-        shutil.rmtree(data_home + '/__MACOSX')
 
     df1 = read_csv(data_path + '/train.txt',
                    sep='\t', header=None, names=['from', 'rel', 'to'])
@@ -296,9 +290,7 @@ def load_wikidatasets(which, limit_=0, data_home=None):
 
     Returns
     -------
-    kg_train: torchkge.data_structures.KnowledgeGraph
-    kg_val: torchkge.data_structures.KnowledgeGraph
-    kg_test: torchkge.data_structures.KnowledgeGraph
+    kg: torchkge.data_structures.KnowledgeGraph
 
     """
     assert which in ['humans', 'companies', 'animals', 'countries', 'films']
@@ -320,24 +312,26 @@ def load_wikidatasets(which, limit_=0, data_home=None):
     df = read_csv(data_path + '/edges.tsv', sep='\t',
                   names=['from', 'to', 'rel'], skiprows=1)
 
-    a = df.groupby('from').count()['rel']
-    b = df.groupby('to').count()['rel']
+    if limit_ > 0:
+        a = df.groupby('from').count()['rel']
+        b = df.groupby('to').count()['rel']
 
-    # Filter out nodes with too few facts
-    tmp = merge(right=DataFrame(a).reset_index(),
-                left=DataFrame(b).reset_index(),
-                how='outer', right_on='from', left_on='to', ).fillna(0)
+        # Filter out nodes with too few facts
+        tmp = merge(right=DataFrame(a).reset_index(),
+                    left=DataFrame(b).reset_index(),
+                    how='outer', right_on='from', left_on='to', ).fillna(0)
 
-    tmp['rel'] = tmp['rel_x'] + tmp['rel_y']
-    tmp = tmp.drop(['from', 'rel_x', 'rel_y'], axis=1)
+        tmp['rel'] = tmp['rel_x'] + tmp['rel_y']
+        tmp = tmp.drop(['from', 'rel_x', 'rel_y'], axis=1)
 
-    tmp = tmp.loc[tmp['rel'] >= limit_]
-    df_bis = df.loc[df['from'].isin(tmp['to']) | df['to'].isin(tmp['to'])]
+        tmp = tmp.loc[tmp['rel'] >= limit_]
+        df_bis = df.loc[df['from'].isin(tmp['to']) | df['to'].isin(tmp['to'])]
 
-    kg = KnowledgeGraph(df_bis)
-    kg_train, kg_val, kg_test = kg.split_kg(share=0.8, validation=True)
+        kg = KnowledgeGraph(df_bis)
+    else:
+        kg = KnowledgeGraph(df)
 
-    return kg_train, kg_val, kg_test
+    return kg
 
 
 def load_wikidata_vitals(level=5, data_home=None):
