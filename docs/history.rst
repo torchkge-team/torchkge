@@ -2,6 +2,16 @@
 History
 =======
 
+0.16.19 (2021-01-22)
+--------------------
+* Add support for Python 3.8
+* Clean up loading process for kgs
+* Fix deprecation warning
+
+0.16.19 (2021-01-20)
+--------------------
+* Fix release
+
 0.16.18 (2021-01-20)
 --------------------
 * Add data loader for wikidata vitals knowledge graphs
