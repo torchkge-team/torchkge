@@ -29,7 +29,8 @@ def load_pretrained_transe(dataset, emb_dim, data_home=None):
     try:
         assert (dataset in {'fb15k', 'fb15k237', 'wn18rr'} and emb_dim == 100) \
             or (dataset == 'fb15k237' and emb_dim == 150) \
-            or (dataset == 'fb15k237' and emb_dim == 200)
+            or (dataset == 'fb15k237' and emb_dim == 200) \
+            or (dataset == 'wdv5' and emb_dim == 150)
     except AssertionError:
         raise NoPreTrainedVersionError('No pre-trained version of TransE for '
                                        '{} in dimension {}'.format(dataset,
