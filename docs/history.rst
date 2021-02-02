@@ -1,6 +1,9 @@
 =======
 History
 =======
+0.16.21 (2021-02-02)
+--------------------
+* Add pretrained version of TransE for Wikidata-Vitals level 5
 
 0.16.20 (2021-01-22)
 --------------------
