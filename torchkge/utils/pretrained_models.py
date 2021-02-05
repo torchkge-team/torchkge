@@ -30,7 +30,9 @@ def load_pretrained_transe(dataset, emb_dim, data_home=None):
         assert (dataset in {'fb15k', 'fb15k237', 'wn18rr'} and emb_dim == 100) \
             or (dataset == 'fb15k237' and emb_dim == 150) \
             or (dataset == 'fb15k237' and emb_dim == 200) \
-            or (dataset == 'wdv5' and emb_dim == 150)
+            or (dataset == 'wdv5' and emb_dim == 150) \
+            or (dataset == 'yago310' and emb_dim == 200)
+
     except AssertionError:
         raise NoPreTrainedVersionError('No pre-trained version of TransE for '
                                        '{} in dimension {}'.format(dataset,
@@ -64,9 +66,12 @@ def load_pretrained_complex(dataset, emb_dim, data_home=None):
         Pretrained version of ComplEx model.
     """
     try:
-        assert (dataset == 'wn18rr' and emb_dim == 200)
+        assert (dataset == 'wn18rr' and emb_dim == 200) \
+            or (dataset == 'fb15k237' and emb_dim == 100) \
+            or (dataset == 'wdv5' and emb_dim == 200)
+
     except AssertionError:
-        raise NoPreTrainedVersionError('No pre-trained version of TransE for '
+        raise NoPreTrainedVersionError('No pre-trained version of ComplEx for '
                                        '{} in dimension {}'.format(dataset,
                                                                    emb_dim))
 
