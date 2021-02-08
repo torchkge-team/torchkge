@@ -44,8 +44,6 @@ class LinkPredictionEvaluator(object):
     evaluated: bool
         Indicates if the method LinkPredictionEvaluator.evaluate has already
         been called.
-    k_max: bool, default = 10
-        Max value to be used to compute the hit@k score.
 
     References
     ----------
@@ -70,24 +68,19 @@ class LinkPredictionEvaluator(object):
                                           ).long()
 
         self.evaluated = False
-        self.k_max = 10
 
-    def evaluate(self, b_size, k_max, verbose=True):
+    def evaluate(self, b_size, verbose=True):
         """
 
         Parameters
         ----------
         b_size: int
             Size of the current batch.
-        k_max: int
-            Maximal k value we plan to use for Hit@k. This is used to
-            truncate tensor so that it fits in memory.
         verbose: bool
             Indicates whether a progress bar should be displayed during
             evaluation.
 
         """
-        self.k_max = k_max
         use_cuda = next(self.model.parameters()).is_cuda
 
         if use_cuda:

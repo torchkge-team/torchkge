@@ -41,7 +41,7 @@ stopping on evaluation MRR::
         # validation MRR measure
         if engine.state.epoch % eval_epoch == 0:
             evaluator = LinkPredictionEvaluator(model, kg_val)
-            evaluator.evaluate(b_size=256, k_max=10, verbose=False)
+            evaluator.evaluate(b_size=256, verbose=False)
             val_mrr = evaluator.mrr()[1]
         else:
             val_mrr = 0

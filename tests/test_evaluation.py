@@ -32,7 +32,7 @@ class TestUtils(unittest.TestCase):
         evaluator = LinkPredictionEvaluator(model, self.kg)
         self.checkSanityLinkPrediction(evaluator)
 
-        evaluator.evaluate(b_size=len(self.kg), k_max=10)
+        evaluator.evaluate(b_size=len(self.kg))
         self.checkSanityLinkPrediction(evaluator)
 
     def test_TripletClassificationEvaluator(self):
