@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.24 (2021-02-16)
+--------------------
+* Fix deployment
+
 0.16.23 (2021-02-16)
 --------------------
 * Removed useless k_max parameter in link-prediction evaluation method
