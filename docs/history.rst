@@ -2,7 +2,7 @@
 History
 =======
 
-0.16.22 (2021-02-05)
+0.16.23 (2021-02-16)
 --------------------
 * Removed useless k_max parameter in link-prediction evaluation method
 
