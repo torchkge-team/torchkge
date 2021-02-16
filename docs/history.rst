@@ -4,6 +4,10 @@ History
 
 0.16.22 (2021-02-05)
 --------------------
+* Removed useless k_max parameter in link-prediction evaluation method
+
+0.16.22 (2021-02-05)
+--------------------
 * Add pretrained version of TransE for yago310 and ComplEx for fb15k237 and wdv5.
 
 0.16.21 (2021-02-02)
