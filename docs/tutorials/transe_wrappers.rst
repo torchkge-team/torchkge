@@ -35,7 +35,7 @@ TorchKGE also provides simple utility wrappers for model training. Here is an ex
         trainer.run()
 
         evaluator = LinkPredictionEvaluator(model, kg_test)
-        evaluator.evaluate(200, 10)
+        evaluator.evaluate(200)
         evaluator.print_results()
 
 
