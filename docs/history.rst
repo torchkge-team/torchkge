@@ -50,11 +50,11 @@ History
 * Release patch
 
 0.16.11 (2020-07-07)
--------------------
+--------------------
 * Fix bug in pre-trained models loading that made all models being redownloaded every time
 
 0.16.10 (2020-07-02)
--------------------
+--------------------
 * Minor bug patch
 
 0.16.9 (2020-07-02)
