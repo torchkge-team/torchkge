@@ -11,6 +11,17 @@ from os.path import exists, expanduser, join
 
 
 def get_data_home(data_home=None):
+    """Returns the path to the data directory. The path is created if
+    it does not exist.
+
+    If data_home is none, the data is downloaded into the home directory of
+    of the user.
+
+    Parameters
+    ----------
+    data_home: string
+        The path to the data set.
+    """
     if data_home is None:
         data_home = environ.get('TORCHKGE_DATA',
                                 join('~', 'torchkge_data'))
