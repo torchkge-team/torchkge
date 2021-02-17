@@ -44,6 +44,19 @@ def clear_data_home(data_home=None):
 
 
 def get_n_batches(n, b_size):
+    """Returns the number of bachtes. Let n be the number of samples in the data set,
+    let batch_size be the number of samples per batch, then the number of batches is given by
+                    n
+        n_batches = ---------
+                    batch_size
+
+    Parameters
+    ----------
+    n: int
+        Size of the data set.
+    b_size: int
+        Number of samples per batch.
+    """
     n_batch = n // b_size
     if n % b_size > 0:
         n_batch += 1
