@@ -32,6 +32,13 @@ def get_data_home(data_home=None):
 
 
 def clear_data_home(data_home=None):
+    """Deletes the directory data_home
+
+    Parameters
+    ----------
+    data_home: string
+        The path to the directory that should be removed.
+    """
     data_home = get_data_home(data_home)
     shutil.rmtree(data_home)
 
