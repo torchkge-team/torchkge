@@ -2,6 +2,10 @@
 History
 =======
 
+0.16.25 (2021-03-01)
+--------------------
+* Update in available pretrained models
+
 0.16.24 (2021-02-16)
 --------------------
 * Fix deployment
