@@ -43,3 +43,8 @@ class SplitabilityError(Exception):
 class NoPreTrainedVersionError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class ModelBindFailError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
