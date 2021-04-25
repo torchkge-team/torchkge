@@ -380,6 +380,21 @@ class KnowledgeGraph(Dataset):
             self.dict_of_tails[(self.head_idx[i].item(),
                                 self.relations[i].item())].add(self.tail_idx[i].item())
 
+    def get_df(self):
+        """
+        Returns a Pandas DataFrame with columns ['from', 'to', 'rel'].
+        """
+        ix2ent = {v:k for k,v in self.ent2ix.items()}
+        ix2rel =  {v:k for k,v in self.rel2ix.items()}
+        data = []
+        for hr, set_of_tails in self.dict_of_tails.items():
+            h, r = hr
+            ent_h, rel = ix2ent[h], ix2rel[r]
+            for tail in set_of_tails:
+                ent_t = i2e[tail]
+                data.append([ent_h, ent_t, rel])
+        return pd.DataFrame(data, columns=['from', 'to', 'rel'])
+
 
 class SmallKG(Dataset):
     """Minimalist version of a knowledge graph. Built with tensors of heads,
