@@ -5,6 +5,9 @@ Copyright TorchKGE developers
 """
 
 from collections import defaultdict
+
+from pandas import DataFrame
+
 from torch import cat, eq, int64, long, randperm, tensor, Tensor, zeros_like
 from torch.utils.data import Dataset
 
@@ -393,7 +396,7 @@ class KnowledgeGraph(Dataset):
             for tail in set_of_tails:
                 ent_t = i2e[tail]
                 data.append([ent_h, ent_t, rel])
-        return pd.DataFrame(data, columns=['from', 'to', 'rel'])
+        return DataFrame(data, columns=['from', 'to', 'rel'])
 
 
 class SmallKG(Dataset):
