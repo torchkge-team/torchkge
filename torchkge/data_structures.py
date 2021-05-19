@@ -7,7 +7,6 @@ Copyright TorchKGE developers
 from collections import defaultdict
 
 from pandas import DataFrame
-
 from torch import cat, eq, int64, long, randperm, tensor, Tensor, zeros_like
 from torch.utils.data import Dataset
 
@@ -387,16 +386,19 @@ class KnowledgeGraph(Dataset):
         """
         Returns a Pandas DataFrame with columns ['from', 'to', 'rel'].
         """
-        ix2ent = {v:k for k,v in self.ent2ix.items()}
-        ix2rel =  {v:k for k,v in self.rel2ix.items()}
-        data = []
-        for hr, set_of_tails in self.dict_of_tails.items():
-            h, r = hr
-            ent_h, rel = ix2ent[h], ix2rel[r]
-            for tail in set_of_tails:
-                ent_t = i2e[tail]
-                data.append([ent_h, ent_t, rel])
-        return DataFrame(data, columns=['from', 'to', 'rel'])
+        ix2ent = {v: k for k, v in self.ent2ix.items()}
+        ix2rel = {v: k for k, v in self.rel2ix.items()}
+
+        df = DataFrame(cat((self.head_idx.view(1, -1),
+                            self.tail_idx.view(1, -1),
+                            self.relations.view(1, -1))).transpose(0, 1).numpy(),
+                       columns=['from', 'to', 'rel'])
+
+        df['from'] = df['from'].apply(lambda x: ix2ent[x])
+        df['to'] = df['to'].apply(lambda x: ix2ent[x])
+        df['rel'] = df['rel'].apply(lambda x: ix2rel[x])
+
+        return df
 
 
 class SmallKG(Dataset):
