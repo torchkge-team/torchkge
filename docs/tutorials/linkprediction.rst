@@ -11,7 +11,7 @@ To evaluate a model on link prediction::
 
     _, _, kg_test = load_fb15k()
 
-    model = load_pretrained_transe('fb15k', 100):
+    model = load_pretrained_transe('fb15k', 100)
     if cuda.is_available():
         model.cuda()
 

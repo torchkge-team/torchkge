@@ -2,6 +2,44 @@
 History
 =======
 
+0.16.25 (2021-03-01)
+--------------------
+* Update in available pretrained models
+
+0.16.24 (2021-02-16)
+--------------------
+* Fix deployment
+
+0.16.23 (2021-02-16)
+--------------------
+* Removed useless k_max parameter in link-prediction evaluation method
+
+0.16.22 (2021-02-05)
+--------------------
+* Add pretrained version of TransE for yago310 and ComplEx for fb15k237 and wdv5.
+
+0.16.21 (2021-02-02)
+--------------------
+* Add pretrained version of TransE for Wikidata-Vitals level 5
+
+0.16.20 (2021-01-22)
+--------------------
+* Add support for Python 3.8
+* Clean up loading process for kgs
+* Fix deprecation warning
+
+0.16.19 (2021-01-20)
+--------------------
+* Fix release
+
+0.16.18 (2021-01-20)
+--------------------
+* Add data loader for wikidata vitals knowledge graphs
+
+0.16.17 (2020-11-03)
+--------------------
+* Bug fix get_ranks method
+
 0.16.16 (2020-10-07)
 --------------------
 * Bug fix in KG split method
@@ -24,11 +62,11 @@ History
 * Release patch
 
 0.16.11 (2020-07-07)
--------------------
+--------------------
 * Fix bug in pre-trained models loading that made all models being redownloaded every time
 
 0.16.10 (2020-07-02)
--------------------
+--------------------
 * Minor bug patch
 
 0.16.9 (2020-07-02)
