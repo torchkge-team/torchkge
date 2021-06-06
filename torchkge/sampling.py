@@ -561,6 +561,222 @@ def stage_results(datas, file_pref, epoch):
             writer = csv.writer(f)
             writer.writerow(row)
 
+#
+# class MABSampling(NegativeSampler):
+#     def __init__(self, kg, kg_val=None, kg_test=None, model=None, cache_dim=50, epsilon=0.5, n_neg=1):
+#         super(MABSampling, self).__init__(kg, kg_val, kg_test, n_neg)
+#         self.head_cache, self.tail_cache = defaultdict(list), defaultdict(list)
+#         self.head_cache_idx, self.tail_cache_idx = defaultdict(list), defaultdict(list)
+#         self.head_rewards_record_actions, self.tail_rewards_record_actions = None, None
+#         # self.head_delta, self.tail_delta = None, None
+#         self.head_rewards_record_reward, self.tail_rewards_record_reward = None, None
+#         self.cache_dim = cache_dim
+#         self.model = model
+#         # self.embedding_device = model.ent_emb.weight.device
+#         self.embedding_device = model.re_ent_emb.weight.device
+#         self.epsilon = epsilon
+#         self.bern_prob = self.evaluate_probabilities()
+#         self.init_cache(kg)
+#
+#     def evaluate_probabilities(self):
+#         """
+#         Evaluate the Bernoulli probabilities for negative sampling as in the
+#         TransH original paper by Wang et al. (2014).
+#         """
+#         bern_probs = get_bernoulli_probs(self.kg)
+#         tmp = []
+#         for i in range(self.kg.n_rel):
+#             if i in bern_probs.keys():
+#                 tmp.append(bern_probs[i])
+#             else:
+#                 tmp.append(0.5)
+#         return tensor(tmp).float()
+#
+#     def reward(self, heads, tails, relations):
+#         if self.model is None:
+#             raise ModelBindFailError('MABSampling is required the referenced model to be bind')
+#         score = torch.abs(self.model.scoring_function(heads, tails, relations).data)
+#         return F.softmax(score, dim=-1)
+#
+#     def init_cache(self, kg):
+#         device = kg.head_idx.device
+#         count_h, count_t = 0, 0
+#
+#         h_init_reward = []
+#         t_init_reward = []
+#
+#         for h, t, r in zip(kg.head_idx, kg.tail_idx, kg.relations):
+#             if not (t.item(), r.item()) in self.head_cache:
+#                 h_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim, ))
+#                 tails = torch.ones(self.cache_dim, dtype=torch.int64)*t.item()
+#                 relations = torch.ones(self.cache_dim, dtype=torch.int64)*r.item()
+#                 if cuda.is_available():
+#                     if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
+#                         h_bandits = h_bandits.cuda()
+#                         tails = tails.cuda()
+#                         relations = relations.cuda()
+#                 h_init_reward.append(self.reward(h_bandits, tails, relations).data)
+#                 self.head_cache[(t.item(), r.item())] = h_bandits
+#                 self.head_cache_idx[(t.item(), r.item())] = torch.tensor([count_h])
+#                 count_h += 1
+#
+#             if not (h.item(), r.item()) in self.tail_cache:
+#                 t_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim, ))
+#                 heads = torch.ones(self.cache_dim, dtype=torch.int64)*h.item()
+#                 relations = torch.ones(self.cache_dim, dtype=torch.int64)*r.item()
+#                 if cuda.is_available():
+#                     if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
+#                         t_bandits = t_bandits.cuda()
+#                         heads = heads.cuda()
+#                         relations = relations.cuda()
+#                 t_init_reward.append(self.reward(heads, t_bandits, relations).data)
+#                 self.tail_cache[(h.item(), r.item())] = t_bandits
+#                 self.tail_cache_idx[(h.item(), r.item())] = torch.tensor([count_t])
+#                 count_t += 1
+#
+#         self.head_rewards_record_reward = torch.stack(h_init_reward).data.cpu()
+#         self.tail_rewards_record_reward = torch.stack(t_init_reward).data.cpu()
+#         self.head_rewards_record_actions = torch.ones([count_h, self.cache_dim], dtype=torch.int32, device=device)
+#         self.tail_rewards_record_actions = torch.ones([count_t, self.cache_dim], dtype=torch.int32, device=device)
+#         # self.head_delta = torch.zeros([count_h, self.cache_dim], dtype=torch.float32, device=device)
+#         # self.tail_delta = torch.zeros([count_t, self.cache_dim], dtype=torch.float32, device=device)
+#
+#     def update_cache(self):
+#         h_update_reward, t_update_reward = [], []
+#         h_candidates, t_candidates = [], []
+#         h_caches_cand, t_caches_cand = [], []
+#
+#         for h_cache_key in self.head_cache.keys():
+#             (t, r) = h_cache_key
+#             h_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim,))
+#             tails = torch.ones(self.cache_dim, dtype=torch.int64) * t
+#             relations = torch.ones(self.cache_dim, dtype=torch.int64) * r
+#             if cuda.is_available():
+#                 if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
+#                     h_bandits = h_bandits.cuda()
+#                     tails = tails.cuda()
+#                     relations = relations.cuda()
+#             h_update_reward.append(self.reward(h_bandits, tails, relations).data)
+#             h_caches_cand.append(self.head_cache[(t, r)])
+#             h_candidates.append(h_bandits)
+#
+#         for t_cache_key in self.tail_cache.keys():
+#             (h, r) = t_cache_key
+#             t_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim,))
+#             heads = torch.ones(self.cache_dim, dtype=torch.int64) * h
+#             relations = torch.ones(self.cache_dim, dtype=torch.int64) * r
+#             if cuda.is_available():
+#                 if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
+#                     heads = heads.cuda()
+#                     t_bandits = t_bandits.cuda()
+#                     relations = relations.cuda()
+#             t_update_reward.append(self.reward(heads, t_bandits, relations).data)
+#             t_caches_cand.append(self.tail_cache[(h, r)])
+#             t_candidates.append(t_bandits)
+#
+#         head_rewards_record_reward = torch.stack(h_update_reward).data.cpu()
+#         tail_rewards_record_reward = torch.stack(t_update_reward).data.cpu()
+#         head_rewards_record_actions = torch.ones([len(self.head_cache), self.cache_dim], dtype=torch.int32)
+#         tail_rewards_record_actions = torch.ones([len(self.tail_cache), self.cache_dim], dtype=torch.int32)
+#         head_avg_reward = torch.div(self.head_rewards_record_reward, self.head_rewards_record_actions)
+#         tail_avg_reward = torch.div(self.tail_rewards_record_reward, self.tail_rewards_record_actions)
+#
+#         head_updated_cache = torch.where(head_avg_reward < head_rewards_record_reward, torch.stack(h_caches_cand), torch.stack(h_candidates))
+#         head_updated_reward = torch.where(head_avg_reward < head_rewards_record_reward, self.head_rewards_record_reward, head_rewards_record_reward)
+#         head_updated_action = torch.where(head_avg_reward < head_rewards_record_reward, self.head_rewards_record_actions, head_rewards_record_actions)
+#
+#         tail_updated_cache = torch.where(tail_avg_reward < tail_rewards_record_reward, torch.stack(t_caches_cand), torch.stack(t_candidates))
+#         tail_updated_reward = torch.where(tail_avg_reward < tail_rewards_record_reward, self.tail_rewards_record_reward, tail_rewards_record_reward)
+#         tail_updated_action = torch.where(tail_avg_reward < tail_rewards_record_reward, self.tail_rewards_record_actions, tail_rewards_record_actions)
+#
+#         for cache_key, items in zip(self.head_cache, head_updated_cache):
+#             self.head_cache[cache_key] = items
+#         self.head_rewards_record_reward = head_updated_reward
+#         self.head_rewards_record_actions = head_updated_action
+#
+#         for cache_key, items in zip(self.tail_cache, tail_updated_cache):
+#             self.tail_cache[cache_key] = items
+#         self.tail_rewards_record_reward = tail_updated_reward
+#         self.tail_rewards_record_actions = tail_updated_action
+#
+#     def corrupt_batch(self, heads, tails, relations, epoch):
+#         device = heads.device
+#         assert (device == tails.device)
+#
+#         h_candidates, t_candidates = [], []
+#         h_cache_idx, t_cache_idx = [], []
+#         for h, t, r in zip(heads, tails, relations):
+#             h_candidates.append(self.head_cache[(t.item(), r.item())])
+#             t_candidates.append(self.tail_cache[(h.item(), r.item())])
+#             h_cache_idx.append(self.head_cache_idx[(t.item(), r.item())])
+#             t_cache_idx.append(self.tail_cache_idx[(h.item(), r.item())])
+#
+#         n_h, h_bandit_idx = self.choose_bandit(torch.stack(h_candidates).cpu(), torch.stack(h_cache_idx), head=True)
+#         n_t, t_bandit_idx = self.choose_bandit(torch.stack(t_candidates).cpu(), torch.stack(t_cache_idx), head=False)
+#
+#         h_rewards = self.reward(n_h, tails, relations).data
+#         t_rewards = self.reward(heads, n_t, relations).data
+#         self.record_action(
+#             torch.reshape(torch.stack(h_cache_idx), (-1,)),
+#             h_bandit_idx,
+#             h_rewards.cpu(), head=True
+#         )
+#         self.record_action(
+#             torch.reshape(torch.stack(t_cache_idx), (-1,)),
+#             t_bandit_idx,
+#             t_rewards.cpu(), head=False
+#         )
+#
+#         # Bernoulli sampling to select (h', r, t) and (h, r, t')
+#         selection = bernoulli(self.bern_prob[relations]).double()
+#         if cuda.is_available():
+#             if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
+#                 selection = selection.cuda()
+#                 heads = heads.cuda()
+#                 tails = tails.cuda()
+#                 n_h = n_h.cuda()
+#                 n_t = n_t.cuda()
+#         ones = torch.ones([len(selection)], dtype=torch.int32, device=device)
+#         neg_heads = torch.where(selection == ones, heads, n_h)
+#         neg_tails = torch.where(selection == ones, n_t, tails)
+#
+#         return neg_heads, neg_tails
+#
+#     def record_action(self, idx, bandit_idx, reward, head):
+#         if head:
+#             self.head_rewards_record_actions[idx, bandit_idx] = self.head_rewards_record_actions[idx, bandit_idx] + 1
+#             self.head_rewards_record_reward[idx, bandit_idx] = self.head_rewards_record_reward[idx, bandit_idx] + reward
+#             # self.head_delta[idx, bandit_idx] = reward - self.head_rewards_record_reward[idx, bandit_idx]
+#         else:
+#             self.tail_rewards_record_actions[idx, bandit_idx] = self.tail_rewards_record_actions[idx, bandit_idx] + 1
+#             self.tail_rewards_record_reward[idx, bandit_idx] = self.tail_rewards_record_reward[idx, bandit_idx] + reward
+#             # self.tail_delta[idx, bandit_idx] = reward - self.tail_rewards_record_reward[idx, bandit_idx]
+#
+#     def choose_bandit(self, bandits, idx, head):
+#         device = self.head_rewards_record_actions.device
+#
+#         epsilons = torch.ones([len(idx)], dtype=torch.float32, device=device) * self.epsilon
+#         if head:
+#             rewards_record_actions = torch.reshape(self.head_rewards_record_actions[idx], (len(idx), self.cache_dim))
+#             # delta = torch.reshape(self.head_delta[idx], (len(idx), self.cache_dim))
+#             rewards_record_reward = torch.reshape(self.head_rewards_record_reward[idx], (len(idx), self.cache_dim))
+#         else:
+#             rewards_record_actions = torch.reshape(self.tail_rewards_record_actions[idx], (len(idx), self.cache_dim))
+#             # delta = torch.reshape(self.tail_delta[idx], (len(idx), self.cache_dim))
+#             rewards_record_reward = torch.reshape(self.tail_rewards_record_reward[idx], (len(idx), self.cache_dim))
+#
+#         random_bandit_idx = torch.reshape(torch.randint(low=0, high=self.cache_dim, size=(len(idx), 1), device=device), (-1,))
+#         reward_bandit_idx = torch.argmax(torch.div(rewards_record_reward, rewards_record_actions), dim=1)
+#         # reward_bandit_idx = torch.argmax(delta, dim=1)
+#
+#         p = torch.rand(len(idx), device=device)
+#         bandit_idx = torch.where(p < epsilons, random_bandit_idx, reward_bandit_idx)
+#         bandit = bandits.gather(1, bandit_idx.view(-1, 1))
+#         if cuda.is_available():
+#             if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
+#                 bandit = bandit.cuda()
+#         return torch.reshape(bandit, (-1,)), bandit_idx
+
 
 class MFSampler(Module):
     def __init__(self, n_rel, n_ent, n_factors=20):
@@ -602,7 +818,7 @@ class MFSampling(NegativeSampler):
         return tensor(tmp).float()
 
     def set_up(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001, weight_decay=0.0)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.01, weight_decay=0.0)
         self.model.train()
         use_cuda = None
         if cuda.is_available():
@@ -653,6 +869,8 @@ class MFSampling(NegativeSampler):
                     np_head_select_indices = np.random.randint(0, len(np_head_candidates), size=self.cache_dim)
                     n_head = np.take(np_head_candidates, np_head_select_indices)
                     self.head_cache[(t.item(), r.item())] = torch.from_numpy(n_head)
+        if cuda.is_available():
+            cuda.empty_cache()
 
     def corrupt_batch(self, heads, tails, relations, n_neg=None):
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
