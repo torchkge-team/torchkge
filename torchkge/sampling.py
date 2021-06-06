@@ -6,6 +6,10 @@ Copyright TorchKGE developers
 import torch
 import torch.nn.functional as F
 
+import numpy as np
+
+from torch.nn import Module
+
 from collections import defaultdict
 
 from torch import tensor, bernoulli, randint, ones, rand, cat, cuda
@@ -546,20 +550,42 @@ def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     return dict(possible_heads), dict(possible_tails)
 
 
-class MABSampling(NegativeSampler):
-    def __init__(self, kg, kg_val=None, kg_test=None, model=None, cache_dim=50, epsilon=0.5, n_neg=1):
-        super(MABSampling, self).__init__(kg, kg_val, kg_test, n_neg)
-        self.head_cache, self.tail_cache = defaultdict(list), defaultdict(list)
-        self.head_cache_idx, self.tail_cache_idx = defaultdict(list), defaultdict(list)
-        self.head_rewards_record_actions, self.tail_rewards_record_actions = None, None
-        self.head_rewards_record_reward, self.tail_rewards_record_reward = None, None
+def stage_results(datas, file_pref, epoch):
+    import csv
+
+    file_name = 'stage/complex_wn18rr' + file_pref + "_" + str(epoch) +'.csv'
+    heads, tails, relations = datas
+    for h, t, r in zip(heads, tails, relations):
+        row = [h.item(), t.item(),  r.item()]
+        with open(file_name, 'a') as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
+
+
+class MFSampler(Module):
+    def __init__(self, n_rel, n_ent, n_factors=20):
+        super().__init__()
+        self.emb_heads = torch.nn.Embedding(n_ent, n_factors)
+        self.emb_tails = torch.nn.Embedding(n_ent, n_factors)
+        self.emb_heads.weight.data.uniform_(0, 0.0005)
+        self.emb_tails.weight.data.uniform_(0, 0.0005)
+
+    def forward(self, heads, tails):
+        h = self.emb_heads(heads)
+        t = self.emb_tails(tails)
+        return (h*t).sum(1)
+
+
+class MFSampling(NegativeSampler):
+    def __init__(self, kg, kg_val=None, kg_test=None, cache_dim=50, n_itter=1000, n_factors=20, n_neg=1):
+        super(MFSampling, self).__init__(kg, kg_val, kg_test, n_neg)
+        self.model = MFSampler(kg.n_rel, kg.n_ent, n_factors)
         self.cache_dim = cache_dim
-        self.model = model
-        self.embedding_device = model.ent_emb.weight.device
-        # self.embedding_device = model.re_ent_emb.weight.device
-        self.epsilon = epsilon
         self.bern_prob = self.evaluate_probabilities()
-        self.init_cache(kg)
+        self.setup_itterations = n_itter
+        self.head_cache, self.tail_cache = defaultdict(list), defaultdict(list)
+        self.set_up()
+        self.create_cache(kg)
 
     def evaluate_probabilities(self):
         """
@@ -575,180 +601,88 @@ class MABSampling(NegativeSampler):
                 tmp.append(0.5)
         return tensor(tmp).float()
 
-    def reward(self, heads, tails, relations):
-        if self.model is None:
-            raise ModelBindFailError('MABSampling is required the referenced model to be bind')
-        score = torch.abs(self.model.scoring_function(heads, tails, relations).data)
-        return F.softmax(score, dim=-1)
+    def set_up(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001, weight_decay=0.0)
+        self.model.train()
+        use_cuda = None
+        # if cuda.is_available():
+        #     cuda.empty_cache()
+        #     self.model.cuda()
+        #     use_cuda = 'all'
+        dataloader = DataLoader(self.kg, batch_size=10000, use_cuda=use_cuda)
 
-    def init_cache(self, kg):
-        device = kg.head_idx.device
-        count_h, count_t = 0, 0
+        for i in range(self.setup_itterations):
+            for j, batch in enumerate(dataloader):
+                h, t, r = batch[0], batch[1], batch[2]
+                hr_hat = self.model(h, t)
+                loss = F.mse_loss(hr_hat.type(torch.float64), r.type(torch.float64))
+                optimizer.zero_grad()  # reset gradient
+                loss.backward()
+                optimizer.step()
 
-        h_init_reward = []
-        t_init_reward = []
-
+    def create_cache(self, kg):
+        # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        np_entities = np.arange(0, self.kg.n_ent)
         for h, t, r in zip(kg.head_idx, kg.tail_idx, kg.relations):
-            if not (t.item(), r.item()) in self.head_cache:
-                h_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim, ))
-                tails = torch.ones(self.cache_dim, dtype=torch.int64)*t.item()
-                relations = torch.ones(self.cache_dim, dtype=torch.int64)*r.item()
-                if cuda.is_available():
-                    if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
-                        h_bandits = h_bandits.cuda()
-                        tails = tails.cuda()
-                        relations = relations.cuda()
-                h_init_reward.append(self.reward(h_bandits, tails, relations).data)
-                self.head_cache[(t.item(), r.item())] = h_bandits
-                self.head_cache_idx[(t.item(), r.item())] = torch.tensor([count_h])
-                count_h += 1
-
             if not (h.item(), r.item()) in self.tail_cache:
-                t_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim, ))
-                heads = torch.ones(self.cache_dim, dtype=torch.int64)*h.item()
-                relations = torch.ones(self.cache_dim, dtype=torch.int64)*r.item()
-                if cuda.is_available():
-                    if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
-                        t_bandits = t_bandits.cuda()
-                        heads = heads.cuda()
-                        relations = relations.cuda()
-                t_init_reward.append(self.reward(heads, t_bandits, relations).data)
-                self.tail_cache[(h.item(), r.item())] = t_bandits
-                self.tail_cache_idx[(h.item(), r.item())] = torch.tensor([count_t])
-                count_t += 1
+                p_t = list(kg.dict_of_pos_tails[h.item()])
+                t_entities = torch.from_numpy(np.delete(np_entities, p_t, None))
+                head_relation_predictions = torch.round(self.model(h, t_entities)).type(torch.int64)
+                np_head_relation_predictions = head_relation_predictions.cpu().numpy()
+                # get the tails indices
+                np_tail_candidates = np.where(np_head_relation_predictions != r.cpu().numpy())
+                np_tail_candidates = np_tail_candidates[0]
+                if len(np_tail_candidates) == 0:
+                    self.tail_cache[(h.item(), r.item())] = torch.randint(0, self.kg.n_ent, (self.cache_dim,))
+                else:
+                    np_tail_select_indices = np.random.randint(0, len(np_tail_candidates), size=self.cache_dim)
+                    n_tails = np.take(np_tail_candidates, np_tail_select_indices)
+                    self.tail_cache[(h.item(), r.item())] = torch.from_numpy(n_tails)
 
-        self.head_rewards_record_reward = torch.stack(h_init_reward).data.cpu()
-        self.tail_rewards_record_reward = torch.stack(t_init_reward).data.cpu()
-        self.head_rewards_record_actions = torch.ones([count_h, self.cache_dim], dtype=torch.int32, device=device)
-        self.tail_rewards_record_actions = torch.ones([count_t, self.cache_dim], dtype=torch.int32, device=device)
+            if not (t.item(), r.item()) in self.head_cache:
+                p_h = list(kg.dict_of_pos_heads[t.item()])
+                h_entities = torch.from_numpy(np.delete(np_entities, p_h, None))
+                tail_relation_predictions = torch.round(self.model(t, h_entities)).type(torch.int64)
+                np_tail_relation_predictions = tail_relation_predictions.cpu().numpy()
+                # get the tails indices
+                np_head_candidates = np.where(np_tail_relation_predictions != r.cpu().numpy())
+                np_head_candidates = np_head_candidates[0]
+                if len(np_head_candidates) == 0:
+                    self.head_cache[(t.item(), r.item())] = torch.randint(0, self.kg.n_ent, (self.cache_dim,))
+                else:
+                    np_head_select_indices = np.random.randint(0, len(np_head_candidates), size=self.cache_dim)
+                    n_head = np.take(np_head_candidates, np_head_select_indices)
+                    self.head_cache[(t.item(), r.item())] = torch.from_numpy(n_head)
 
-    def update_cache(self):
-        h_update_reward, t_update_reward = [], []
-        h_candidates, t_candidates = [], []
-        h_caches_cand, t_caches_cand = [], []
-
-        for h_cache_key in self.head_cache.keys():
-            (t, r) = h_cache_key
-            h_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim,))
-            tails = torch.ones(self.cache_dim, dtype=torch.int64) * t
-            relations = torch.ones(self.cache_dim, dtype=torch.int64) * r
-            if cuda.is_available():
-                if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
-                    h_bandits = h_bandits.cuda()
-                    tails = tails.cuda()
-                    relations = relations.cuda()
-            h_update_reward.append(self.reward(h_bandits, tails, relations).data)
-            h_caches_cand.append(self.head_cache[(t, r)])
-            h_candidates.append(h_bandits)
-
-        for t_cache_key in self.tail_cache.keys():
-            (h, r) = t_cache_key
-            t_bandits = torch.randint(low=0, high=self.n_ent, size=(self.cache_dim,))
-            heads = torch.ones(self.cache_dim, dtype=torch.int64) * h
-            relations = torch.ones(self.cache_dim, dtype=torch.int64) * r
-            if cuda.is_available():
-                if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
-                    heads = heads.cuda()
-                    t_bandits = t_bandits.cuda()
-                    relations = relations.cuda()
-            t_update_reward.append(self.reward(heads, t_bandits, relations).data)
-            t_caches_cand.append(self.tail_cache[(h, r)])
-            t_candidates.append(t_bandits)
-
-        head_rewards_record_reward = torch.stack(h_update_reward).data.cpu()
-        tail_rewards_record_reward = torch.stack(t_update_reward).data.cpu()
-        head_rewards_record_actions = torch.ones([len(self.head_cache), self.cache_dim], dtype=torch.int32)
-        tail_rewards_record_actions = torch.ones([len(self.tail_cache), self.cache_dim], dtype=torch.int32)
-        head_avg_reward = torch.div(self.head_rewards_record_reward, self.head_rewards_record_actions)
-        tail_avg_reward = torch.div(self.tail_rewards_record_reward, self.tail_rewards_record_actions)
-
-        head_updated_cache = torch.where(head_avg_reward < head_rewards_record_reward, torch.stack(h_caches_cand), torch.stack(h_candidates))
-        head_updated_reward = torch.where(head_avg_reward < head_rewards_record_reward, self.head_rewards_record_reward, head_rewards_record_reward)
-        head_updated_action = torch.where(head_avg_reward < head_rewards_record_reward, self.head_rewards_record_actions, head_rewards_record_actions)
-
-        tail_updated_cache = torch.where(tail_avg_reward < tail_rewards_record_reward, torch.stack(t_caches_cand), torch.stack(t_candidates))
-        tail_updated_reward = torch.where(tail_avg_reward < tail_rewards_record_reward, self.tail_rewards_record_reward, tail_rewards_record_reward)
-        tail_updated_action = torch.where(tail_avg_reward < tail_rewards_record_reward, self.tail_rewards_record_actions, tail_rewards_record_actions)
-
-        for cache_key, items in zip(self.head_cache, head_updated_cache):
-            self.head_cache[cache_key] = items
-        self.head_rewards_record_reward = head_updated_reward
-        self.head_rewards_record_actions = head_updated_action
-
-        for cache_key, items in zip(self.tail_cache, tail_updated_cache):
-            self.tail_cache[cache_key] = items
-        self.tail_rewards_record_reward = tail_updated_reward
-        self.tail_rewards_record_actions = tail_updated_action
-
-    def corrupt_batch(self, heads, tails, relations):
-        device = heads.device
-        assert (device == tails.device)
+    def corrupt_batch(self, heads, tails, relations, n_neg=None):
+        # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        device = torch.device("cpu")
+        if n_neg is None:
+            n_neg = self.n_neg
 
         h_candidates, t_candidates = [], []
-        h_cache_idx, t_cache_idx = [], []
         for h, t, r in zip(heads, tails, relations):
-            h_candidates.append(self.head_cache[(t.item(), r.item())])
-            t_candidates.append(self.tail_cache[(h.item(), r.item())])
-            h_cache_idx.append(self.head_cache_idx[(t.item(), r.item())])
-            t_cache_idx.append(self.tail_cache_idx[(h.item(), r.item())])
+            head_idx = torch.randint(0, self.cache_dim, (n_neg, ))
+            tail_idx = torch.randint(0, self.cache_dim, (n_neg,))
+            n_heads = self.head_cache[(t.item(), r.item())]
+            n_tails = self.tail_cache[(h.item(), r.item())]
+            h_candidates.append(n_heads[head_idx])
+            t_candidates.append(n_tails[tail_idx])
 
-        n_h, h_bandit_idx = self.choose_bandit(torch.stack(h_candidates).cpu(), torch.stack(h_cache_idx), head=True)
-        n_t, t_bandit_idx = self.choose_bandit(torch.stack(t_candidates).cpu(), torch.stack(t_cache_idx), head=False)
-
-        h_rewards = self.reward(n_h, tails, relations).data
-        t_rewards = self.reward(heads, n_t, relations).data
-        self.record_action(
-            torch.reshape(torch.stack(h_cache_idx), (-1,)),
-            h_bandit_idx,
-            h_rewards.cpu(), head=True
-        )
-        self.record_action(
-            torch.reshape(torch.stack(t_cache_idx), (-1,)),
-            t_bandit_idx,
-            t_rewards.cpu(), head=False
-        )
-
-        # Bernoulli sampling to select (h', r, t) and (h, r, t')
-        selection = bernoulli(self.bern_prob[relations]).double()
-        if cuda.is_available():
-            if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
-                selection = selection.cuda()
-                heads = heads.cuda()
-                tails = tails.cuda()
-                n_h = n_h.cuda()
-                n_t = n_t.cuda()
+        n_h = torch.reshape(torch.transpose(torch.stack(h_candidates).data.cpu(), 0, 1), (-1,))
+        n_t = torch.reshape(torch.transpose(torch.stack(h_candidates).data.cpu(), 0, 1), (-1,))
+        selection = bernoulli(self.bern_prob[relations].repeat(n_neg)).double()
+        # if cuda.is_available():
+        #     selection = selection.cuda()
+        #     n_h = n_h.cuda()
+        #     n_t = n_t.cuda()
         ones = torch.ones([len(selection)], dtype=torch.int32, device=device)
-        neg_heads = torch.where(selection == ones, heads, n_h)
-        neg_tails = torch.where(selection == ones, n_t, tails)
+
+        n_heads = heads.repeat(n_neg)
+        n_tails = tails.repeat(n_neg)
+
+        neg_heads = torch.where(selection == ones, n_heads, n_h)
+        neg_tails = torch.where(selection == ones, n_t, n_tails)
 
         return neg_heads, neg_tails
 
-    def record_action(self, idx, bandit_idx, reward, head):
-        if head:
-            self.head_rewards_record_actions[idx, bandit_idx] = self.head_rewards_record_actions[idx, bandit_idx] + 1
-            self.head_rewards_record_reward[idx, bandit_idx] = self.head_rewards_record_reward[idx, bandit_idx] + reward
-        else:
-            self.tail_rewards_record_actions[idx, bandit_idx] = self.tail_rewards_record_actions[idx, bandit_idx] + 1
-            self.tail_rewards_record_reward[idx, bandit_idx] = self.tail_rewards_record_reward[idx, bandit_idx] + reward
-
-    def choose_bandit(self, bandits, idx, head):
-        device = self.head_rewards_record_actions.device
-
-        epsilons = torch.ones([len(idx)], dtype=torch.float32, device=device) * self.epsilon
-        if head:
-            rewards_record_actions = torch.reshape(self.head_rewards_record_actions[idx], (len(idx), self.cache_dim))
-            rewards_record_reward = torch.reshape(self.head_rewards_record_reward[idx], (len(idx), self.cache_dim))
-        else:
-            rewards_record_actions = torch.reshape(self.tail_rewards_record_actions[idx], (len(idx), self.cache_dim))
-            rewards_record_reward = torch.reshape(self.tail_rewards_record_reward[idx], (len(idx), self.cache_dim))
-
-        random_bandit_idx = torch.reshape(torch.randint(low=0, high=self.cache_dim, size=(len(idx), 1), device=device), (-1,))
-        reward_bandit_idx = torch.argmax(torch.div(rewards_record_reward, rewards_record_actions), dim=1)
-
-        p = torch.rand(len(idx), device=device)
-        bandit_idx = torch.where(p < epsilons, random_bandit_idx, reward_bandit_idx)
-        bandit = bandits.gather(1, bandit_idx.view(-1, 1))
-        if cuda.is_available():
-            if self.embedding_device == torch.device('cuda:' + str(torch.cuda.current_device())):
-                bandit = bandit.cuda()
-        return torch.reshape(bandit, (-1,)), bandit_idx
