@@ -887,7 +887,7 @@ class MFSampling(NegativeSampler):
             t_candidates.append(n_tails[tail_idx])
 
         n_h = torch.reshape(torch.transpose(torch.stack(h_candidates).data.cpu(), 0, 1), (-1,))
-        n_t = torch.reshape(torch.transpose(torch.stack(h_candidates).data.cpu(), 0, 1), (-1,))
+        n_t = torch.reshape(torch.transpose(torch.stack(t_candidates).data.cpu(), 0, 1), (-1,))
         selection = bernoulli(self.bern_prob[relations].repeat(n_neg)).double()
         if cuda.is_available():
             selection = selection.cuda()
