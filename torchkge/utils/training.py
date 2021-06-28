@@ -3,6 +3,9 @@
 Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
+from typing import Optional
+
+from ..data_structures import SmallKG
 from ..sampling import BernoulliNegativeSampler, UniformNegativeSampler
 from ..utils.data import get_n_batches
 
@@ -36,6 +39,7 @@ class TrainDataLoader:
 
         self.use_cuda = use_cuda
         self.b_size = batch_size
+        self.iterator = TrainDataLoaderIter(self)
 
         if sampling_type == 'unif':
             self.sampler = UniformNegativeSampler(kg)
@@ -53,7 +57,10 @@ class TrainDataLoader:
         return get_n_batches(len(self.h), self.b_size)
 
     def __iter__(self):
-        return TrainDataLoaderIter(self)
+        return self.iterator
+
+    def get_counter_examples(self) -> SmallKG:
+        return SmallKG(self.iterator.nh, self.iterator.nt, self.iterator.r)
 
 
 class TrainDataLoaderIter:
@@ -115,7 +122,7 @@ class Trainer:
         KG used for training.
     n_epochs: int
         Number of epochs in the training procedure.
-    n_batches: int
+    batch_size: int
         Number of batches to use.
     sampling_type: str
         Either 'unif' (uniform negative sampling) or 'bern' (Bernoulli negative
@@ -143,6 +150,7 @@ class Trainer:
 
         self.batch_size = batch_size
         self.n_triples = len(kg_train)
+        self.counter_examples: Optional[SmallKG] = None
 
     def process_batch(self, current_batch):
         self.optimizer.zero_grad()
@@ -167,6 +175,7 @@ class Trainer:
                                       batch_size=self.batch_size,
                                       sampling_type=self.sampling_type,
                                       use_cuda=self.use_cuda)
+        self.counter_examples = data_loader.get_counter_examples()
         for epoch in iterator:
             sum_ = 0
             for i, batch in enumerate(data_loader):
@@ -176,3 +185,15 @@ class Trainer:
             iterator.set_description(
                 'Epoch {} | mean loss: {:.5f}'.format(epoch + 1, sum_ / len(data_loader)))
             self.model.normalize_parameters()
+
+    def get_counter_examples(self) -> Optional[SmallKG]:
+        """
+        Retrieve the counter-examples generated while training the model.
+
+        If the model has not been trained yet, return None
+
+        Returns
+        -------
+        A simple knowledge graph containing the triplets that were used as counter-examples during the training phase.
+        """
+        return self.counter_examples
