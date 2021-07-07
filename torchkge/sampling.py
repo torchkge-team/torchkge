@@ -3,14 +3,16 @@
 Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
+import torch
+from numpy.random import choice, randint
 
 from collections import defaultdict
 
 from torch import tensor, bernoulli, randint, ones, rand, cat
 
-from torchkge.exceptions import NotYetImplementedError
-from torchkge.utils.data import DataLoader
-from torchkge.utils.operations import get_bernoulli_probs
+from torchkge.torchkge.exceptions import NotYetImplementedError
+from torchkge.torchkge.utils.data import DataLoader
+from torchkge.torchkge.utils.operations import get_bernoulli_probs
 
 
 class NegativeSampler:
@@ -502,6 +504,35 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
 
         return neg_heads.long(), neg_tails.long()
 
+def get_bern_prob(data, n_ent, n_rel):
+    src, rel, dst = data
+    edges = defaultdict(lambda: defaultdict(lambda: set()))
+    rev_edges = defaultdict(lambda: defaultdict(lambda: set()))
+    for s, r, t in zip(src, rel, dst):
+        edges[r][s].add(t)
+        rev_edges[r][t].add(s)
+    bern_prob = torch.zeros(n_rel)
+    for r in edges.keys():
+        tph = sum(len(tails) for tails in edges[r].values()) / len(edges[r])
+        htp = sum(len(heads) for heads in rev_edges[r].values()) / len(rev_edges[r])
+        bern_prob[r] = tph / (tph + htp)
+    return bern_prob
+
+
+class KbganNegativeSampler():
+
+    def __init__(self, data, n_ent, n_rel, kg=None):
+        super(KbganNegativeSampler, self).__init__()
+        self.bern_prob = get_bern_prob(data, n_ent, n_rel)
+        self.n_ent = n_ent
+
+    def corrupt(self, src, rel, dst):
+        prob = self.bern_prob[rel]
+        selection = torch.bernoulli(prob).numpy().astype('int64')
+        ent_random = choice(self.n_ent, len(src))
+        src_out = (1 - selection) * src.numpy() + selection * ent_random
+        dst_out = selection * dst.numpy() + (1 - selection) * ent_random
+        return torch.from_numpy(src_out), torch.from_numpy(dst_out)
 
 def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     """Gets for each relation of the knowledge graph the possible heads and

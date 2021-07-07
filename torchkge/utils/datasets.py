@@ -16,9 +16,9 @@ from os.path import exists
 from pandas import concat, DataFrame, merge, read_csv
 from urllib.request import urlretrieve
 
-from torchkge.data_structures import KnowledgeGraph
+from torchkge.torchkge.data_structures import KnowledgeGraph
 
-from torchkge.utils import get_data_home
+from torchkge.torchkge.utils import get_data_home
 
 
 def load_fb13(data_home=None):

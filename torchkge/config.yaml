@@ -1,0 +1,53 @@
+pretrain_config: TransE
+g_config: DistMult
+d_config: TransE
+test_batch_size: 100
+task:
+#  dir: torchkge/data/wn18rr
+  dir: data/wn18rr
+  type: link
+adv:
+  n_sample: 20
+  n_epoch: 5000
+  n_batch: 100
+  epoch_per_test: 100
+  temperature: 1.0
+TransE:
+  dim: 50
+  margin: 3
+  p: 1
+  n_epoch: 5
+  n_batch: 100
+  epoch_per_test: 2
+  model_file: transe_backup.mdl
+TransD:
+  dim: 50
+  margin: 3
+  p: 1
+  n_epoch: 1000
+  n_batch: 100
+  epoch_per_test: 50
+  model_file: transd.mdl
+DistMult:
+  dim: 50
+  lam: 0.1
+  n_sample: 20
+  sample_freq: 1
+  n_epoch: 1000
+  n_batch: 100
+  epoch_per_test: 50
+  model_file: distmult.mdl
+ComplEx:
+  dim: 25
+  lam: 0.1
+  n_sample: 20
+  sample_freq: 1
+  n_epoch: 1000
+  n_batch: 100
+  epoch_per_test: 50
+  model_file: complex.mdl
+log:
+  dump_config: false
+  to_file: false
+  dir: .\log
+  prefix:
