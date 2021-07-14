@@ -550,30 +550,24 @@ def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     return dict(possible_heads), dict(possible_tails)
 
 
-def stage_results(datas, file_pref, epoch):
-    import csv
-
-    file_name = 'stage/complex_wn18rr' + file_pref + "_" + str(epoch) +'.csv'
-    heads, tails, relations = datas
-    for h, t, r in zip(heads, tails, relations):
-        row = [h.item(), t.item(),  r.item()]
-        with open(file_name, 'a') as f:
-            writer = csv.writer(f)
-            writer.writerow(row)
-
-
 class MFSampler(Module):
     def __init__(self, n_rel, n_ent, n_factors=20):
         super().__init__()
         self.emb_heads = torch.nn.Embedding(n_ent, n_factors)
         self.emb_tails = torch.nn.Embedding(n_ent, n_factors)
-        self.emb_heads.weight.data.uniform_(0, 0.0005)
-        self.emb_tails.weight.data.uniform_(0, 0.0005)
+        self.emb_heads.weight.data.uniform_(0, 0.05)
+        self.emb_tails.weight.data.uniform_(0, 0.05)
 
     def forward(self, heads, tails):
         h = self.emb_heads(heads)
         t = self.emb_tails(tails)
         return (h*t).sum(1)
+
+    def link_prediction(self, heads, tails, relations):
+        r = torch.round(self.forward(heads, tails)).type(torch.int64)
+        correct = torch.where(r==relations, 1, 0)
+        csum = torch.sum(correct, dtype=torch.int64)
+        return csum
 
 
 class MFSampling(NegativeSampler):
@@ -583,10 +577,12 @@ class MFSampling(NegativeSampler):
         self.cache_dim = cache_dim
         self.kg_model = model
         self.k = 1
+        self.delta = 0.2
         self.bern_prob = self.evaluate_probabilities()
         self.setup_itterations = n_itter
         self.head_cache, self.tail_cache = defaultdict(list), defaultdict(list)
         self.set_up()
+        self.test()
         self.create_cache(kg)
 
     def evaluate_probabilities(self):
@@ -622,11 +618,27 @@ class MFSampling(NegativeSampler):
         for i in range(self.setup_itterations):
             for j, batch in enumerate(dataloader):
                 h, t, r = batch[0], batch[1], batch[2]
+                optimizer.zero_grad()  # reset gradient
                 hr_hat = self.model(h, t)
                 loss = F.mse_loss(hr_hat.type(torch.float64), r.type(torch.float64))
-                optimizer.zero_grad()  # reset gradient
                 loss.backward()
                 optimizer.step()
+
+
+    def test(self):
+        use_cuda = None
+        correct = 0
+        if cuda.is_available():
+            cuda.empty_cache()
+            self.model.cuda()
+            use_cuda = 'all'
+        total = len(self.kg_test)
+        dataloader = DataLoader(self.kg_test, batch_size=10000, use_cuda=use_cuda)
+        for j, batch in enumerate(dataloader):
+            h, t, r = batch[0], batch[1], batch[2]
+            correct += self.model.link_prediction(h, t, r)
+        accuracy = (correct/total)*100
+        print("mf accuracy:" + str(accuracy.data))
 
     def create_cache(self, kg):
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -636,13 +648,13 @@ class MFSampling(NegativeSampler):
         for h, t, r, rew in zip(kg.head_idx, kg.tail_idx, kg.relations, k_factored_rewards):
             if not (h.item(), r.item()) in self.tail_cache:
                 # remove positives from candidates
-                positive_entities = list(kg.dict_of_pos_tails[h.item()])
+                positive_entities = list(kg.dict_of_tails[(h.item(), r.item())])
                 np_filt = np.delete(np_entities, positive_entities, None)
                 entities = torch.from_numpy(np_filt).to(device=device)
-                relation_predictions = torch.round(self.model(h.to(device=device), entities)).type(torch.int64)
-                np_relation_predictions = relation_predictions.cpu().numpy()
+                relation_predictions = self.model(h.to(device=device), entities)
+                np_relation_predictions = relation_predictions.cpu().detach().numpy()
                 # get the tails indices
-                np_candidates = np.where(np_relation_predictions != r.cpu().numpy())
+                np_candidates = np.where((np_relation_predictions >= (r + self.delta).cpu().numpy()) | (np_relation_predictions <= (r - self.delta).cpu().numpy()))
                 np_candidates = np_candidates[0]
                 np_candidates = np.take(np_filt, np_candidates)
                 if len(np_candidates) == 0:
@@ -665,13 +677,13 @@ class MFSampling(NegativeSampler):
 
             if not (t.item(), r.item()) in self.head_cache:
                 # remove positives from candidates
-                positive_entities = list(kg.dict_of_pos_heads[t.item()])
+                positive_entities = list(kg.dict_of_heads[(t.item(), r.item())])
                 np_filt = np.delete(np_entities, positive_entities, None)
                 entities = torch.from_numpy(np_filt).to(device=device)
-                relation_predictions = torch.round(self.model(entities, t.to(device=device))).type(torch.int64)
-                np_relation_predictions = relation_predictions.cpu().numpy()
+                relation_predictions = self.model(entities, t.to(device=device))
+                np_relation_predictions = relation_predictions.cpu().detach().numpy()
                 # get the tails indices
-                np_candidates = np.where(np_relation_predictions != r.cpu().numpy())
+                np_candidates = np.where((np_relation_predictions >= (r + self.delta).cpu().numpy()) | (np_relation_predictions <= (r - self.delta).cpu().numpy()))
                 np_candidates = np_candidates[0]
                 np_candidates = np.take(np_filt, np_candidates)
                 if len(np_candidates) == 0:
@@ -691,78 +703,17 @@ class MFSampling(NegativeSampler):
                         np_select_indices = np.random.randint(0, len(select), size=self.cache_dim)
                         select = np.take(select, np_select_indices)
                     self.head_cache[(t.item(), r.item())] = torch.from_numpy(select)
+        self.k = self.k + 0.25
         if cuda.is_available():
             cuda.empty_cache()
 
-    def update_cache(self, kg):
-        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        np_entities = np.arange(self.kg.n_ent)
-        rewards = self.reward(kg.head_idx.to(device=device), kg.tail_idx.to(device=device), kg.relations.to(device=device))
-        k_factored_rewards = torch.mul(rewards, self.k)
+    def update_cache(self):
         self.head_cache, self.tail_cache = defaultdict(list), defaultdict(list)
-        for h, t, r, rew in zip(kg.head_idx, kg.tail_idx, kg.relations, k_factored_rewards):
-            if not (h.item(), r.item()) in self.tail_cache:
-                # remove positives from candidates
-                positive_entities = list(kg.dict_of_pos_tails[h.item()])
-                np_filt = np.delete(np_entities, positive_entities, None)
-                entities = torch.from_numpy(np_filt).to(device=device)
-                relation_predictions = torch.round(self.model(h.to(device=device), entities)).type(torch.int64)
-                np_relation_predictions = relation_predictions.cpu().numpy()
-                # get the tails indices
-                np_candidates = np.where(np_relation_predictions != r.cpu().numpy())
-                np_candidates = np_candidates[0]
-                np_candidates = np.take(np_filt, np_candidates)
-                if len(np_candidates) == 0:
-                    self.tail_cache[(h.item(), r.item())] = torch.randint(0, self.kg.n_ent, (self.cache_dim,))
-                else:
-                    heads = torch.ones(len(np_candidates), dtype=torch.int64, device=device) * h.item()
-                    relations = torch.ones(len(np_candidates), dtype=torch.int64, device=device) * r.item()
-                    tails = torch.from_numpy(np_candidates)
-                    filtered_rewards = self.reward(heads, tails.to(device=device), relations)
-                    # execute numpy operations
-                    np_select = np.where(filtered_rewards.cpu().numpy() <= rew.cpu().numpy())
-                    select = np.take(np_candidates, np_select[0])
-                    if len(select) < self.cache_dim:
-                        rand_ent = np.random.randint(0, self.kg.n_ent, self.cache_dim-len(select))
-                        select = np.concatenate((select, rand_ent), axis=None)
-                    else:
-                        np_select_indices = np.random.randint(0, len(select), size=self.cache_dim)
-                        select = np.take(select, np_select_indices)
-                    self.tail_cache[(h.item(), r.item())] = torch.from_numpy(select)
-
-            if not (t.item(), r.item()) in self.head_cache:
-                # remove positives from candidates
-                positive_entities = list(kg.dict_of_pos_heads[t.item()])
-                np_filt = np.delete(np_entities, positive_entities, None)
-                entities = torch.from_numpy(np_filt).to(device=device)
-                relation_predictions = torch.round(self.model(entities, t.to(device=device))).type(torch.int64)
-                np_relation_predictions = relation_predictions.cpu().numpy()
-                # get the tails indices
-                np_candidates = np.where(np_relation_predictions != r.cpu().numpy())
-                np_candidates = np_candidates[0]
-                np_candidates = np.take(np_filt, np_candidates)
-                if len(np_candidates) == 0:
-                    self.head_cache[(t.item(), r.item())] = torch.randint(0, self.kg.n_ent, (self.cache_dim,))
-                else:
-                    heads = torch.from_numpy(np_candidates)
-                    relations = torch.ones(len(np_candidates), dtype=torch.int64, device=device) * r.item()
-                    tails = torch.ones(len(np_candidates), dtype=torch.int64, device=device) * t.item()
-                    filtered_rewards = self.reward(heads.to(device=device), tails, relations)
-                    # execute numpy operations
-                    np_select = np.where(filtered_rewards.cpu().numpy() <= rew.cpu().numpy())
-                    select = np.take(np_candidates, np_select[0])
-                    if len(select) < self.cache_dim:
-                        rand_ent = np.random.randint(0, self.kg.n_ent, self.cache_dim-len(select))
-                        select = np.concatenate((select, rand_ent), axis=None)
-                    else:
-                        np_select_indices = np.random.randint(0, len(select), size=self.cache_dim)
-                        select = np.take(select, np_select_indices)
-                    self.head_cache[(t.item(), r.item())] = torch.from_numpy(select)
-        if cuda.is_available():
-            cuda.empty_cache()
+        self.create_cache(self.kg)
 
     def corrupt_batch(self, heads, tails, relations, n_neg=None):
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        batch_size = len(heads)
         if n_neg is None:
             n_neg = self.n_neg
 
@@ -777,6 +728,91 @@ class MFSampling(NegativeSampler):
 
         n_h = torch.reshape(torch.transpose(torch.stack(h_candidates).data.cpu(), 0, 1), (-1,))
         n_t = torch.reshape(torch.transpose(torch.stack(t_candidates).data.cpu(), 0, 1), (-1,))
+
+
+        selection = bernoulli(self.bern_prob[relations].repeat(n_neg)).double()
+        # selection = bernoulli(torch.ones(size=(batch_size * n_neg,), device=device) / 2).double()
+        if cuda.is_available():
+            selection = selection.cuda()
+            n_h = n_h.cuda()
+            n_t = n_t.cuda()
+        ones = torch.ones([len(selection)], dtype=torch.int32, device=device)
+
+        n_heads = heads.repeat(n_neg)
+        n_tails = tails.repeat(n_neg)
+
+        neg_heads = torch.where(selection == ones, n_h, n_heads)
+        neg_tails = torch.where(selection == ones, n_tails, n_t)
+
+        return neg_heads, neg_tails
+
+
+class BagSampler(NegativeSampler):
+    def __init__(self, kg, kg_val=None, kg_test=None, n_neg=1):
+        super(BagSampler, self).__init__(kg, kg_val, kg_test, n_neg)
+        self.h_r, self.t_r = defaultdict(set), defaultdict(set)
+        self.bern_prob = self.evaluate_probabilities()
+        self.head_cache, self.tail_cache = defaultdict(list), defaultdict(list)
+        self.setup(kg)
+
+    def setup(self, kg):
+        for h, t, r in zip(kg.head_idx, kg.tail_idx, kg.relations):
+            self.h_r[r.item()].add(h.item())
+            self.t_r[r.item()].add(t.item())
+        self.create_cache(kg)
+
+    def create_cache(self, kg):
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        for h, t, r in zip(kg.head_idx, kg.tail_idx, kg.relations):
+            if not (t.item(), r.item()) in self.head_cache:
+                h_c = list(self.h_r[r.item()])
+                p_h = list(self.kg.dict_of_heads[(t.item(), r.item())])
+                np_filt_h = np.setdiff1d(h_c, p_h)
+                if len(np_filt_h) == 0:
+                    self.head_cache[(t.item(), r.item())] = torch.randint(0, self.kg.n_ent, (1000,))
+                else:
+                    self.head_cache[(t.item(), r.item())] = torch.from_numpy(np_filt_h)
+
+            if not (h.item(), r.item()) in self.tail_cache:
+                t_c = list(self.t_r[r.item()])
+                p_t = list(self.kg.dict_of_tails[(h.item(), r.item())])
+                np_filt_t = np.setdiff1d(t_c, p_t)
+                if len(np_filt_t) == 0:
+                    self.tail_cache[(h.item(), r.item())] = torch.randint(0, self.kg.n_ent, (1000,))
+                else:
+                    self.tail_cache[(h.item(), r.item())] = torch.from_numpy(np_filt_t)
+
+    def evaluate_probabilities(self):
+        """
+        Evaluate the Bernoulli probabilities for negative sampling as in the
+        TransH original paper by Wang et al. (2014).
+        """
+        bern_probs = get_bernoulli_probs(self.kg)
+        tmp = []
+        for i in range(self.kg.n_rel):
+            if i in bern_probs.keys():
+                tmp.append(bern_probs[i])
+            else:
+                tmp.append(0.5)
+        return tensor(tmp).float()
+
+    def corrupt_batch(self, heads, tails, relations, n_neg=None):
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        if n_neg is None:
+            n_neg = self.n_neg
+
+        h_candidates, t_candidates = [], []
+        for h, t, r in zip(heads, tails, relations):
+            n_heads = self.head_cache[(t.item(), r.item())]
+            n_tails = self.tail_cache[(h.item(), r.item())]
+            head_idx = torch.randint(0, len(n_heads), (n_neg,))
+            tail_idx = torch.randint(0, len(n_tails), (n_neg,))
+            h_candidates.append(n_heads[head_idx])
+            t_candidates.append(n_tails[tail_idx])
+
+        n_h = torch.reshape(torch.transpose(torch.stack(h_candidates).data.cpu(), 0, 1), (-1,))
+        n_t = torch.reshape(torch.transpose(torch.stack(t_candidates).data.cpu(), 0, 1), (-1,))
+
         selection = bernoulli(self.bern_prob[relations].repeat(n_neg)).double()
         if cuda.is_available():
             selection = selection.cuda()
@@ -787,7 +823,7 @@ class MFSampling(NegativeSampler):
         n_heads = heads.repeat(n_neg)
         n_tails = tails.repeat(n_neg)
 
-        neg_heads = torch.where(selection == ones, n_heads, n_h)
-        neg_tails = torch.where(selection == ones, n_t, n_tails)
+        neg_heads = torch.where(selection == ones, n_h, n_heads)
+        neg_tails = torch.where(selection == ones, n_tails, n_t)
 
         return neg_heads, neg_tails
