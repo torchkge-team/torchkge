@@ -148,3 +148,79 @@ class ConvKBModel(Model):
         candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
 
         return h, t, candidates.view(b_size, self.n_ent, 1, self.emb_dim), r
+
+
+class KBGANModel(Model):
+
+    def __init__(self, generator: torchkge.models.Model, discriminator: torchkge.models.Model, sampling_size,
+                 kg_train: torchkge.data_structures.KnowledgeGraph):
+        assert (kg_train.n_ent == generator.n_ent) & (kg_train.n_rel == generator.n_rel)
+        assert (generator.n_ent == discriminator.n_ent) & (generator.n_rel == discriminator.n_rel)
+
+        super().__init__(generator.n_ent, generator.n_rel)
+        self.generator = generator
+        self.discriminator = discriminator
+        self.sampling_size = sampling_size
+        self.sampler = BernoulliNegativeSampler(kg_train, kg_val=None, kg_test=None, n_neg=sampling_size)
+
+    def scoring_function(self, h_idx, t_idx, r_idx):
+        self.discriminator.eval()
+        return self.discriminator.scoring_function(h_idx, t_idx, r_idx)
+
+    def forward(self, heads, tails, relations):
+        assert self.training
+
+        n_heads, n_tails = self.sampler.corrupt_batch(heads, tails, relations)
+        n_heads, n_tails = n_heads.view(-1), n_tails.view(-1)
+        dist = Categorical(logits=self.generator.scoring_function(n_heads,
+                                                                  n_tails,
+                                                                  relations).view(-1, self.sampling_size))
+        choice = dist.sample()
+
+        discriminator_loss = self.discriminator.forward(heads, tails,
+                                                        n_heads.gather(1, choice.view(-1, 1)),
+                                                        n_tails.gather(1, choice.view(-1, 1)), relations)
+
+
+        self.generator.scoring_function()
+
+    def generator_step(self, h_idx, t_idx, r_idx, n_sample=1, temperature=1.0, train=True):
+        if not hasattr(self, 'opt'):
+            self.opt = Adam(self.mdl.parameters(), weight_decay=self.weight_decay)
+        n, m = t_idx.size()
+        rel_var = Variable(r_idx.cuda())
+        src_var = Variable(h_idx.cuda())
+        dst_var = Variable(t_idx.cuda())
+
+        logits = self.mdl.prob_logit(src_var, rel_var, dst_var) / temperature
+        probs = nnf.softmax(logits)
+        row_idx = torch.arange(0, n).type(torch.LongTensor).unsqueeze(1).expand(n, n_sample)
+        sample_idx = torch.multinomial(probs, n_sample, replacement=True)
+        sample_srcs = h_idx[row_idx, sample_idx.data.cpu()]
+        sample_dsts = t_idx[row_idx, sample_idx.data.cpu()]
+        rewards = yield sample_srcs, sample_dsts
+        if train:
+            self.mdl.zero_grad()
+            log_probs = nnf.log_softmax(logits)
+            reinforce_loss = -torch.sum(Variable(rewards) * log_probs[row_idx.cuda(), sample_idx.data])
+            reinforce_loss.backward()
+            self.opt.step()
+            self.mdl.constraint()
+        yield None
+
+    def discriminator_step(self, src, rel, dst, src_fake, dst_fake, train=True):
+        if not hasattr(self, 'opt'):
+            self.opt = Adam(self.mdl.parameters(), weight_decay=self.weight_decay)
+        src_var = Variable(src.cuda())
+        rel_var = Variable(rel.cuda())
+        dst_var = Variable(dst.cuda())
+        src_fake_var = Variable(src_fake.cuda())
+        dst_fake_var = Variable(dst_fake.cuda())
+        losses = self.mdl.pair_loss(src_var, rel_var, dst_var, src_fake_var, dst_fake_var)
+        fake_scores = self.mdl.score(src_fake_var, rel_var, dst_fake_var)
+        if train:
+            self.mdl.zero_grad()
+            torch.sum(losses).backward()
+            self.opt.step()
+            self.mdl.constraint()
+        return losses.data, -fake_scores.data
