@@ -105,33 +105,30 @@ class ConvKBModel(Model):
         """
         b_size = h.shape[0]
 
-        if len(h.shape) == 2:
-            concat = cat((h.view(b_size, 1, self.emb_dim),
-                          r.view(b_size, 1, self.emb_dim)),
-                         dim=1)
-            concat = concat.view(b_size, 1, 2, self.emb_dim)
-            concat = concat.expand(b_size, self.n_ent, 2, self.emb_dim)
-            concat = cat((concat, t), dim=2)
-            # shape = (b_size, n_ent, 3, emb_dim)
+        if (len(h.shape) == 2) & (len(t.shape) == 4) & (len(r.shape) == 2):
+            concat = cat((h.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_ent, 1, self.emb_dim),
+                          r.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_ent, 1, self.emb_dim),
+                          t), dim=2)
             concat = concat.reshape(-1, 3, self.emb_dim)
 
-        else:
-            concat = cat((r.view(b_size, 1, self.emb_dim),
-                          t.view(b_size, 1, self.emb_dim)),
-                         dim=1)
-            concat = concat.view(b_size, 1, 2, self.emb_dim)
-            concat = concat.expand(b_size, self.n_ent, 2, self.emb_dim)
-            concat = cat((h, concat), dim=2)
-            # shape = (b_size, n_entities, 3, emb_dim)
+        elif (len(h.shape) == 4) & (len(t.shape) == 2) & (len(r.shape) == 2):
+            concat = cat((h,
+                          r.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_ent, 1, self.emb_dim),
+                          t.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_ent, 1, self.emb_dim)), dim=2)
             concat = concat.reshape(-1, 3, self.emb_dim)
 
-        scores = self.output(self.convlayer(concat).reshape(concat.shape[0],
-                                                            -1))
+        elif (len(h.shape) == 2) & (len(t.shape) == 2) & (len(r.shape) == 4):
+            concat = cat((h.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_rel, 1, self.emb_dim),
+                          r,
+                          t.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_rel, 1, self.emb_dim)), dim=2)
+            concat = concat.reshape(-1, 3, self.emb_dim)
+
+        scores = self.output(self.convlayer(concat).reshape(concat.shape[0], -1))
         scores = scores.reshape(b_size, -1, 2)
 
         return scores[:, :, 1]
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
@@ -144,7 +141,13 @@ class ConvKBModel(Model):
         t = self.ent_emb(t_idx)
         r = self.rel_emb(r_idx)
 
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        if entities:
+            candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+            candidates = candidates.view(b_size, self.n_ent, 1, self.emb_dim)
+        else:
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.emb_dim)
+            candidates = candidates.view(b_size, self.n_rel, 1, self.emb_dim)
 
-        return h, t, candidates.view(b_size, self.n_ent, 1, self.emb_dim), r
+        return h, t, r, candidates

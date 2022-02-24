@@ -65,8 +65,7 @@ class TransEModel(TranslationModel):
         self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
 
         self.normalize_parameters()
-        self.rel_emb.weight.data = normalize(self.rel_emb.weight.data,
-                                             p=2, dim=1)
+        self.rel_emb.weight.data = normalize(self.rel_emb.weight.data, p=2, dim=1)
 
     def scoring_function(self, h_idx, t_idx, r_idx):
         """Compute the scoring function for the triplets given as argument:
@@ -104,7 +103,7 @@ class TransEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
@@ -113,14 +112,18 @@ class TransEModel(TranslationModel):
         """
         b_size = h_idx.shape[0]
 
-        h_emb = self.ent_emb(h_idx)
-        t_emb = self.ent_emb(t_idx)
-        r_emb = self.rel_emb(r_idx)
+        h = self.ent_emb(h_idx)
+        t = self.ent_emb(t_idx)
+        r = self.rel_emb(r_idx)
 
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        if entities:
+            candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        else:
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.emb_dim)
 
-        return h_emb, t_emb, candidates, r_emb
+        return h, t, r, candidates
 
 
 class TransHModel(TranslationModel):
@@ -227,22 +230,31 @@ class TransHModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.norm_vect.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
+        b_size = h_idx.shape[0]
+
         if not self.evaluated_projections:
             self.lp_evaluate_projections()
 
         r = self.rel_emb(r_idx)
-        proj_h = self.projected_entities[r_idx, h_idx]
-        proj_t = self.projected_entities[r_idx, t_idx]
-        proj_candidates = self.projected_entities[r_idx]
 
-        return proj_h, proj_t, proj_candidates, r
+        if entities:
+            proj_h = self.projected_entities[r_idx, h_idx]  # shape: (b_size, emb_dim)
+            proj_t = self.projected_entities[r_idx, t_idx]  # shape: (b_size, emb_dim)
+            candidates = self.projected_entities[r_idx]  # shape: (b_size, self.n_rel, self.emb_dim)
+        else:
+            proj_h = self.projected_entities[:, h_idx].transpose(0, 1)  # shape: (b_size, n_rel, emb_dim)
+            proj_t = self.projected_entities[:, t_idx].transpose(0, 1)  # shape: (b_size, n_rel, emb_dim)
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.emb_dim)
+
+        return proj_h, proj_t, r, candidates
 
     def lp_evaluate_projections(self):
         """Link prediction evaluation helper function. Project all entities
@@ -254,12 +266,9 @@ class TransHModel(TranslationModel):
         if self.evaluated_projections:
             return
 
-        for i in tqdm(range(self.n_ent), unit='entities',
-                      desc='Projecting entities'):
+        for i in tqdm(range(self.n_ent), unit='entities', desc='Projecting entities'):
 
-            norm_vect = self.norm_vect.weight.data.view(self.n_rel,
-                                                        self.emb_dim)
-
+            norm_vect = self.norm_vect.weight.data.view(self.n_rel, self.emb_dim)
             mask = tensor([i], device=norm_vect.device).long()
 
             if norm_vect.is_cuda:
@@ -267,9 +276,7 @@ class TransHModel(TranslationModel):
 
             ent = self.ent_emb(mask)
             norm_components = (ent.view(1, -1) * norm_vect).sum(dim=1)
-            self.projected_entities[:, i, :] = (ent.view(1, -1) -
-                                                norm_components.view(-1, 1) *
-                                                norm_vect)
+            self.projected_entities[:, i, :] = (ent.view(1, -1) - norm_components.view(-1, 1) * norm_vect)
 
             del norm_components
 
@@ -395,23 +402,31 @@ class TransRModel(TranslationModel):
                                            self.rel_emb_dim,
                                            self.ent_emb_dim)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
+        b_size = h_idx.shape[0]
 
         if not self.evaluated_projections:
             self.lp_evaluate_projections()
 
-        r = self.rel_emb(r_idx)  # shape = (b_size, rel_emb_dim)
-        proj_h = self.projected_entities[r_idx, h_idx]
-        proj_t = self.projected_entities[r_idx, t_idx]
-        proj_candidates = self.projected_entities[r_idx]
+        r = self.rel_emb(r_idx)  # shape = (b_size, self.rel_emb_dim)
 
-        return proj_h, proj_t, proj_candidates, r
+        if entities:
+            proj_h = self.projected_entities[r_idx, h_idx]  # shape: (b_size, rel_emb_dim)
+            proj_t = self.projected_entities[r_idx, t_idx]  # shape: (b_size, rel_emb_dim)
+            candidates = self.projected_entities[r_idx]  # shape: (b_size, n_rel, emb_dim)
+        else:
+            proj_h = self.projected_entities[:, h_idx].transpose(0, 1)  # shape: (b_size, n_rel, rel_emb_dim)
+            proj_t = self.projected_entities[:, t_idx].transpose(0, 1)  # shape: (b_size, n_rel, rel_emb_dim)
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.rel_emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.rel_emb_dim)
+
+        return proj_h, proj_t, candidates, r
 
     def lp_evaluate_projections(self):
         """Link prediction evaluation helper function. Project all entities
@@ -423,12 +438,9 @@ class TransRModel(TranslationModel):
         if self.evaluated_projections:
             return
 
-        for i in tqdm(range(self.n_ent), unit='entities',
-                      desc='Projecting entities'):
+        for i in tqdm(range(self.n_ent), unit='entities', desc='Projecting entities'):
             projection_matrices = self.proj_mat.weight.data
-            projection_matrices = projection_matrices.view(self.n_rel,
-                                                           self.rel_emb_dim,
-                                                           self.ent_emb_dim)
+            projection_matrices = projection_matrices.view(self.n_rel, self.rel_emb_dim, self.ent_emb_dim)
 
             mask = tensor([i], device=projection_matrices.device).long()
 
@@ -438,8 +450,7 @@ class TransRModel(TranslationModel):
             ent = self.ent_emb(mask)
             proj_ent = matmul(projection_matrices, ent.view(self.ent_emb_dim))
             proj_ent = proj_ent.view(self.n_rel, self.rel_emb_dim, 1)
-            self.projected_entities[:, i, :] = proj_ent.view(self.n_rel,
-                                                             self.rel_emb_dim)
+            self.projected_entities[:, i, :] = proj_ent.view(self.n_rel, self.rel_emb_dim)
 
             del proj_ent
 
@@ -561,14 +572,10 @@ class TransDModel(TranslationModel):
         of each training epoch and at the end of training as well.
 
         """
-        self.ent_emb.weight.data = normalize(
-            self.ent_emb.weight.data, p=2, dim=1)
-        self.rel_emb.weight.data = normalize(
-            self.rel_emb.weight.data, p=2, dim=1)
-        self.ent_proj_vect.weight.data = normalize(
-            self.ent_proj_vect.weight.data, p=2, dim=1)
-        self.rel_proj_vect.weight.data = normalize(
-            self.rel_proj_vect.weight.data, p=2, dim=1)
+        self.ent_emb.weight.data = normalize(self.ent_emb.weight.data, p=2, dim=1)
+        self.rel_emb.weight.data = normalize(self.rel_emb.weight.data, p=2, dim=1)
+        self.ent_proj_vect.weight.data = normalize(self.ent_proj_vect.weight.data, p=2, dim=1)
+        self.rel_proj_vect.weight.data = normalize(self.rel_proj_vect.weight.data, p=2, dim=1)
 
     def get_embeddings(self):
         """Return the embeddings of entities and relations along with their
@@ -592,22 +599,31 @@ class TransDModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.ent_proj_vect.weight.data, self.rel_proj_vect.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
+        b_size = h_idx.shape[0]
+
         if not self.evaluated_projections:
             self.lp_evaluate_projections()
 
         r = self.rel_emb(r_idx)
-        proj_h = self.projected_entities[r_idx, h_idx]
-        proj_t = self.projected_entities[r_idx, t_idx]
-        proj_candidates = self.projected_entities[r_idx]
 
-        return proj_h, proj_t, proj_candidates, r
+        if entities:
+            proj_h = self.projected_entities[r_idx, h_idx]  # shape: (b_size, emb_dim)
+            proj_t = self.projected_entities[r_idx, t_idx]  # shape: (b_size, emb_dim)
+            candidates = self.projected_entities[r_idx]  # shape: (b_size, self.n_rel, self.emb_dim)
+        else:
+            proj_h = self.projected_entities[:, h_idx].transpose(0, 1)  # shape: (b_size, n_rel, rel_emb_dim)
+            proj_t = self.projected_entities[:, t_idx].transpose(0, 1)  # shape: (b_size, n_rel, rel_emb_dim)
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.rel_emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.rel_emb_dim)
+
+        return proj_h, proj_t, candidates, r
 
     def lp_evaluate_projections(self):
         """Link prediction evaluation helper function. Project all entities
@@ -619,8 +635,7 @@ class TransDModel(TranslationModel):
         if self.evaluated_projections:
             return
 
-        for i in tqdm(range(self.n_ent), unit='entities',  # TODO change this
-                      desc='Projecting entities'):
+        for i in tqdm(range(self.n_ent), unit='entities', desc='Projecting entities'):
 
             rel_proj_vects = self.rel_proj_vect.weight.data
             ent = self.ent_emb.weight[i]
@@ -725,7 +740,7 @@ class TorusEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
         `lp_scoring_function` method. See torchkge.models.interfaces.Models for
@@ -741,7 +756,11 @@ class TorusEModel(TranslationModel):
         t = self.ent_emb(t_idx)
         r = self.rel_emb(r_idx)
 
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        if entities:
+            candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        else:
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.rel_emb_dim)
 
-        return h, t, candidates, r
+        return h, t, r, candidates
