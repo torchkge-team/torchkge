@@ -4,8 +4,8 @@ Copyright TorchKGE developers
 @author: Armand Boschin <aboschin@enst.fr>
 """
 
+from collections import defaultdict
 from pandas import DataFrame
-
 from torch import zeros, cat
 
 
@@ -148,3 +148,19 @@ def get_bernoulli_probs(kg):
         tph[k] = tph[k] / (tph[k] + hpt[k])
 
     return tph
+
+
+def get_fitlering_dictionaries(kg, kg_te=None):
+    dict_of_heads = defaultdict(set)
+    dict_of_tails = defaultdict(set)
+    dict_of_rels = defaultdict(set)
+    for i in range(kg.n_facts):
+        dict_of_heads[(kg.tail_idx[i].item(), kg.relations[i].item())].add(kg.head_idx[i].item())
+        dict_of_tails[(kg.head_idx[i].item(), kg.relations[i].item())].add(kg.tail_idx[i].item())
+        dict_of_rels[(kg.head_idx[i].item(), kg.tail_idx[i].item())].add(kg.relations[i].item())
+    if kg_te is not None:
+        for i in range(kg_te.n_facts):
+            dict_of_rels[(kg_te.tail_idx[i].item(), kg_te.relations[i].item())].add(kg_te.head_idx[i].item())
+            dict_of_rels[(kg_te.head_idx[i].item(), kg_te.relations[i].item())].add(kg_te.tail_idx[i].item())
+            dict_of_rels[(kg_te.head_idx[i].item(), kg_te.tail_idx[i].item())].add(kg_te.relations[i].item())
+    return dict_of_heads, dict_of_tails, dict_of_rels
