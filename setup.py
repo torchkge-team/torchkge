@@ -23,8 +23,7 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10'
+        'Programming Language :: Python :: 3.9'
     ],
     description="Knowledge Graph embedding in Python and PyTorch.",
     license="BSD license",
