@@ -19,7 +19,7 @@ jobs:
         - uses: actions/setup-python@v2
           name: Install Python
           with:
-            python-version: '3.9'
+            python-version: '3.8'
 
         - name: Build sdist
           run: python setup.py sdist
@@ -37,7 +37,7 @@ jobs:
               name: artifact
               path: dist
 
-          - uses: pypa/gh-action-pypi-publish@v1.4.2
+          - uses: pypa/gh-action-pypi-publish@master
             with:
-              user: armand33
-              password: ${{ secrets.TWINE_PASSWORD }}
+              user: __token__
+              password: ${{ secrets.PYPI_PASSWORD }}
