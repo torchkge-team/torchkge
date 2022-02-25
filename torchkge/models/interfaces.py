@@ -245,7 +245,7 @@ class TranslationModel(Model):
                 hr = (proj_h + r).view(b_size, 1, r.shape[1])
                 return - self.dissimilarity(hr, proj_t)
             else:
-                assert (len(proj_h) == 3) & (len(proj_t.shape) == 2)
+                assert (len(proj_h.shape) == 3) & (len(proj_t.shape) == 2)
                 # this is the head completion case in link prediction
                 r_ = r.view(b_size, 1, r.shape[1])
                 t_ = proj_t.view(b_size, 1, r.shape[1])
