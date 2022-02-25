@@ -2,6 +2,14 @@
 History
 =======
 
+0.17.0 (2022-02-25)
+-------------------
+* Add relation prediction evaluation
+* Add relation negative sampling module
+* Add inference module
+* Update models' API accordingly to the previous new features
+* Switch from TravisCI to GitHub Actions
+
 0.16.25 (2021-03-01)
 --------------------
 * Update in available pretrained models
