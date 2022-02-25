@@ -6,7 +6,7 @@ numpydoc==1.2
 # Tests
 flake8>=3.8.3
 tox==3.24.5
-pytest-runner==5.3.1
+pytest-runner==5.3.2
 pytest==7.0.1
 
 # Deployement
