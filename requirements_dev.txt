@@ -5,11 +5,11 @@ numpydoc==1.2
 
 # Tests
 flake8>=3.8.3
-tox==3.24
-pytest-runner==5.3
-pytest==7.0
+tox==3.24.5
+pytest-runner==5.3.1
+pytest==7.0.1
 
 # Deployement
-pip==22.0
+pip==22.0.3
 bumpversion==0.6
-wheel==0.37
+wheel==0.37.1
