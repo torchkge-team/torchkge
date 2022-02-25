@@ -2,6 +2,11 @@
 History
 =======
 
+0.17.1 (2022-02-25)
+-------------------
+* Add support of Python 3.7 back
+
+
 0.17.0 (2022-02-25)
 -------------------
 * Add relation prediction evaluation
