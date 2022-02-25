@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = ['torch>=1.2.0', 'tqdm', 'pandas', 'numpy']
+requirements = ['torch>=1.2.0', 'tqdm', 'pandas', 'numpy==1.21.5']
 
 setup_requirements = ['pytest-runner']
 
