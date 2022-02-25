@@ -1,10 +1,10 @@
 # Documentation
-sphinx==4.4
+sphinx>=3.1
 sphinx_rtd_theme==1.0
 numpydoc==1.2
 
 # Tests
-flake8==4.0
+flake8>=3.8.3
 tox==3.24
 pytest-runner==5.3
 pytest==7.0
