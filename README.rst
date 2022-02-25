@@ -21,7 +21,8 @@ TorchKGE
      :target: https://pyup.io/repos/github/torchkge-team/torchkge/
      :alt: Updates
 
-
+.. image:: https://img.shields.io/pypi/pyversions/torchkge.svg
+        :target: https://pypi.org/project/torchkge/
 
 TorchKGE: Knowledge Graph embedding in Python and Pytorch.
 
