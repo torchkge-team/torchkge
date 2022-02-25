@@ -117,7 +117,8 @@ class ConvKBModel(Model):
                           t.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_ent, 1, self.emb_dim)), dim=2)
             concat = concat.reshape(-1, 3, self.emb_dim)
 
-        elif (len(h.shape) == 2) & (len(t.shape) == 2) & (len(r.shape) == 4):
+        else:
+            assert (len(h.shape) == 2) & (len(t.shape) == 2) & (len(r.shape) == 4)
             concat = cat((h.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_rel, 1, self.emb_dim),
                           r,
                           t.view(b_size, 1, 1, self.emb_dim).expand(b_size, self.n_rel, 1, self.emb_dim)), dim=2)

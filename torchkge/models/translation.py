@@ -35,9 +35,9 @@ class TransEModel(TranslationModel):
     ----------
     emb_dim: int
         Dimension of the embedding.
-    n_ent: int
+    n_entities: int
         Number of entities in the current data set.
-    n_rel: int
+    n_relations: int
         Number of relations in the current data set.
     dissimilarity_type: str
         Either 'L1' or 'L2'.
@@ -55,8 +55,7 @@ class TransEModel(TranslationModel):
 
     """
 
-    def __init__(self, emb_dim, n_entities, n_relations,
-                 dissimilarity_type='L2'):
+    def __init__(self, emb_dim, n_entities, n_relations, dissimilarity_type='L2'):
 
         super().__init__(n_entities, n_relations, dissimilarity_type)
 
@@ -143,9 +142,9 @@ class TransHModel(TranslationModel):
     ----------
     emb_dim: int
         Dimension of the embedding space.
-    n_ent: int
+    n_entities: int
         Number of entities in the current data set.
-    n_rel: int
+    n_relations: int
         Number of relations in the current data set.
 
     Attributes
@@ -302,9 +301,9 @@ class TransRModel(TranslationModel):
         Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
-    n_ent: int
+    n_entities: int
         Number of entities in the current data set.
-    n_rel: int
+    n_relations: int
         Number of relations in the current data set.
 
     Attributes
@@ -479,9 +478,9 @@ class TransDModel(TranslationModel):
         Dimension of the embedding of entities.
     rel_emb_dim: int
         Dimension of the embedding of relations.
-    n_ent: int
+    n_entities: int
         Number of entities in the current data set.
-    n_rel: int
+    n_relations: int
         Number of relations in the current data set.
 
     Attributes
@@ -669,9 +668,9 @@ class TorusEModel(TranslationModel):
     ----------
     emb_dim: int
         Embedding dimension.
-    n_ent: int
+    n_entities: int
         Number of entities in the current data set.
-    n_rel: int
+    n_relations: int
         Number of relations in the current data set.
     dissimilarity_type: str
         One of 'torus_L1', 'torus_L2', 'torus_eL2'.

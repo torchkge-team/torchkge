@@ -36,7 +36,7 @@ class Model(Module):
         self.n_ent = n_entities
         self.n_rel = n_relations
 
-    def forward(self, heads, tails, negative_heads, negative_tails, relations):
+    def forward(self, heads, tails, relations, negative_heads, negative_tails, negative_relations=None):
         """
 
         Parameters
@@ -45,12 +45,14 @@ class Model(Module):
             Integer keys of the current batch's heads
         tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
             Integer keys of the current batch's tails.
+        relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Integer keys of the current batch's relations.
         negative_heads: torch.Tensor, dtype: torch.long, shape: (batch_size)
             Integer keys of the current batch's negatively sampled heads.
         negative_tails: torch.Tensor, dtype: torch.long, shape: (batch_size)
-            Integer keys of the current batch's negatively sampled tails.
-        relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
-            Integer keys of the current batch's relations.
+            Integer keys of the current batch's negatively sampled tails.ze)
+        negative_relations: torch.Tensor, dtype: torch.long, shape: (batch_size)
+            Integer keys of the current batch's negatively sampled relations.
 
         Returns
         -------
@@ -61,17 +63,21 @@ class Model(Module):
 
         """
         pos = self.scoring_function(heads, tails, relations)
-        if negative_heads.shape[0] > relations.shape[0]:
+
+        if negative_relations is None:
+            negative_relations = relations
+
+        if negative_heads.shape[0] > negative_relations.shape[0]:
             # in that case, several negative samples are sampled from each fact
-            n_neg = int(negative_heads.shape[0] / relations.shape[0])
+            n_neg = int(negative_heads.shape[0] / negative_relations.shape[0])
             pos = pos.repeat(n_neg)
             neg = self.scoring_function(negative_heads,
                                         negative_tails,
-                                        relations.repeat(n_neg))
+                                        negative_relations.repeat(n_neg))
         else:
             neg = self.scoring_function(negative_heads,
                                         negative_tails,
-                                        relations)
+                                        negative_relations)
 
         return pos, neg
 
