@@ -1,15 +1,15 @@
 # Documentation
-sphinx>=3.1
-sphinx_rtd_theme>=0.5.0
-numpydoc>=1.1.0
+sphinx==4.4
+sphinx_rtd_theme==1.0
+numpydoc==1.2
 
 # Tests
-flake8>=3.8.3
-tox>=3.18
-pytest-runner>=5
-pytest>=5
+flake8==4.0
+tox==3.24
+pytest-runner==5.3
+pytest==7.0
 
 # Deployement
-pip>=20.2
-bumpversion>=0.6.0
-wheel>=0.34.2
+pip==22.0
+bumpversion==0.6
+wheel==0.37
