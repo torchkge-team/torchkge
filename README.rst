@@ -10,8 +10,8 @@ TorchKGE
 .. image:: https://img.shields.io/pypi/v/torchkge.svg
         :target: https://pypi.python.org/pypi/torchkge
 
-.. image:: https://travis-ci.com/torchkge-team/torchkge.svg?branch=master
-    :target: https://travis-ci.com/torchkge-team/torchkge
+.. image:: https://github.com/torchkge-team/torchkge/actions/workflows/ci_checks.yml/badge.svg
+        :target: https://github.com/torchkge-team/torchkge/actions/workflows/ci_checks.yml
 
 .. image:: https://readthedocs.org/projects/torchkge/badge/?version=latest
     :target: https://torchkge.readthedocs.io/en/latest/?badge=latest
@@ -21,7 +21,8 @@ TorchKGE
      :target: https://pyup.io/repos/github/torchkge-team/torchkge/
      :alt: Updates
 
-
+.. image:: https://img.shields.io/pypi/pyversions/torchkge.svg
+        :target: https://pypi.org/project/torchkge/
 
 TorchKGE: Knowledge Graph embedding in Python and Pytorch.
 
@@ -38,7 +39,7 @@ Citations
 ---------
 If you find this code useful in your research, please consider citing our `paper <https://arxiv.org/abs/2009.02963>`_ (presented at `IWKG-KDD <https://suitclub.ischool.utexas.edu/IWKG_KDD2020/index.html>`_ 2020):
 
-.. code-block::
+.. code::
 
     @inproceedings{arm2020torchkge,
         title={TorchKGE: Knowledge Graph Embedding in Python and PyTorch},

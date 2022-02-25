@@ -80,7 +80,7 @@ def count_triplets(kg1, kg2, duplicates, rev_duplicates):
 
 
 def duplicates(kg_tr, kg_val, kg_te, theta1=0.8, theta2=0.8,
-               verbose=False, counts=False, reverses=[]):
+               verbose=False, counts=False, reverses=None):
     """Return the duplicate and reverse duplicate relations as explained
     in paper by Akrami et al.
 
@@ -119,6 +119,9 @@ def duplicates(kg_tr, kg_val, kg_te, theta1=0.8, theta2=0.8,
     """
     if verbose:
         print('Computing Ts')
+
+    if reverses is None:
+        reverses = []
 
     T = dict()
     T_inv = dict()

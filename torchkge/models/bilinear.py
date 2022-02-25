@@ -7,7 +7,7 @@ Copyright TorchKGE developers
 from torch import matmul, cat
 from torch.nn.functional import normalize
 
-from ..models import BilinearModel
+from ..models.interfaces import BilinearModel
 from ..utils import init_embedding
 
 
@@ -95,27 +95,35 @@ class RESCALModel(BilinearModel):
         return self.ent_emb.weight.data, \
             self.rel_mat.weight.data.view(-1, self.emb_dim, self.emb_dim)
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details of the API.
 
         """
         b_size = h.shape[0]
 
-        if len(h.shape) == 2 and len(t.shape) == 3:
-            # this is the tail completion case in link prediction
-            h = h.view(b_size, 1, self.emb_dim)
-            hr = matmul(h, r).view(b_size, self.emb_dim, 1)
-            return (hr * t.transpose(1, 2)).sum(dim=1)
-        else:
+        if len(h.shape) == 3:
+            assert (len(t.shape) == 2) & (len(r.shape) == 3)
             # this is the head completion case in link prediction
-            t = t.view(b_size, self.emb_dim, 1)
-            return (h.transpose(1, 2) * matmul(r, t)).sum(dim=1)
+            tr = matmul(r, t.view(b_size, self.emb_dim, 1)).view(b_size, 1, self.emb_dim)
+            return (h * tr).sum(dim=2)
+        elif len(t.shape) == 3:
+            assert (len(h.shape) == 2) & (len(r.shape) == 3)
+            # this is the tail completion case in link prediction
+            hr = matmul(h.view(b_size, 1, self.emb_dim), r).view(b_size, 1, self.emb_dim)
+            return (hr * t).sum(dim=2)
+        elif len(r.shape) == 4:
+            assert (len(h.shape) == 2) & (len(t.shape) == 2)
+            # this is the relation completion case in link prediction
+            h = h.view(b_size, 1, 1, self.emb_dim)
+            t = t.view(b_size, 1, self.emb_dim)
+            hr = matmul(h, r).view(b_size, self.n_rel, self.emb_dim)
+            return (hr * t).sum(dim=2)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
@@ -125,10 +133,14 @@ class RESCALModel(BilinearModel):
         t_emb = self.ent_emb(t_idx)
         r_mat = self.rel_mat(r_idx).view(-1, self.emb_dim, self.emb_dim)
 
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        if entities:
+            candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        else:
+            candidates = self.rel_mat.weight.data.view(1, self.n_rel, self.emb_dim, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.emb_dim, self.emb_dim)
 
-        return h_emb, t_emb, candidates, r_mat
+        return h_emb, t_emb, r_mat, candidates
 
 
 class DistMultModel(BilinearModel):
@@ -210,26 +222,33 @@ class DistMultModel(BilinearModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details on the API.
 
         """
         b_size = h.shape[0]
 
-        if len(h.shape) == 2 and len(t.shape) == 3:
+        if len(t.shape) == 3:
+            assert (len(h.shape) == 2) & (len(r.shape) == 2)
             # this is the tail completion case in link prediction
-            hr = (h * r).view(b_size, self.emb_dim, 1)
-            return (hr * t.transpose(1, 2)).sum(dim=1)
-        else:
+            hr = (h * r).view(b_size, 1, self.emb_dim)
+            return (hr * t).sum(dim=2)
+        elif len(h.shape) == 3:
+            assert (len(t.shape) == 2) & (len(r.shape) == 2)
             # this is the head completion case in link prediction
-            rt = (r * t).view(b_size, self.emb_dim, 1)
-            return (h.transpose(1, 2) * rt).sum(dim=1)
+            rt = (r * t).view(b_size, 1, self.emb_dim)
+            return (h * rt).sum(dim=2)
+        elif len(r.shape) == 3:
+            assert (len(h.shape) == 2) & (len(t.shape) == 2)
+            # this is the relation prediction case
+            hr = (h.view(b_size, 1, self.emb_dim) * r)  # hr has shape (b_size, self.n_rel, self.emb_dim)
+            return (hr * t.view(b_size, 1, self.emb_dim)).sum(dim=2)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
@@ -239,10 +258,14 @@ class DistMultModel(BilinearModel):
         t = self.ent_emb(t_idx)
         r = self.rel_emb(r_idx)
 
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        if entities:
+            candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        else:
+            candidates = self.rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.emb_dim)
 
-        return h, t, candidates, r
+        return h, t, r, candidates
 
 
 class HolEModel(BilinearModel):
@@ -340,27 +363,36 @@ class HolEModel(BilinearModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details on the API.
 
         """
         b_size = h.shape[0]
 
-        if len(h.shape) == 2 and len(t.shape) == 3:
+        if len(t.shape) == 3:
+            assert (len(h.shape) == 2) & (len(r.shape) == 3)
             # this is the tail completion case in link prediction
             h = h.view(b_size, 1, self.emb_dim)
             hr = matmul(h, r).view(b_size, self.emb_dim, 1)
             return (hr * t.transpose(1, 2)).sum(dim=1)
-        else:
+        elif len(h.shape) == 3:
+            assert (len(t.shape) == 2) & (len(r.shape) == 3)
             # this is the head completion case in link prediction
             t = t.view(b_size, self.emb_dim, 1)
             return (h.transpose(1, 2) * matmul(r, t)).sum(dim=1)
+        elif len(r.shape) == 4:
+            assert (len(h.shape) == 2) & (len(t.shape) == 2)
+            # this is the relation completion case in link prediction
+            h = h.view(b_size, 1, 1, self.emb_dim)
+            t = t.view(b_size, 1, self.emb_dim)
+            hr = matmul(h, r).view(b_size, self.n_rel, self.emb_dim)
+            return (hr * t).sum(dim=2)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models
         for more details on the API.
 
         """
@@ -369,8 +401,13 @@ class HolEModel(BilinearModel):
         t_emb = self.ent_emb(t_idx)
         r_mat = self.get_rolling_matrix(self.rel_emb(r_idx))
 
-        candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
-        candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        if entities:
+            candidates = self.ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_ent, self.emb_dim)
+        else:
+            r_mat = self.get_rolling_matrix(self.rel_emb.weight.data)  # TODO: do not recompute for each batch
+            candidates = r_mat.view(1, self.n_rel, self.emb_dim, self.emb_dim)
+            candidates = candidates.expand(b_size, self.n_rel, self.emb_dim, self.emb_dim)
 
         return h_emb, t_emb, candidates, r_mat
 
@@ -462,7 +499,7 @@ class ComplExModel(BilinearModel):
         return self.re_ent_emb.weight.data, self.im_ent_emb.weight.data,\
             self.re_rel_emb.weight.data, self.im_rel_emb.weight.data
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details one the API.
 
@@ -472,47 +509,52 @@ class ComplExModel(BilinearModel):
         re_r, im_r = r[0], r[1]
         b_size = re_h.shape[0]
 
-        if len(re_h.shape) == 2 and len(re_t.shape) == 3:
+        if len(re_t.shape) == 3:
+            assert (len(re_h.shape) == 2) & (len(re_r.shape) == 2)
             # this is the tail completion case in link prediction
-            return ((re_h * re_r).view(b_size, self.emb_dim,
-                                       1) * re_t.transpose(1, 2)
-                    + (re_h * im_r).view(b_size, self.emb_dim,
-                                         1) * im_t.transpose(1, 2)
-                    + (im_h * re_r).view(b_size, self.emb_dim,
-                                         1) * im_t.transpose(1, 2)
-                    - (im_h * im_r).view(b_size, self.emb_dim,
-                                         1) * re_t.transpose(1, 2)).sum(dim=1)
+            return ((re_h * re_r - im_h * im_r).view(b_size, 1, self.emb_dim) * re_t
+                    + (re_h * im_r + im_h * re_r).view(b_size, 1, self.emb_dim) * im_t).sum(dim=2)
 
-        if len(re_h.shape) == 3 and len(re_t.shape) == 2:
+        elif len(re_h.shape) == 3:
+            assert (len(re_t.shape) == 2) & (len(re_r.shape) == 2)
             # this is the head completion case in link prediction
-            return (re_h.transpose(1, 2) * (re_r * re_t + im_r * im_t).view(
-                b_size, self.emb_dim, 1)
-                    + im_h.transpose(1, 2) * (re_r * im_t - im_r * re_t).view(
-                        b_size, self.emb_dim, 1)).sum(dim=1)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+            return (re_h * (re_r * re_t + im_r * im_t).view(b_size, 1, self.emb_dim)
+                    + im_h * (re_r * im_t - im_r * re_t).view(b_size, 1, self.emb_dim)).sum(dim=2)
+
+        elif len(re_r.shape) == 3:
+            assert (len(re_h.shape) == 2) & (len(re_t.shape) == 2)
+            # this is the relation prediction case
+            return ((re_h * re_t + im_h * im_t).view(b_size, 1, self.emb_dim) * re_r
+                    + (re_h * im_t - im_h * re_t).view(b_size, 1, self.emb_dim) * im_r).sum(dim=2)
+
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
         b_size = h_idx.shape[0]
 
-        re_candidates = self.re_ent_emb.weight.data.view(1, self.n_ent,
-                                                         self.emb_dim)
-        re_candidates = re_candidates.expand(b_size, self.n_ent, self.emb_dim)
-
-        im_candidates = self.im_ent_emb.weight.data.view(1, self.n_ent,
-                                                         self.emb_dim)
-        im_candidates = im_candidates.expand(b_size, self.n_ent, self.emb_dim)
-
         re_h, im_h = self.re_ent_emb(h_idx), self.im_ent_emb(h_idx)
         re_t, im_t = self.re_ent_emb(t_idx), self.im_ent_emb(t_idx)
         re_r, im_r = self.re_rel_emb(r_idx), self.im_rel_emb(r_idx)
 
-        return (re_h, im_h), (re_t, im_t), (re_candidates, im_candidates), (
-            re_r, im_r)
+        if entities:
+            re_candidates = self.re_ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            re_candidates = re_candidates.expand(b_size, self.n_ent, self.emb_dim)
+
+            im_candidates = self.im_ent_emb.weight.data.view(1, self.n_ent, self.emb_dim)
+            im_candidates = im_candidates.expand(b_size, self.n_ent, self.emb_dim)
+        else:
+            re_candidates = self.re_rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            re_candidates = re_candidates.expand(b_size, self.n_rel, self.emb_dim)
+
+            im_candidates = self.im_rel_emb.weight.data.view(1, self.n_rel, self.emb_dim)
+            im_candidates = im_candidates.expand(b_size, self.n_rel, self.emb_dim)
+
+        return (re_h, im_h), (re_t, im_t), (re_r, im_r), (re_candidates, im_candidates)
 
 
 class AnalogyModel(BilinearModel):
@@ -606,8 +648,7 @@ class AnalogyModel(BilinearModel):
             r_idx), self.im_rel_emb(r_idx)
 
         return ((sc_h * sc_r * sc_t).sum(dim=1) +
-                (re_h * (re_r * re_t + im_r * im_t) + im_h * (
-                            re_r * im_t - im_r * re_t)).sum(dim=1))
+                (re_h * (re_r * re_t + im_r * im_t) + im_h * (re_r * im_t - im_r * re_t)).sum(dim=1))
 
     def normalize_parameters(self):
         """According to original paper, the embeddings should not be
@@ -639,7 +680,7 @@ class AnalogyModel(BilinearModel):
             self.im_ent_emb.weight.data, self.sc_rel_emb.weight.data, \
             self.re_rel_emb.weight.data, self.im_rel_emb.weight.data
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details one the API.
 
@@ -649,62 +690,35 @@ class AnalogyModel(BilinearModel):
         sc_r, re_r, im_r = r[0], r[1], r[2]
         b_size = re_h.shape[0]
 
-        if len(re_h.shape) == 2 and len(re_t.shape) == 3:
+        if len(re_t.shape) == 3:
+            assert (len(re_h.shape) == 2) & (len(re_r.shape) == 2)
             # this is the tail completion case in link prediction
-            return (((sc_h * sc_r).view(b_size,
-                                        self.scalar_dim,
-                                        1) * sc_t.transpose(1, 2)).sum(dim=1)
-                    + ((re_h * re_r).view(b_size,
-                                          self.complex_dim,
-                                          1) * re_t.transpose(1, 2)).sum(dim=1)
-                    + ((re_h * im_r).view(b_size,
-                                          self.complex_dim,
-                                          1) * im_t.transpose(1, 2)).sum(dim=1)
-                    + ((im_h * re_r).view(b_size,
-                                          self.complex_dim,
-                                          1) * im_t.transpose(1, 2)).sum(dim=1)
-                    - ((im_h * im_r).view(b_size,
-                                          self.complex_dim,
-                                          1) * re_t.transpose(1, 2)).sum(dim=1)
-                    )
+            return ((sc_h * sc_r).view(b_size, 1, self.scalar_dim) * sc_t
+                    + (re_h * re_r - im_h * im_r).view(b_size, 1, self.complex_dim) * re_t
+                    + (re_h * im_r + im_h * re_r).view(b_size, 1, self.complex_dim) * im_t).sum(dim=2)
 
-        if len(re_h.shape) == 3 and len(re_t.shape) == 2:
+        elif len(re_h.shape) == 3:
+            assert (len(re_t.shape) == 2) & (len(re_r.shape) == 2)
             # this is the head completion case in link prediction
-            sc_rt = (sc_r * sc_t).view(b_size, self.scalar_dim, 1)
-            sum1 = re_h.transpose(1, 2) * (re_r * re_t + im_r * im_t).view(
-                        b_size, self.complex_dim, 1)
-            sum2 = im_h.transpose(1, 2) * (re_r * im_t - im_r * re_t).view(
-                        b_size, self.complex_dim, 1)
-            return ((sc_h.transpose(1, 2) * sc_rt).sum(dim=1)
-                    + sum1.sum(dim=1)
-                    + sum2.sum(dim=1))
+            return (sc_h * (sc_r * sc_t).view(b_size, 1, self.scalar_dim)
+                    + re_h * (re_r * re_t + im_r * im_t).view(b_size, 1, self.complex_dim)
+                    + im_h * (re_r * im_t - im_r * re_t).view(b_size, 1, self.complex_dim)).sum(dim=2)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx):
+        elif len(re_r.shape) == 3:
+            assert (len(re_h.shape) == 2) & (len(re_t.shape) == 2)
+            # this is the relation prediction case
+            return (sc_r * (sc_h * sc_t).view(b_size, 1, self.scalar_dim)
+                    + re_r * (re_h * re_t + im_h * im_t).view(b_size, 1, self.complex_dim)
+                    + im_r * (re_h * im_t - im_h * re_t).view(b_size, 1, self.complex_dim)).sum(dim=2)
+
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
         b_size = h_idx.shape[0]
-
-        sc_candidates = self.sc_ent_emb.weight.data
-        sc_candidates = sc_candidates.view(1, self.n_ent, self.scalar_dim)
-        sc_candidates = sc_candidates.expand(b_size,
-                                             self.n_ent,
-                                             self.scalar_dim)
-
-        re_candidates = self.re_ent_emb.weight.data
-        re_candidates = re_candidates.view(1, self.n_ent, self.complex_dim)
-        re_candidates = re_candidates.expand(b_size,
-                                             self.n_ent,
-                                             self.complex_dim)
-
-        im_candidates = self.im_ent_emb.weight.data
-        im_candidates = im_candidates.view(1, self.n_ent, self.complex_dim)
-        im_candidates = im_candidates.expand(b_size,
-                                             self.n_ent,
-                                             self.complex_dim)
 
         sc_h = self.sc_ent_emb(h_idx)
         re_h = self.re_ent_emb(h_idx)
@@ -718,7 +732,33 @@ class AnalogyModel(BilinearModel):
         re_r = self.re_rel_emb(r_idx)
         im_r = self.im_rel_emb(r_idx)
 
+        if entities:
+            sc_candidates = self.sc_ent_emb.weight.data
+            sc_candidates = sc_candidates.view(1, self.n_ent, self.scalar_dim)
+            sc_candidates = sc_candidates.expand(b_size, self.n_ent, self.scalar_dim)
+
+            re_candidates = self.re_ent_emb.weight.data
+            re_candidates = re_candidates.view(1, self.n_ent, self.complex_dim)
+            re_candidates = re_candidates.expand(b_size, self.n_ent, self.complex_dim)
+
+            im_candidates = self.im_ent_emb.weight.data
+            im_candidates = im_candidates.view(1, self.n_ent, self.complex_dim)
+            im_candidates = im_candidates.expand(b_size, self.n_ent, self.complex_dim)
+
+        else:
+            sc_candidates = self.sc_rel_emb.weight.data
+            sc_candidates = sc_candidates.view(1, self.n_rel, self.scalar_dim)
+            sc_candidates = sc_candidates.expand(b_size, self.n_rel, self.scalar_dim)
+
+            re_candidates = self.re_rel_emb.weight.data
+            re_candidates = re_candidates.view(1, self.n_rel, self.complex_dim)
+            re_candidates = re_candidates.expand(b_size, self.n_rel, self.complex_dim)
+
+            im_candidates = self.im_rel_emb.weight.data
+            im_candidates = im_candidates.view(1, self.n_rel, self.complex_dim)
+            im_candidates = im_candidates.expand(b_size, self.n_rel, self.complex_dim)
+
         return (sc_h, re_h, im_h), \
                (sc_t, re_t, im_t), \
-               (sc_candidates, re_candidates, im_candidates), \
-               (sc_r, re_r, im_r)
+               (sc_r, re_r, im_r), \
+               (sc_candidates, re_candidates, im_candidates)

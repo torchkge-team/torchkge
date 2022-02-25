@@ -39,6 +39,10 @@ class KnowledgeGraph(Dataset):
         Dictionary of possible tails :math:`t` so that the triple
         :math:`(h,r,t)` gives a true fact. The keys are tuples (h, r).
         This is computed if not passed as argument.
+    dict_of_rels: dict, optional
+        Dictionary of possible relations :math:`r` so that the triple
+        :math:`(h,r,t)` gives a true fact. The keys are tuples (h, t).
+        This is computed if not passed as argument.
 
 
     Attributes
@@ -64,7 +68,7 @@ class KnowledgeGraph(Dataset):
     """
 
     def __init__(self, df=None, kg=None, ent2ix=None, rel2ix=None,
-                 dict_of_heads=None, dict_of_tails=None):
+                 dict_of_heads=None, dict_of_tails=None, dict_of_rels=None):
 
         if df is None:
             if kg is None:
@@ -116,14 +120,16 @@ class KnowledgeGraph(Dataset):
             self.tail_idx = kg['tails']
             self.relations = kg['relations']
 
-        if dict_of_heads is None or dict_of_tails is None:
+        if dict_of_heads is None or dict_of_tails is None or dict_of_rels is None:
             self.dict_of_heads = defaultdict(set)
             self.dict_of_tails = defaultdict(set)
+            self.dict_of_rels = defaultdict(set)
             self.evaluate_dicts()
 
         else:
             self.dict_of_heads = dict_of_heads
             self.dict_of_tails = dict_of_tails
+            self.dict_of_rels = dict_of_rels
         try:
             self.sanity_check()
         except AssertionError:
@@ -139,7 +145,8 @@ class KnowledgeGraph(Dataset):
 
     def sanity_check(self):
         assert (type(self.dict_of_heads) == defaultdict) & \
-               (type(self.dict_of_heads) == defaultdict)
+               (type(self.dict_of_heads) == defaultdict) & \
+               (type(self.dict_of_rels) == defaultdict)
         assert (type(self.ent2ix) == dict) & (type(self.rel2ix) == dict)
         assert (len(self.ent2ix) == self.n_ent) & \
                (len(self.rel2ix) == self.n_rel)
@@ -227,21 +234,24 @@ class KnowledgeGraph(Dataset):
                             'relations': self.relations[mask_tr]},
                         ent2ix=self.ent2ix, rel2ix=self.rel2ix,
                         dict_of_heads=self.dict_of_heads,
-                        dict_of_tails=self.dict_of_tails),
+                        dict_of_tails=self.dict_of_tails,
+                        dict_of_rels=self.dict_of_rels),
                     KnowledgeGraph(
                         kg={'heads': self.head_idx[mask_val],
                             'tails': self.tail_idx[mask_val],
                             'relations': self.relations[mask_val]},
                         ent2ix=self.ent2ix, rel2ix=self.rel2ix,
                         dict_of_heads=self.dict_of_heads,
-                        dict_of_tails=self.dict_of_tails),
+                        dict_of_tails=self.dict_of_tails,
+                        dict_of_rels=self.dict_of_rels),
                     KnowledgeGraph(
                         kg={'heads': self.head_idx[mask_te],
                             'tails': self.tail_idx[mask_te],
                             'relations': self.relations[mask_te]},
                         ent2ix=self.ent2ix, rel2ix=self.rel2ix,
                         dict_of_heads=self.dict_of_heads,
-                        dict_of_tails=self.dict_of_tails))
+                        dict_of_tails=self.dict_of_tails,
+                        dict_of_rels=self.dict_of_rels))
         else:
             # return training and testing graphs
 
@@ -259,14 +269,16 @@ class KnowledgeGraph(Dataset):
                             'relations': self.relations[mask_tr]},
                         ent2ix=self.ent2ix, rel2ix=self.rel2ix,
                         dict_of_heads=self.dict_of_heads,
-                        dict_of_tails=self.dict_of_tails),
+                        dict_of_tails=self.dict_of_tails,
+                        dict_of_rels=self.dict_of_rels),
                     KnowledgeGraph(
                         kg={'heads': self.head_idx[mask_te],
                             'tails': self.tail_idx[mask_te],
                             'relations': self.relations[mask_te]},
                         ent2ix=self.ent2ix, rel2ix=self.rel2ix,
                         dict_of_heads=self.dict_of_heads,
-                    dict_of_tails=self.dict_of_tails))
+                        dict_of_tails=self.dict_of_tails,
+                        dict_of_rels=self.dict_of_rels))
 
     def get_mask(self, share, validation=False):
         """Returns masks to split knowledge graph into train, test and
@@ -381,6 +393,8 @@ class KnowledgeGraph(Dataset):
                                 self.relations[i].item())].add(self.head_idx[i].item())
             self.dict_of_tails[(self.head_idx[i].item(),
                                 self.relations[i].item())].add(self.tail_idx[i].item())
+            self.dict_of_rels[(self.head_idx[i].item(),
+                               self.tail_idx[i].item())].add(self.relations[i].item())
 
     def get_df(self):
         """

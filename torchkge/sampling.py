@@ -503,6 +503,55 @@ class PositionalNegativeSampler(BernoulliNegativeSampler):
         return neg_heads.long(), neg_tails.long()
 
 
+class BernoulliRelationNegativeSampler(NegativeSampler):
+
+    def __init__(self, kg, kg_val=None, kg_test=None, n_neg=1, rel_share=.33):
+        super().__init__(kg, kg_val, kg_test, n_neg)
+        self.bern_probs = self.evaluate_probabilities()
+        self.rel_share = rel_share
+
+    def evaluate_probabilities(self):
+        bern_probs = get_bernoulli_probs(self.kg)
+
+        tmp = []
+        for i in range(self.kg.n_rel):
+            if i in bern_probs.keys():
+                tmp.append(bern_probs[i])
+            else:
+                tmp.append(0.5)
+
+        return tensor(tmp).float()
+
+    def corrupt_batch(self, heads, tails, relations, n_neg=None):
+
+        device = heads.device
+        assert (device == tails.device)
+
+        batch_size = heads.shape[0]
+        neg_heads = heads.clone().detach()
+        neg_tails = tails.clone().detach()
+        neg_rels = relations.clone().detach()
+
+        mask1 = bernoulli(self.rel_share * ones(batch_size)).double()  # if 1 then entities are corrupted
+
+        neg_rels[mask1 == 0] = randint(1, self.kg.n_rel, (int(batch_size - (mask1.sum().item())),), device=device)
+
+        # Randomly choose which samples will have head/tail corrupted
+        mask2 = ones(len(mask1))
+        mask2[mask1 == 0] = 0.
+
+        mask2[mask2 == 1] = bernoulli(self.bern_probs[relations[mask1 == 1]])
+
+        mask2 = mask2.double()
+
+        n_h_cor = int(mask2.sum().item())
+        neg_heads[(mask1 == 1) & (mask2 == 1)] = randint(1, self.n_ent, (n_h_cor,), device=device)
+        neg_tails[(mask1 == 1) & (mask2 == 0)] = randint(1, self.n_ent, (int(mask1.sum().item()) - n_h_cor,),
+                                                         device=device)
+
+        return neg_heads.long(), neg_tails.long(), neg_rels.long()
+
+
 def get_possible_heads_tails(kg, possible_heads=None, possible_tails=None):
     """Gets for each relation of the knowledge graph the possible heads and
     possible tails.

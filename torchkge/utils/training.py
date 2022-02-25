@@ -150,7 +150,7 @@ class Trainer:
         h, t, r = current_batch['h'], current_batch['t'], current_batch['r']
         nh, nt = current_batch['nh'], current_batch['nt']
 
-        p, n = self.model(h, t, nh, nt, r)
+        p, n = self.model(h, t, r, nh, nt)
         loss = self.criterion(p, n)
         loss.backward()
         self.optimizer.step()

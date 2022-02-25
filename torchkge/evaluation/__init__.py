@@ -1,2 +1,0 @@
-from .link_prediction import LinkPredictionEvaluator
-from .triplet_classification import TripletClassificationEvaluator

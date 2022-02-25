@@ -12,6 +12,6 @@ from .dissimilarities import l1_torus_dissimilarity, l2_torus_dissimilarity, \
     el2_torus_dissimilarity
 
 from .losses import MarginLoss, LogisticLoss, BinaryCrossEntropyLoss
-from .modeling import init_embedding, get_true_targets, load_embeddings
+from .modeling import init_embedding, get_true_targets, load_embeddings, filter_scores
 from .operations import get_rank, get_mask, get_bernoulli_probs
 from .training import Trainer, TrainDataLoader
