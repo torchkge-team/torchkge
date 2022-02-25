@@ -14,7 +14,7 @@ class Model(Module):
     """Model interface to be used by any other class implementing a knowledge
     graph embedding model. It is only
     required to implement the methods `scoring_function`,
-    `normalize_parameters`, `lp_prep_cands` and `lp_scoring_function`.
+    `normalize_parameters`, `inference_prepare_candidates` and `inference_scoring_function`.
 
     Parameters
     ----------
@@ -109,10 +109,10 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """ Link prediction evaluation helper function. Compute the scores of
         (h, r, c) or (c, r, t) for any candidate c. The arguments should
-        match the ones of `lp_prep_cands`.
+        match the ones of `inference_prepare_candidates`.
 
         Parameters
         ----------
@@ -130,10 +130,10 @@ class Model(Module):
         """
         raise NotImplementedError
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities and
         relations embeddings, along with entity candidates ready for (projected
-        if needed). The output will be fed to the `lp_scoring_function`
+        if needed). The output will be fed to the `inference_scoring_function`
         method of the model at hand.
 
         Parameters
@@ -148,11 +148,11 @@ class Model(Module):
         Returns
         -------
         h: torch.Tensor, shape: (b_size, rel_emb_dim), dtype: torch.float
-            Head vectors fed to `lp_scoring_function`. For translation
+            Head vectors fed to `inference_scoring_function`. For translation
             models it is the entities embeddings projected in relation space,
             for example.
         t: torch.Tensor, shape: (b_size, rel_emb_dim), dtype: torch.float
-            Tail vectors fed to `lp_scoring_function`. For translation
+            Tail vectors fed to `inference_scoring_function`. For translation
             models it is the entities embeddings projected in relation space,
             for example.
         candidates: torch.Tensor, shape: (b_size, rel_emb_dim, n_ent),
@@ -171,7 +171,7 @@ class TranslationModel(Model):
     translation knowledge graph embedding model. This interface inherits from
     the interface :class:`torchkge.models.interfaces.Model`. It is only
     required to implement the methods `scoring_function`,
-    `normalize_parameters` and `lp_prep_cands`.
+    `normalize_parameters` and `inference_prepare_candidates`.
 
     Parameters
     ----------
@@ -223,13 +223,13 @@ class TranslationModel(Model):
         """
         raise NotImplementedError
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """See torchkge.models.interfaces.Models.
 
         """
         raise NotImplementedError
 
-    def lp_scoring_function(self, proj_h, proj_t, r):
+    def inference_scoring_function(self, proj_h, proj_t, r):
         """This overwrites the method declared in
         torchkge.models.interfaces.Models. For translation models, the computed
         score is the dissimilarity of between projected heads + relations and
@@ -265,7 +265,7 @@ class BilinearModel(Model):
     bilinear knowledge graph embedding model. This interface inherits from
     the interface :class:`torchkge.models.interfaces.Model`. It is only
     required to implement the methods `scoring_function`,
-    `normalize_parameters`, `lp_prep_cands` and `lp_scoring_function`.
+    `normalize_parameters`, `inference_prepare_candidates` and `inference_scoring_function`.
 
     Parameters
     ----------
@@ -305,13 +305,13 @@ class BilinearModel(Model):
         """
         raise NotImplementedError
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """See torchkge.models.interfaces.Models.
 
         """
         raise NotImplementedError
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """See torchkge.models.interfaces.Models.
 
         """

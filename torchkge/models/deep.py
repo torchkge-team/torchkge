@@ -98,7 +98,7 @@ class ConvKBModel(Model):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_scoring_function(self, h, t, r):
+    def inference_scoring_function(self, h, t, r):
         """Link prediction evaluation helper function. See
         torchkge.models.interfaces.Models for more details on the API.
 
@@ -128,10 +128,10 @@ class ConvKBModel(Model):
 
         return scores[:, :, 1]
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """

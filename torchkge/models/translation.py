@@ -103,10 +103,10 @@ class TransEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
@@ -230,17 +230,17 @@ class TransHModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.norm_vect.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
         b_size = h_idx.shape[0]
 
         if not self.evaluated_projections:
-            self.lp_evaluate_projections()
+            self.evaluate_projections()
 
         r = self.rel_emb(r_idx)
 
@@ -256,7 +256,7 @@ class TransHModel(TranslationModel):
 
         return proj_h, proj_t, r, candidates
 
-    def lp_evaluate_projections(self):
+    def evaluate_projections(self):
         """Link prediction evaluation helper function. Project all entities
         according to each relation. Calling this method at the beginning of
         link prediction makes the process faster by computing projections only
@@ -402,17 +402,17 @@ class TransRModel(TranslationModel):
                                            self.rel_emb_dim,
                                            self.ent_emb_dim)
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
         b_size = h_idx.shape[0]
 
         if not self.evaluated_projections:
-            self.lp_evaluate_projections()
+            self.evaluate_projectionss()
 
         r = self.rel_emb(r_idx)  # shape = (b_size, self.rel_emb_dim)
 
@@ -428,7 +428,7 @@ class TransRModel(TranslationModel):
 
         return proj_h, proj_t, candidates, r
 
-    def lp_evaluate_projections(self):
+    def evaluate_projectionss(self):
         """Link prediction evaluation helper function. Project all entities
         according to each relation. Calling this method at the beginning of
         link prediction makes the process faster by computing projections only
@@ -599,17 +599,17 @@ class TransDModel(TranslationModel):
         return self.ent_emb.weight.data, self.rel_emb.weight.data, \
             self.ent_proj_vect.weight.data, self.rel_proj_vect.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """
         b_size = h_idx.shape[0]
 
         if not self.evaluated_projections:
-            self.lp_evaluate_projections()
+            self.evaluate_projectionss()
 
         r = self.rel_emb(r_idx)
 
@@ -625,7 +625,7 @@ class TransDModel(TranslationModel):
 
         return proj_h, proj_t, candidates, r
 
-    def lp_evaluate_projections(self):
+    def evaluate_projectionss(self):
         """Link prediction evaluation helper function. Project all entities
         according to each relation. Calling this method at the beginning of
         link prediction makes the process faster by computing projections only
@@ -740,10 +740,10 @@ class TorusEModel(TranslationModel):
         self.normalize_parameters()
         return self.ent_emb.weight.data, self.rel_emb.weight.data
 
-    def lp_prep_cands(self, h_idx, t_idx, r_idx, entities=True):
+    def inference_prepare_candidates(self, h_idx, t_idx, r_idx, entities=True):
         """Link prediction evaluation helper function. Get entities embeddings
         and relations embeddings. The output will be fed to the
-        `lp_scoring_function` method. See torchkge.models.interfaces.Models for
+        `inference_scoring_function` method. See torchkge.models.interfaces.Models for
         more details on the API.
 
         """

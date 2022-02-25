@@ -48,9 +48,9 @@ class RelationPredictionEvaluator(object):
                              unit='batch', disable=(not verbose),
                              desc='Relation prediction evaluation'):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-            h_emb, t_emb, r_emb, candidates = self.model.lp_prep_cands(h_idx, t_idx, r_idx, entities=False)
+            h_emb, t_emb, r_emb, candidates = self.model.inference_prepare_candidates(h_idx, t_idx, r_idx, entities=False)
 
-            scores = self.model.lp_scoring_function(h_emb, t_emb, candidates)
+            scores = self.model.inference_scoring_function(h_emb, t_emb, candidates)
             filt_scores = filter_scores(scores, self.kg.dict_of_rels, h_idx, t_idx, r_idx)
 
             self.rank_true_rels[i * b_size: (i + 1) * b_size] = get_rank(scores, r_idx)
@@ -237,14 +237,14 @@ class LinkPredictionEvaluator(object):
                              unit='batch', disable=(not verbose),
                              desc='Link prediction evaluation'):
             h_idx, t_idx, r_idx = batch[0], batch[1], batch[2]
-            h_emb, t_emb, r_emb, candidates = self.model.lp_prep_cands(h_idx, t_idx, r_idx, entities=True)
+            h_emb, t_emb, r_emb, candidates = self.model.inference_prepare_candidates(h_idx, t_idx, r_idx, entities=True)
 
-            scores = self.model.lp_scoring_function(h_emb, candidates, r_emb)
+            scores = self.model.inference_scoring_function(h_emb, candidates, r_emb)
             filt_scores = filter_scores(scores, self.kg.dict_of_tails, h_idx, r_idx, t_idx)
             self.rank_true_tails[i * b_size: (i + 1) * b_size] = get_rank(scores, t_idx)
             self.filt_rank_true_tails[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, t_idx)
 
-            scores = self.model.lp_scoring_function(candidates, t_emb, r_emb)
+            scores = self.model.inference_scoring_function(candidates, t_emb, r_emb)
             filt_scores = filter_scores(scores, self.kg.dict_of_heads, t_idx, r_idx, h_idx)
             self.rank_true_heads[i * b_size: (i + 1) * b_size] = get_rank(scores, h_idx)
             self.filt_rank_true_heads[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, h_idx)

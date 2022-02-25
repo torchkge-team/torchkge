@@ -100,8 +100,8 @@ class RelationInference(object):
                              unit='batch', disable=(not verbose),
                              desc='Inference'):
             ents1, ents2 = batch[0], batch[1]
-            h_emb, t_emb, _, candidates = self.model.lp_prep_cands(ents1, ents2, tensor([]).long(), entities=False)
-            scores = self.model.lp_scoring_function(h_emb, t_emb, candidates)
+            h_emb, t_emb, _, candidates = self.model.inference_prepare_candidates(ents1, ents2, tensor([]).long(), entities=False)
+            scores = self.model.inference_scoring_function(h_emb, t_emb, candidates)
 
             if self.dictionary is not None:
                 scores = filter_scores(scores, self.dictionary, ents1, ents2, None)
@@ -147,13 +147,13 @@ class EntityInference(object):
                              desc='Inference'):
             known_ents, known_rels = batch[0], batch[1]
             if self.missing == 'heads':
-                _, t_emb, rel_emb, candidates = self.model.lp_prep_cands(tensor([]).long(), known_ents, known_rels,
-                                                                         entities=True)
-                scores = self.model.lp_scoring_function(candidates, t_emb, rel_emb)
+                _, t_emb, rel_emb, candidates = self.model.inference_prepare_candidates(tensor([]).long(), known_ents, known_rels,
+                                                                                        entities=True)
+                scores = self.model.inference_scoring_function(candidates, t_emb, rel_emb)
             else:
-                h_emb, _, rel_emb, candidates = self.model.lp_prep_cands(known_ents, tensor([]).long(), known_rels,
-                                                                         entities=True)
-                scores = self.model.lp_scoring_function(h_emb, candidates, rel_emb)
+                h_emb, _, rel_emb, candidates = self.model.inference_prepare_candidates(known_ents, tensor([]).long(), known_rels,
+                                                                                        entities=True)
+                scores = self.model.inference_scoring_function(h_emb, candidates, rel_emb)
 
             if self.dictionary is not None:
                 scores = filter_scores(scores, self.dictionary, known_ents, known_rels, None)
