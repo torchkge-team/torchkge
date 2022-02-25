@@ -14,6 +14,41 @@ from .utils import DataLoader, get_rank, filter_scores
 
 
 class RelationPredictionEvaluator(object):
+    """Evaluate performance of given embedding using relation prediction method.
+
+        References
+        ----------
+        * Armand Boschin, Thomas Bonald.
+          Enriching Wikidata with Semantified Wikipedia Hyperlinks
+          In proceedings of the Wikidata workshop, ISWC2021, 2021.
+          http://ceur-ws.org/Vol-2982/paper-6.pdf
+
+        Parameters
+        ----------
+        model: torchkge.models.interfaces.Model
+            Embedding model inheriting from the right interface.
+        knowledge_graph: torchkge.data_structures.KnowledgeGraph
+            Knowledge graph on which the evaluation will be done.
+
+        Attributes
+        ----------
+        model: torchkge.models.interfaces.Model
+            Embedding model inheriting from the right interface.
+        kg: torchkge.data_structures.KnowledgeGraph
+            Knowledge graph on which the evaluation will be done.
+        rank_true_rels: torch.Tensor, shape: (n_facts), dtype: `torch.int`
+            For each fact, this is the rank of the true relation when all relations
+            are ranked. They are ranked in decreasing order of scoring function
+            :math:`f_r(h,t)`.
+        filt_rank_true_rels: torch.Tensor, shape: (n_facts), dtype: `torch.int`
+            This is the same as the `rank_true_rels` when in the filtered
+            case. See referenced paper by Bordes et al. for more information.
+        evaluated: bool
+            Indicates if the method LinkPredictionEvaluator.evaluate has already
+            been called.
+
+        """
+
     def __init__(self, model, knowledge_graph):
         self.model = model
         self.kg = knowledge_graph
@@ -157,6 +192,15 @@ class RelationPredictionEvaluator(object):
 class LinkPredictionEvaluator(object):
     """Evaluate performance of given embedding using link prediction method.
 
+    References
+    ----------
+    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston,
+      and Oksana Yakhnenko.
+      Translating Embeddings for Modeling Multi-relational Data.
+      In Advances in Neural Information Processing Systems 26, pages 2787–2795,
+      2013.
+      https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
+
     Parameters
     ----------
     model: torchkge.models.interfaces.Model
@@ -179,23 +223,14 @@ class LinkPredictionEvaluator(object):
         are ranked as possible replacement of the tail entity. They are
         ranked in decreasing order of scoring function :math:`f_r(h,t)`.
     filt_rank_true_heads: torch.Tensor, shape: (n_facts), dtype: `torch.int`
-        This is the same as the `rank_of_true_heads` when is the filtered
+        This is the same as the `rank_of_true_heads` when in the filtered
         case. See referenced paper by Bordes et al. for more information.
     filt_rank_true_tails: torch.Tensor, shape: (n_facts), dtype: `torch.int`
-        This is the same as the `rank_of_true_tails` when is the filtered
+        This is the same as the `rank_of_true_tails` when in the filtered
         case. See referenced paper by Bordes et al. for more information.
     evaluated: bool
         Indicates if the method LinkPredictionEvaluator.evaluate has already
         been called.
-
-    References
-    ----------
-    * Antoine Bordes, Nicolas Usunier, Alberto Garcia-Duran, Jason Weston,
-      and Oksana Yakhnenko.
-      Translating Embeddings for Modeling Multi-relational Data.
-      In Advances in Neural Information Processing Systems 26, pages 2787–2795,
-      2013.
-      https://papers.nips.cc/paper/5071-translating-embeddings-for-modeling-multi-relational-data
 
     """
 

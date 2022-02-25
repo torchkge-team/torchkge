@@ -31,7 +31,6 @@ are due to missing models in the library.
 
 Relation Prediction
 -------------------
-
 .. autoclass:: torchkge.evaluation.RelationPredictionEvaluator
 
 Triplet Classification

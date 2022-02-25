@@ -73,7 +73,7 @@ class DataLoader:
 
         Parameters
         ----------
-        kg: torchkge.data_structures.KnowledgeGraph
+        kg: torchkge.data_structures.KnowledgeGraph or torchkge.data_structures.SmallKG
             Knowledge graph in the form of an object implemented in
             torchkge.data_structures.
         batch_size: int

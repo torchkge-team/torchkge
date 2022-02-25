@@ -150,6 +150,8 @@ class Model(Module):
             List of tails indices.
         r_idx: torch.Tensor, shape: (b_size), dtype: torch.long
             List of relations indices.
+        entities: bool
+            Boolean indicating if candidates are entities or not.
 
         Returns
         -------

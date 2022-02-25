@@ -82,7 +82,7 @@ class TransEModel(TranslationModel):
 
     def normalize_parameters(self):
         """Normalize the entity embeddings, as explained in original paper.
-        This methods should be called at the end of each training epoch and at
+        This method should be called at the end of each training epoch and at
         the end of training as well.
 
         """
