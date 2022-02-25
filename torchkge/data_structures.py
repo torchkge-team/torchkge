@@ -20,7 +20,7 @@ class KnowledgeGraph(Dataset):
 
     Parameters
     ----------
-    df: pandas.DataFrame (optional)
+    df: pandas.DataFrame, optional
         Data frame containing three columns [from, to, rel].
     kg: dict, optional
         Dictionary with keys ('heads', 'tails', 'relations') and values
