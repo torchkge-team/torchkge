@@ -26,10 +26,15 @@ are due to missing models in the library.
 |TorchKGE   | 76.1      | 13.8      | 60.8      | 11.1      | 46.9      |  7.1      | 96.4      | 18.6      |
 +-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+-----------+
 
-.. autoclass:: torchkge.evaluation.link_prediction.LinkPredictionEvaluator
+.. autoclass:: torchkge.evaluation.LinkPredictionEvaluator
     :members:
+
+Relation Prediction
+-------------------
+
+.. autoclass:: torchkge.evaluation.RelationPredictionEvaluator
 
 Triplet Classification
 ----------------------
-.. autoclass:: torchkge.evaluation.triplet_classification.TripletClassificationEvaluator
+.. autoclass:: torchkge.evaluation.TripletClassificationEvaluator
     :members:

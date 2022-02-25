@@ -51,7 +51,7 @@ together::
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            pos, neg = model(h, t, n_h, n_t, r)
+            pos, neg = model(h, t, r, n_h, n_t)
             loss = criterion(pos, neg)
             loss.backward()
             optimizer.step()
