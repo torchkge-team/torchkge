@@ -76,16 +76,54 @@ class _DataLoaderIter:
 
 
 class RelationInference(object):
-    def __init__(self, model, entities1, entities2, topk=1, dictionary=None):
+    """Use trained embedding model to infer missing relations in triples.
+
+    Parameters
+    ----------
+    model: torchkge.models.interfaces.Model
+        Embedding model inheriting from the right interface.
+    entities1: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+        List of the indices of known entities 1.
+    entities2: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+        List of the indices of known entities 2.
+    top_k: int
+        Indicates the number of top predictions to return.
+    dictionary: dict, optional (default=None)
+        Dictionary of possible relations. It is used to filter predictions
+        that are known to be True in the training set in order to return
+        only new facts.
+
+    Attributes
+    ----------
+    model: torchkge.models.interfaces.Model
+        Embedding model inheriting from the right interface.
+    entities1: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+        List of the indices of known entities 1.
+    entities2: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+        List of the indices of known entities 2.
+    top_k: int
+        Indicates the number of top predictions to return.
+    dictionary: dict, optional (default=None)
+        Dictionary of possible relations. It is used to filter predictions
+        that are known to be True in the training set in order to return
+        only new facts.
+    predictions: `torch.Tensor`, shape: (n_facts, self.top_k), dtype: `torch.long`
+        List of the indices of predicted relations for each test fact.
+    scores: `torch.Tensor`, shape: (n_facts, self.top_k), dtype: `torch.float`
+        List of the scores of resulting triples for each test fact.
+    """
+    # TODO: add the possibility to infer link orientation as well.
+
+    def __init__(self, model, entities1, entities2, top_k=1, dictionary=None):
 
         self.model = model
         self.entities1 = entities1
         self.entities2 = entities2
-        self.topk = topk
+        self.topk = top_k
         self.dictionary = dictionary
 
-        self.predictions = empty(size=(len(entities1), topk)).long()
-        self.scores = empty(size=(len(entities2), topk))
+        self.predictions = empty(size=(len(entities1), top_k)).long()
+        self.scores = empty(size=(len(entities2), top_k))
 
     def evaluate(self, b_size, verbose=True):
         use_cuda = next(self.model.parameters()).is_cuda
@@ -100,7 +138,8 @@ class RelationInference(object):
                              unit='batch', disable=(not verbose),
                              desc='Inference'):
             ents1, ents2 = batch[0], batch[1]
-            h_emb, t_emb, _, candidates = self.model.inference_prepare_candidates(ents1, ents2, tensor([]).long(), entities=False)
+            h_emb, t_emb, _, candidates = self.model.inference_prepare_candidates(ents1, ents2, tensor([]).long(),
+                                                                                  entities=False)
             scores = self.model.inference_scoring_function(h_emb, t_emb, candidates)
 
             if self.dictionary is not None:
@@ -117,7 +156,48 @@ class RelationInference(object):
 
 
 class EntityInference(object):
-    def __init__(self, model, known_entities, known_relations, topk=1, missing='tails', dictionary=None):
+    """Use trained embedding model to infer missing entities in triples.
+
+        Parameters
+        ----------
+        model: torchkge.models.interfaces.Model
+            Embedding model inheriting from the right interface.
+        known_entities: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+            List of the indices of known entities.
+        known_relations: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+            List of the indices of known relations.
+        top_k: int
+            Indicates the number of top predictions to return.
+        missing: str
+            String indicating if the missing entities are the heads or the tails.
+        dictionary: dict, optional (default=None)
+            Dictionary of possible heads or tails (depending on the value of `missing`).
+            It is used to filter predictions that are known to be True in the training set
+            in order to return only new facts.
+
+        Attributes
+        ----------
+        model: torchkge.models.interfaces.Model
+            Embedding model inheriting from the right interface.
+        known_entities: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+            List of the indices of known entities.
+        known_relations: `torch.Tensor`, shape: (n_facts), dtype: `torch.long`
+            List of the indices of known relations.
+        top_k: int
+            Indicates the number of top predictions to return.
+        missing: str
+            String indicating if the missing entities are the heads or the tails.
+        dictionary: dict, optional (default=None)
+            Dictionary of possible heads or tails (depending on the value of `missing`).
+            It is used to filter predictions that are known to be True in the training set
+            in order to return only new facts.
+        predictions: `torch.Tensor`, shape: (n_facts, self.top_k), dtype: `torch.long`
+            List of the indices of predicted entities for each test fact.
+        scores: `torch.Tensor`, shape: (n_facts, self.top_k), dtype: `torch.float`
+            List of the scores of resulting triples for each test fact.
+
+    """
+    def __init__(self, model, known_entities, known_relations, top_k=1, missing='tails', dictionary=None):
         try:
             assert missing in ['heads', 'tails']
             self.missing = missing
@@ -127,11 +207,11 @@ class EntityInference(object):
         self.known_entities = known_entities
         self.known_relations = known_relations
         self.missing = missing
-        self.topk = topk
+        self.top_k = top_k
         self.dictionary = dictionary
 
-        self.predictions = empty(size=(len(known_entities), topk)).long()
-        self.scores = empty(size=(len(known_entities), topk))
+        self.predictions = empty(size=(len(known_entities), top_k)).long()
+        self.scores = empty(size=(len(known_entities), top_k))
 
     def evaluate(self, b_size, verbose=True):
         use_cuda = next(self.model.parameters()).is_cuda
@@ -147,11 +227,13 @@ class EntityInference(object):
                              desc='Inference'):
             known_ents, known_rels = batch[0], batch[1]
             if self.missing == 'heads':
-                _, t_emb, rel_emb, candidates = self.model.inference_prepare_candidates(tensor([]).long(), known_ents, known_rels,
+                _, t_emb, rel_emb, candidates = self.model.inference_prepare_candidates(tensor([]).long(), known_ents,
+                                                                                        known_rels,
                                                                                         entities=True)
                 scores = self.model.inference_scoring_function(candidates, t_emb, rel_emb)
             else:
-                h_emb, _, rel_emb, candidates = self.model.inference_prepare_candidates(known_ents, tensor([]).long(), known_rels,
+                h_emb, _, rel_emb, candidates = self.model.inference_prepare_candidates(known_ents, tensor([]).long(),
+                                                                                        known_rels,
                                                                                         entities=True)
                 scores = self.model.inference_scoring_function(h_emb, candidates, rel_emb)
 
@@ -160,8 +242,8 @@ class EntityInference(object):
 
             scores, indices = scores.sort(descending=True)
 
-            self.predictions[i * b_size: (i+1)*b_size] = indices[:, :self.topk]
-            self.scores[i*b_size, (i+1)*b_size] = scores[:, :self.topk]
+            self.predictions[i * b_size: (i+1)*b_size] = indices[:, :self.top_k]
+            self.scores[i*b_size, (i+1)*b_size] = scores[:, :self.top_k]
 
         if use_cuda:
             self.predictions = self.predictions.cpu()

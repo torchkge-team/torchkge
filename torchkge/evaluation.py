@@ -29,6 +29,10 @@ class RelationPredictionEvaluator(object):
             Embedding model inheriting from the right interface.
         knowledge_graph: torchkge.data_structures.KnowledgeGraph
             Knowledge graph on which the evaluation will be done.
+        directed: bool, optional (default=True)
+            Indicates whether the orientation head to tail is known when
+            predicting missing relations. If False, then both tests (h, _, t)
+            and (t, _, r) are done to find the best scoring triples.
 
         Attributes
         ----------
@@ -46,12 +50,16 @@ class RelationPredictionEvaluator(object):
         evaluated: bool
             Indicates if the method LinkPredictionEvaluator.evaluate has already
             been called.
-
+        directed: bool, optional (default=True)
+            Indicates whether the orientation head to tail is known when
+            predicting missing relations. If False, then both tests (h, _, t)
+            and (t, _, r) are done to find the best scoring triples.
         """
 
-    def __init__(self, model, knowledge_graph):
+    def __init__(self, model, knowledge_graph, directed=True):
         self.model = model
         self.kg = knowledge_graph
+        self.directed = directed
 
         self.rank_true_rels = empty(size=(knowledge_graph.n_facts,)).long()
         self.filt_rank_true_rels = empty(size=(knowledge_graph.n_facts,)).long()
@@ -88,8 +96,15 @@ class RelationPredictionEvaluator(object):
             scores = self.model.inference_scoring_function(h_emb, t_emb, candidates)
             filt_scores = filter_scores(scores, self.kg.dict_of_rels, h_idx, t_idx, r_idx)
 
-            self.rank_true_rels[i * b_size: (i + 1) * b_size] = get_rank(scores, r_idx)
-            self.filt_rank_true_rels[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, r_idx)
+            if not self.directed:
+                scores_bis = self.model.inference_scoring_function(t_emb, h_emb, candidates)
+                filt_scores_bis = filter_scores(scores_bis, self.kg.dict_of_rels, h_idx, t_idx, r_idx)
+
+                scores = cat((scores, scores_bis), dim=1)
+                filt_scores = cat((filt_scores, filt_scores_bis), dim=1)
+
+            self.rank_true_rels[i * b_size: (i + 1) * b_size] = get_rank(scores, r_idx).detach()
+            self.filt_rank_true_rels[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, r_idx).detach()
 
         self.evaluated = True
 
@@ -276,13 +291,13 @@ class LinkPredictionEvaluator(object):
 
             scores = self.model.inference_scoring_function(h_emb, candidates, r_emb)
             filt_scores = filter_scores(scores, self.kg.dict_of_tails, h_idx, r_idx, t_idx)
-            self.rank_true_tails[i * b_size: (i + 1) * b_size] = get_rank(scores, t_idx)
-            self.filt_rank_true_tails[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, t_idx)
+            self.rank_true_tails[i * b_size: (i + 1) * b_size] = get_rank(scores, t_idx).detach()
+            self.filt_rank_true_tails[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, t_idx).detach()
 
             scores = self.model.inference_scoring_function(candidates, t_emb, r_emb)
             filt_scores = filter_scores(scores, self.kg.dict_of_heads, t_idx, r_idx, h_idx)
-            self.rank_true_heads[i * b_size: (i + 1) * b_size] = get_rank(scores, h_idx)
-            self.filt_rank_true_heads[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, h_idx)
+            self.rank_true_heads[i * b_size: (i + 1) * b_size] = get_rank(scores, h_idx).detach()
+            self.filt_rank_true_heads[i * b_size: (i + 1) * b_size] = get_rank(filt_scores, h_idx).detach()
 
         self.evaluated = True
 
@@ -442,7 +457,7 @@ class TripletClassificationEvaluator(object):
     evaluated: bool
         Indicate whether the `evaluate` function has been called.
     thresholds: float
-        Float value of the thresholds for the scoring function to consider a
+        Value of the thresholds for the scoring function to consider a
         triplet as true. It is defined by calling the `evaluate` method.
     sampler: torchkge.sampling.NegativeSampler
         Negative sampler.
