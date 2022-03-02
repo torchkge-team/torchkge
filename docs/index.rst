@@ -16,6 +16,7 @@ Welcome to TorchKGE' s documentation!
 
    reference/models
    reference/evaluation
+   reference/inference
    reference/sampling
    reference/data
    reference/utils
