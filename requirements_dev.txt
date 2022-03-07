@@ -10,6 +10,6 @@ pytest-runner==6.0.0
 pytest==7.0.1
 
 # Deployement
-pip==22.0.3
+pip==22.0.4
 bumpversion==0.6
 wheel==0.37.1
