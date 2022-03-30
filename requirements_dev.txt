@@ -1,7 +1,7 @@
 # Documentation
 sphinx>=3.1
 sphinx_rtd_theme==1.0
-numpydoc==1.2
+numpydoc==1.2.1
 
 # Tests
 flake8>=3.8.3
