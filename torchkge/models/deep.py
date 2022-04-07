@@ -82,7 +82,7 @@ class ConvKBModel(Model):
         the end of training as well.
 
         """
-        raise NotImplementedError
+        pass
 
     def get_embeddings(self):
         """Return the embeddings of entities and relations.
