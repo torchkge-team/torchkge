@@ -145,7 +145,7 @@ class KnowledgeGraph(Dataset):
 
     def sanity_check(self):
         assert (type(self.dict_of_heads) == defaultdict) & \
-               (type(self.dict_of_heads) == defaultdict) & \
+               (type(self.dict_of_tails) == defaultdict) & \
                (type(self.dict_of_rels) == defaultdict)
         assert (type(self.ent2ix) == dict) & (type(self.rel2ix) == dict)
         assert (len(self.ent2ix) == self.n_ent) & \
