@@ -276,9 +276,9 @@ class BernoulliNegativeSampler(NegativeSampler):
         return tensor(tmp).float()
 
     def corrupt_batch(self, heads, tails, relations, n_neg=None):
-        """For each true triplet, produce a corrupted one different from any
-        other true triplet. If `heads` and `tails` are cuda objects , then the
-        returned tensors are on the GPU.
+        """For each true triplet, produce a corrupted one assumed to be different
+        from any other true triplet. If `heads` and `tails` are cuda objects,
+        then the returned tensors are on the GPU.
 
         Parameters
         ----------

@@ -2,10 +2,18 @@
 History
 =======
 
+0.17.3 (2022-04-21)
+-------------------
+* Fix ConvKB scoring function and normalization step
+
+0.17.2 (2022-03-02)
+-------------------
+* Fix the documentation in evaluation and inference modules
+* Fix a typo in the sampling module's documentation
+
 0.17.1 (2022-02-25)
 -------------------
 * Add support of Python 3.7 back
-
 
 0.17.0 (2022-02-25)
 -------------------
