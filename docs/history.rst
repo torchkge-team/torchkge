@@ -2,6 +2,10 @@
 History
 =======
 
+0.17.3 (2022-04-21)
+-------------------
+* Fix ConvKB scoring function and normalization step
+
 0.17.2 (2022-03-02)
 -------------------
 * Fix the documentation in evaluation and inference modules
