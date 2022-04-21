@@ -74,7 +74,7 @@ class ConvKBModel(Model):
         r = self.rel_emb(r_idx).view(b_size, 1, -1)
         concat = cat((h, r, t), dim=1)
 
-        return self.output(self.convlayer(concat).reshape(b_size, -1))
+        return self.output(self.convlayer(concat).reshape(b_size, -1))[:, 1]
 
     def normalize_parameters(self):
         """Normalize the entity embeddings, as explained in original paper.
