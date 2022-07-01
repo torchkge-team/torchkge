@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 
-requirements = ['torch>=1.2.0', 'tqdm', 'pandas==1.3.5', 'numpy==1.23.0']
+requirements = ['torch>=1.2.0', 'tqdm', 'pandas==1.3.5', 'numpy==1.22']
 
 setup_requirements = ['pytest-runner']
 
@@ -23,7 +23,8 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9'
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10'
     ],
     description="Knowledge Graph embedding in Python and PyTorch.",
     license="BSD license",
