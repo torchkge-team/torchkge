@@ -9,7 +9,6 @@ from pandas import DataFrame
 from torch import zeros, cat
 from numpy import unique
 
-from .. import KnowledgeGraph
 
 def get_mask(length, start, end):
     """Create a mask of length `length` filled with 0s except between indices
@@ -86,7 +85,7 @@ def get_dictionaries(df, ent=True):
         return {rel: i for i, rel in enumerate(sorted(tmp))}
 
 
-def extend_dicts(kg: KnowledgeGraph, attributes: DataFrame):
+def extend_dicts(kg, attributes):
     ent2ix = {k: v for k, v in kg.ent2ix.items()}
     rel2ix = {k: v for k, v in kg.rel2ix.items()}
 
