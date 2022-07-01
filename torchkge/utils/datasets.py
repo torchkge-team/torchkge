@@ -7,7 +7,7 @@ This module's code is freely adapted from Scikit-Learn's
 sklearn.datasets.base.py code.
 """
 
-import shutil
+import pickle
 import tarfile
 import zipfile
 
@@ -19,6 +19,7 @@ from urllib.request import urlretrieve
 from torchkge.data_structures import KnowledgeGraph
 
 from torchkge.utils import get_data_home
+from torchkge.utils.operations import extend_dicts
 
 
 def load_fb13(data_home=None):
@@ -363,6 +364,7 @@ def load_wikidata_vitals(level=5, data_home=None):
 
     if not exists(data_path):
         makedirs(data_path, exist_ok=True)
+        print('Downloading archive')
         urlretrieve("https://graphs.telecom-paristech.fr/data/torchkge/kgs/wikidatavitals-level{}.zip".format(level),
                     data_home + '/wikidatavitals-level{}.zip'.format(level))
 
@@ -370,34 +372,45 @@ def load_wikidata_vitals(level=5, data_home=None):
             zip_ref.extractall(data_home)
         remove(data_home + '/wikidatavitals-level{}.zip'.format(level))
 
-    df = read_csv(data_path + '/edges.tsv', sep='\t',
-                  names=['from', 'to', 'rel'], skiprows=1)
-    attributes = read_csv(data_path + '/attributes.tsv', sep='\t',
-                  names=['from', 'to', 'rel'], skiprows=1)
+    if not exists(data_path+'/kgs.pkl'):
+        print('Building torchkge.KnowledgeGraph objects from the archive.')
+        df = read_csv(data_path + '/edges.tsv', sep='\t',
+                      names=['from', 'to', 'rel'], skiprows=1)
+        attributes = read_csv(data_path + '/attributes.tsv', sep='\t',
+                      names=['from', 'to', 'rel'], skiprows=1)
 
-    entities = read_csv(data_path + '/entities.tsv', sep='\t')
-    relations = read_csv(data_path + '/relations.tsv', sep='\t')
-    nodes = read_csv(data_path + '/nodes.tsv', sep='\t')
+        entities = read_csv(data_path + '/entities.tsv', sep='\t')
+        relations = read_csv(data_path + '/relations.tsv', sep='\t')
+        nodes = read_csv(data_path + '/nodes.tsv', sep='\t')
 
-    df = enrich(df, entities, relations)
-    attributes = enrich(attributes, entities, relations)
+        df = enrich(df, entities, relations)
+        attributes = enrich(attributes, entities, relations)
 
-    relid2label = {relations.loc[i, 'wikidataID']: relations.loc[i, 'label']
-                   for i in relations.index}
-    entid2label = {entities.loc[i, 'wikidataID']: entities.loc[i, 'label'] for
-                   i in entities.index}
-    entid2pagename = {nodes.loc[i, 'wikidataID']: nodes.loc[i, 'pageName'] for
-                      i in nodes.index}
+        relid2label = {relations.loc[i, 'wikidataID']: relations.loc[i, 'label']
+                       for i in relations.index}
+        entid2label = {entities.loc[i, 'wikidataID']: entities.loc[i, 'label'] for
+                       i in entities.index}
+        entid2pagename = {nodes.loc[i, 'wikidataID']: nodes.loc[i, 'pageName'] for
+                          i in nodes.index}
 
-    kg = KnowledgeGraph(df)
-    kg_attr = KnowledgeGraph(attributes)
+        kg = KnowledgeGraph(df)
+        ent2ix, rel2ix = extend_dicts(kg, attributes)
+        kg_attr = KnowledgeGraph(attributes, ent2ix=ent2ix, rel2ix=rel2ix)
 
-    kg.relid2label = relid2label
-    kg_attr.relid2label = relid2label
-    kg.entid2label = entid2label
-    kg_attr.entid2label = entid2label
-    kg.entid2pagename = entid2pagename
-    kg_attr.entid2pagename = entid2pagename
+        kg.relid2label = relid2label
+        kg_attr.relid2label = relid2label
+        kg.entid2label = entid2label
+        kg_attr.entid2label = entid2label
+        kg.entid2pagename = entid2pagename
+        kg_attr.entid2pagename = entid2pagename
+
+        with open(data_path + '/kgs.pkl', 'wb') as f:
+            pickle.dump((kg, kg_attr), f)
+
+    else:
+        print('Loading torchkge.KnowledgeGraph objects form disk.')
+        with open(data_path + '/kgs.pkl', 'rb') as f:
+            kg, kg_attr = pickle.load(f)
 
     return kg, kg_attr
 

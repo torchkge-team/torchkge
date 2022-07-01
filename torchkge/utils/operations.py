@@ -7,7 +7,9 @@ Copyright TorchKGE developers
 from collections import defaultdict
 from pandas import DataFrame
 from torch import zeros, cat
+from numpy import unique
 
+from .. import KnowledgeGraph
 
 def get_mask(length, start, end):
     """Create a mask of length `length` filled with 0s except between indices
@@ -82,6 +84,34 @@ def get_dictionaries(df, ent=True):
     else:
         tmp = list(df['rel'].unique())
         return {rel: i for i, rel in enumerate(sorted(tmp))}
+
+
+def extend_dicts(kg: KnowledgeGraph, attributes: DataFrame):
+    ent2ix = {k: v for k, v in kg.ent2ix.items()}
+    rel2ix = {k: v for k, v in kg.rel2ix.items()}
+
+    assert len(ent2ix) == len(unique(list(ent2ix.values())))
+    assert len(rel2ix) == len(unique(list(rel2ix.values())))
+
+    tmp = list(set(attributes['from'].unique()).union(set(attributes['to'].unique())))
+    for ent in sorted(tmp):
+        if ent in ent2ix.keys():
+            continue
+        else:
+            ent2ix[ent] = len(ent2ix)
+
+    tmp = list(attributes['rel'].unique())
+    for rel in sorted(tmp):
+        if rel in rel2ix.keys():
+            continue
+        else:
+            rel2ix[rel] = len(rel2ix)
+    assert len(ent2ix) == len(unique(list(ent2ix.values())))
+    assert len(rel2ix) == len(unique(list(rel2ix.values())))
+    assert len(ent2ix) == (max(list(ent2ix.values())) + 1)
+    assert len(rel2ix) == (max(list(rel2ix.values())) + 1)
+
+    return ent2ix, rel2ix
 
 
 def get_tph(t):
