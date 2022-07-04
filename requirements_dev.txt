@@ -1,6 +1,7 @@
 numpy>=1.22
 pandas>=1.4
 torch>=1.2
+tqdm>=4.64
 
 # Documentation
 sphinx>=3.1
