@@ -2,6 +2,12 @@
 History
 =======
 
+0.17.4 (2022-07-04)
+-------------------
+* Upgrade dependencies
+* Fix normalization in translation models
+* Improve loading function of wikidatavitals datasets.
+
 0.17.3 (2022-04-21)
 -------------------
 * Fix ConvKB scoring function and normalization step
