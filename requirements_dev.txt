@@ -4,17 +4,17 @@ torch>=1.2
 tqdm>=4.64
 
 # Documentation
-sphinx>=3.1
+sphinx==5.0.2
 sphinx_rtd_theme==1.0
-numpydoc==1.2.1
+numpydoc==1.4.0
 
 # Tests
-flake8>=3.8.3
-tox==3.25.0
-pytest-runner>=6.0.0
-pytest==7.1.1
+flake8==4.0.1
+tox==3.25.1
+pytest-runner==6.0.0
+pytest==7.1.2
 
 # Deployement
-pip==22.0.4
+pip==22.1.2
 bumpversion==0.6
 wheel==0.37.1
