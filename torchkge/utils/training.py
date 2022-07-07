@@ -39,7 +39,7 @@ class TrainDataLoader:
 
         self.use_cuda = use_cuda
         self.b_size = batch_size
-        self.iterator = TrainDataLoaderIter(self)
+        self.iterator = None
 
         if sampling_type == 'unif':
             self.sampler = UniformNegativeSampler(kg)
@@ -57,6 +57,7 @@ class TrainDataLoader:
         return get_n_batches(len(self.h), self.b_size)
 
     def __iter__(self):
+        self.iterator = TrainDataLoaderIter(self)
         return self.iterator
 
     def get_counter_examples(self) -> SmallKG:
