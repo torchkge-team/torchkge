@@ -211,7 +211,7 @@ class TransHModel(TranslationModel):
                                              p=2, dim=1)
         self.norm_vect.weight.data = normalize(self.norm_vect.weight.data,
                                                p=2, dim=1)
-        self.rel_emb.weight.data = self.project(self.ent_emb.weight.data,
+        self.rel_emb.weight.data = self.project(self.rel_emb.weight.data,
                                                 self.norm_vect.weight.data)
 
     def get_embeddings(self):
