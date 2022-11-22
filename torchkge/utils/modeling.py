@@ -11,7 +11,7 @@ from torch.nn.init import xavier_uniform_
 import pickle
 import tarfile
 
-from .data import get_data_home
+from torchkge.utils import get_data_home, safe_extract
 
 from os import makedirs, remove
 from os.path import exists
@@ -41,7 +41,7 @@ def load_embeddings(model, dim, dataset, data_home=None):
         urlretrieve("https://graphs.telecom-paris.fr/data/torchkge/models/{}_{}_{}.tar.gz".format(model, dataset, dim),
                     targz_file)
         with tarfile.open(targz_file, 'r') as tf:
-            tf.extractall(data_path)
+            safe_extract(tf, data_path)
         remove(targz_file)
 
     with open(pkl_file, 'rb') as f:

@@ -7,7 +7,24 @@ Copyright TorchKGE developers
 import shutil
 
 from os import environ, makedirs
-from os.path import exists, expanduser, join
+from os.path import exists, expanduser, join, abspath, commonprefix
+
+def is_within_directory(directory, target):
+    abs_directory = abspath(directory)
+    abs_target = abspath(target)
+
+    prefix = commonprefix([abs_directory, abs_target])
+
+    return prefix == abs_directory
+
+
+def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+    for member in tar.getmembers():
+        member_path = join(path, member.name)
+        if not is_within_directory(path, member_path):
+            raise Exception("Attempted Path Traversal in Tar File")
+
+    tar.extractall(path, members, numeric_owner=numeric_owner)
 
 
 def get_data_home(data_home=None):
