@@ -409,7 +409,7 @@ class HolEModel(BilinearModel):
             candidates = r_mat.view(1, self.n_rel, self.emb_dim, self.emb_dim)
             candidates = candidates.expand(b_size, self.n_rel, self.emb_dim, self.emb_dim)
 
-        return h_emb, t_emb, candidates, r_mat
+        return h_emb, t_emb, r_mat, candidates
 
 
 class ComplExModel(BilinearModel):
