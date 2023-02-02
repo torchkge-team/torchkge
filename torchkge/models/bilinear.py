@@ -179,7 +179,6 @@ class DistMultModel(BilinearModel):
 
     def __init__(self, emb_dim, n_entities, n_relations):
         super().__init__(emb_dim, n_entities, n_relations)
-        self.emb_dim = emb_dim
 
         self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
         self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
