@@ -179,7 +179,6 @@ class DistMultModel(BilinearModel):
 
     def __init__(self, emb_dim, n_entities, n_relations):
         super().__init__(emb_dim, n_entities, n_relations)
-        self.emb_dim = emb_dim
 
         self.ent_emb = init_embedding(self.n_ent, self.emb_dim)
         self.rel_emb = init_embedding(self.n_rel, self.emb_dim)
@@ -409,7 +408,7 @@ class HolEModel(BilinearModel):
             candidates = r_mat.view(1, self.n_rel, self.emb_dim, self.emb_dim)
             candidates = candidates.expand(b_size, self.n_rel, self.emb_dim, self.emb_dim)
 
-        return h_emb, t_emb, candidates, r_mat
+        return h_emb, t_emb, r_mat, candidates
 
 
 class ComplExModel(BilinearModel):
