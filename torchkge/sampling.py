@@ -314,7 +314,6 @@ class BernoulliNegativeSampler(NegativeSampler):
         neg_tails = tails.repeat(n_neg)
 
         # Randomly choose which samples will have head/tail corrupted
-        
         self.bern_probs = self.bern_probs.to(device)
         mask = bernoulli(self.bern_probs[relations].repeat(n_neg)).double()
         n_h_cor = int(mask.sum().item())
