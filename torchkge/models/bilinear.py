@@ -333,7 +333,7 @@ class HolEModel(BilinearModel):
         Returns
         -------
         mat: torch.Tensor, shape: (b_size, dim, dim)
-            Rolling matrix such that mat[i,j] = x[i - j mod(dim)]
+            Rolling matrix such that mat[i,j] = x[j - i mod(dim)]
         """
         b_size, dim = x.shape
         x = x.view(b_size, 1, dim)
