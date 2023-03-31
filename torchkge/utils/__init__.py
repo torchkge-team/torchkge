@@ -1,4 +1,4 @@
-from .data import DataLoader, get_data_home, clear_data_home
+from .data import DataLoader, get_data_home, clear_data_home, safe_extract
 
 from .data_redundancy import count_triplets, duplicates
 from .data_redundancy import cartesian_product_relations

@@ -18,7 +18,7 @@ from urllib.request import urlretrieve
 
 from torchkge.data_structures import KnowledgeGraph
 
-from torchkge.utils import get_data_home
+from torchkge.utils import get_data_home, safe_extract
 from torchkge.utils.operations import extend_dicts
 
 
@@ -307,7 +307,7 @@ def load_wikidatasets(which, limit_=0, data_home=None):
                     data_home + '/{}.tar.gz'.format(which))
 
         with tarfile.open(data_home + '/{}.tar.gz'.format(which), 'r') as tf:
-            tf.extractall(data_home)
+            safe_extract(tf, data_home)
         remove(data_home + '/{}.tar.gz'.format(which))
 
     df = read_csv(data_path + '/edges.tsv', sep='\t',
