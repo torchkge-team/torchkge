@@ -1,6 +1,13 @@
 =======
 History
 =======
+
+0.17.6 (2023-03-31)
+-------------------
+* Fix embedding dimension mixup in translation models
+* Fix implementation error in some bilinear models
+* Fix various docstring typos
+
 0.17.5 (2022-09-18)
 -------------------
 * Fix bug in TransH implementation
