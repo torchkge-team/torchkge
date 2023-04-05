@@ -1,9 +1,9 @@
 =======
 History
 =======
-0.17.5 (2022-09-18)
+0.17.7 (2023-04-05)
 -------------------
-* Fix bug in TransH implementation
+* Adding additional pretrained models
 
 0.17.6 (2023-03-31)
 -------------------
