@@ -105,7 +105,7 @@ def load_pretrained_rescal(dataset, emb_dim=None, data_home=None):
     model: `TorchKGE.model.translation.RESCALModel`
         Pretrained version of RESCAL model.
     """
-    dims = {'wn18rr': 200, 'fb15k237': 200, 'yago310': 200}
+    dims = {'wn18rr': 200, 'fb15k237': 200, 'yago310': 150}
     try:
         if emb_dim is None:
             emb_dim = dims[dataset]
