@@ -42,6 +42,22 @@ TransE model
 
 .. autofunction:: torchkge.utils.pretrained_models.load_pretrained_transe
 
+RESCAL Model
+=============
+.. tabularcolumns:: p{3cm}p{3cm}p{3cm}p{3cm}
+
++-----------+-----------+-----------+----------+--------------------+
+| Model     | Dataset   | Dimension | Test MRR | Filtered Test MRR  |
++===========+===========+===========+==========+====================+
+| RESCAL    | FB15k237  | 200       | 0.180    | 0.307              |
++-----------+-----------+-----------+----------+--------------------+
+| RESCAL    | WN18RR    | 150       | 0.273    | 0.424              |
++-----------+-----------+-----------+----------+--------------------+
+| RESCAL    | Yago3-10  | 200       | 0.127    | 0.334              |
++-----------+-----------+-----------+----------+--------------------+
+
+.. autofunction:: torchkge.utils.pretrained_models.load_pretrained_rescal
+
 ComplEx Model
 =============
 .. tabularcolumns:: p{3cm}p{3cm}p{3cm}p{3cm}
@@ -54,6 +70,8 @@ ComplEx Model
 | ComplEx   | WN18RR    | 200       | 0.290    | 0.455              |
 +-----------+-----------+-----------+----------+--------------------+
 | ComplEx   | WDV5      | 200       | 0.283    | 0.371              |
++-----------+-----------+-----------+----------+--------------------+
+| ComplEx   | Yago3-10  | 200       | 0.164    | 0.421              |
 +-----------+-----------+-----------+----------+--------------------+
 
 .. autofunction:: torchkge.utils.pretrained_models.load_pretrained_complex

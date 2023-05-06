@@ -408,7 +408,7 @@ def load_wikidata_vitals(level=5, data_home=None):
             pickle.dump((kg, kg_attr), f)
 
     else:
-        print('Loading torchkge.KnowledgeGraph objects form disk.')
+        print('Loading torchkge.KnowledgeGraph objects from disk.')
         with open(data_path + '/kgs.pkl', 'rb') as f:
             kg, kg_attr = pickle.load(f)
 

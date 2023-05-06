@@ -263,8 +263,12 @@ class TranslationModel(Model):
             # Two cases possible:
             # * proj_ent.shape == (b_size, self.n_rel, self.emb_dim) -> projection depending on relations
             # * proj_ent.shape == (b_size, self.emb_dim) -> no projection
-            proj_h = proj_h.view(b_size, -1, self.emb_dim)
-            proj_t = proj_t.view(b_size, -1, self.emb_dim)
+            try:
+                proj_h = proj_h.view(b_size, -1, self.emb_dim)
+                proj_t = proj_t.view(b_size, -1, self.emb_dim)
+            except AttributeError:
+                proj_h = proj_h.view(b_size, -1, self.rel_emb_dim)
+                proj_t = proj_t.view(b_size, -1, self.rel_emb_dim)
             return - self.dissimilarity(proj_h + r, proj_t)
 
 
