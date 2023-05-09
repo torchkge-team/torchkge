@@ -138,6 +138,7 @@ class Trainer:
     ----------
 
     """
+
     def __init__(self, model, criterion, kg_train, n_epochs, batch_size,
                  optimizer, sampling_type='bern', use_cuda=None):
 
@@ -176,7 +177,7 @@ class Trainer:
                                       batch_size=self.batch_size,
                                       sampling_type=self.sampling_type,
                                       use_cuda=self.use_cuda)
-        self.counter_examples = data_loader.get_counter_examples()
+
         for epoch in iterator:
             sum_ = 0
             for i, batch in enumerate(data_loader):
@@ -186,6 +187,7 @@ class Trainer:
             iterator.set_description(
                 'Epoch {} | mean loss: {:.5f}'.format(epoch + 1, sum_ / len(data_loader)))
             self.model.normalize_parameters()
+        self.counter_examples = data_loader.get_counter_examples()
 
     def get_counter_examples(self) -> Optional[SmallKG]:
         """
